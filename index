@@ -52,17 +52,21 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ตรวจสอบค่าคอนฟิกจากระบบ หากไม่มีจะใช้ค่าว่าง (สำหรับการนำไปวางใน GitHub ผู้ใช้ต้องใส่เองที่นี่)
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : {
-                apiKey: "", // ใส่ API Key ของคุณที่นี่เมื่อนำไปใช้ใน GitHub
+        // คอนฟิกจะถูกดึงจากสภาพแวดล้อมโดยอัตโนมัติ เพื่อป้องกันปัญหา API Key ไม่ถูกต้อง
+        let firebaseConfig;
+        try {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } catch (e) {
+            // กรณีนำไปใช้ใน GitHub ผู้ใช้ต้องนำค่าจาก Firebase Console มาใส่ที่นี่เอง
+            firebaseConfig = {
+                apiKey: "",
                 authDomain: "",
                 projectId: "",
                 storageBucket: "",
                 messagingSenderId: "",
                 appId: ""
             };
+        }
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -118,13 +122,13 @@
             const agenciesList = ["Manpower", "Me Talent", "PRTR", "Talentvis", "Techgrid"];
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'candidate-checker-v2';
 
-            // 1. Authentication FIRST (Rule 3)
+            // 1. ระบบจัดการการเข้าถึง (Authentication) - ทำงานเป็นลำดับแรกเสมอตามกฎ
             useEffect(() => {
                 const initAuth = async () => {
                     if (!window.FB) return;
                     const { auth, methods } = window.FB;
                     try {
-                        // Priority 1: Custom Token, Priority 2: Anonymous
+                        // ตรวจสอบ Custom Token ก่อน ถ้าไม่มีจึงใช้ Anonymous
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await methods.signInWithCustomToken(auth, __initial_auth_token);
                         } else {
@@ -132,20 +136,25 @@
                         }
                     } catch (err) {
                         console.error("Auth initialization failed:", err);
-                        setPopup({ title: "Auth Error", msg: "ไม่สามารถเชื่อมต่อระบบรักษาความปลอดภัยได้ กรุณาเช็ค API Key" });
+                        setPopup({ title: "ระบบขัดข้อง", msg: "ไม่สามารถเชื่อมต่อ Cloud ได้ กรุณาตรวจสอบ Firebase API Key" });
                     }
                 };
 
                 initAuth();
+                
                 const unsubscribe = window.FB.methods.onAuthStateChanged(window.FB.auth, (u) => {
                     setUser(u);
-                    if (u) loadStaticData();
+                    if (u) {
+                        loadAllData();
+                    }
                 });
+                
                 return () => unsubscribe();
             }, []);
 
-            const loadStaticData = async () => {
+            const loadAllData = async () => {
                 try {
+                    // ดึงข้อมูลอ้างอิงจาก Google Sheets (Publish to Web เป็น CSV)
                     const dbUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsDZSCTRBCQ3LojqsCmVPea7qo7uB9VyXne9aZSlqxo8yntizND6o7bpRQfS2rFFHthMB-N0YIqTL6/pub?output=csv';
                     const locUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsDZSCTRBCQ3LojqsCmVPea7qo7uB9VyXne9aZSlqxo8yntizND6o7bpRQfS2rFFHthMB-N0YIqTL6/pub?gid=1224535826&single=true&output=csv';
 
@@ -171,13 +180,12 @@
                 }
             };
 
-            // 2. Data Fetching (Guarded by User - Rule 3)
+            // 2. ซิงค์ข้อมูลจาก Cloud Firestore (Real-time) - ต้องตรวจสอบ user ก่อนเสมอ
             useEffect(() => {
                 if (!user || !currentUserAgency) return;
                 const { db, methods } = window.FB;
                 setIsSyncing(true);
 
-                // Fetch Public Data (Rule 1)
                 const q = methods.query(methods.collection(db, 'artifacts', appId, 'public', 'data', 'candidates'));
                 
                 const unsubscribe = methods.onSnapshot(q, (snapshot) => {
@@ -210,7 +218,7 @@
                 if (accessMap[email]) {
                     setCurrentUserAgency(accessMap[email]);
                 } else {
-                    setPopup({ title: "Access Denied", msg: "คุณไม่มีสิทธิ์เข้าใช้งานระบบด้วยอีเมลนี้" });
+                    setPopup({ title: "ปฏิเสธการเข้าถึง", msg: "อีเมลนี้ไม่ได้รับอนุญาตให้เข้าใช้งานระบบ" });
                 }
             };
 
@@ -227,7 +235,7 @@
                 const isDup = combined.some(c => normalize(c.name) === normalize(formData.name) || normalize(c.tel) === normalize(formData.tel));
 
                 if (isDup) {
-                    return setPopup({ title: "พบข้อมูลซ้ำ!", msg: "รายชื่อนี้มีอยู่ในระบบแล้ว ไม่สามารถบันทึกซ้ำได้" });
+                    return setPopup({ title: "พบข้อมูลซ้ำ!", msg: "รายชื่อนี้มีอยู่ในระบบแล้ว (Sheets หรือ Cloud) ไม่สามารถบันทึกได้" });
                 }
 
                 try {
@@ -242,7 +250,7 @@
                     });
                     setFormData({ ...formData, name: '', tel: '', email: '' });
                 } catch (err) {
-                    setPopup({ title: "Error", msg: "เกิดข้อผิดพลาดในการส่งข้อมูลไปที่คลาวด์" });
+                    setPopup({ title: "เกิดข้อผิดพลาด", msg: "ไม่สามารถส่งข้อมูลไปที่คลาวด์ได้" });
                 }
             };
 
@@ -293,14 +301,14 @@
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
                 link.setAttribute("href", url);
-                link.setAttribute("download", `report_${new Date().toISOString().split('T')[0]}.csv`);
+                link.setAttribute("download", `candidates_${new Date().toISOString().split('T')[0]}.csv`);
                 link.click();
             };
 
             if (isLoading) return (
                 <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
                     <div className="loader scale-150 mb-6"></div>
-                    <p className="font-bold tracking-widest animate-pulse">SYSTEM INITIALIZING...</p>
+                    <p className="font-bold tracking-widest animate-pulse uppercase">Connecting to Cloud Storage...</p>
                 </div>
             );
 
@@ -311,8 +319,8 @@
                         <div className="bg-indigo-600 w-24 h-24 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-8 shadow-xl">
                             <i data-lucide="shield-check" className="w-12 h-12"></i>
                         </div>
-                        <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tighter">SECURE ACCESS</h1>
-                        <p className="text-slate-500 mb-10 font-medium italic">Authorized Agency Portal</p>
+                        <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tighter uppercase">HR Portal</h1>
+                        <p className="text-slate-500 mb-10 font-medium italic">Authorized Access Only</p>
                         <form onSubmit={handleLogin} className="space-y-6">
                             <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
                                 className="w-full bg-white border-2 border-slate-100 rounded-2xl p-5 text-slate-800 outline-none focus:border-indigo-500 transition-all font-bold text-center"
@@ -331,8 +339,8 @@
 
             return (
                 <div className="min-h-screen p-4 md:p-10 max-w-[1750px] mx-auto">
-                    {/* Header */}
-                    <div className="bg-white rounded-[3rem] p-8 shadow-xl flex flex-col md:flex-row items-center justify-between mb-10 gap-6">
+                    {/* UI Header */}
+                    <div className="bg-white rounded-[3rem] p-8 shadow-xl flex flex-col md:flex-row items-center justify-between mb-10 gap-6 border border-white">
                         <div className="flex items-center gap-8">
                             <div className="bg-slate-900 p-5 rounded-[2rem] text-white shadow-2xl">
                                 <i data-lucide={currentUserAgency === 'Admin' ? 'layout-dashboard' : 'user-check'} className="w-8 h-8"></i>
@@ -340,76 +348,76 @@
                             <div>
                                 <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">{currentUserAgency} SESSION</h1>
                                 <div className="flex items-center gap-3 mt-1">
-                                    <span className="bg-emerald-50 text-emerald-600 text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-emerald-100 flex items-center gap-2">
+                                    <span className="bg-emerald-50 text-emerald-600 text-[11px] font-black px-4 py-1.5 rounded-full uppercase tracking-tighter border border-emerald-100 flex items-center gap-2">
                                         <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> CLOUD ACTIVE
                                     </span>
                                     {isSyncing && <i data-lucide="refresh-cw" className="w-3.5 h-3.5 animate-spin text-slate-300"></i>}
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-5 rounded-[2rem] hover:bg-rose-600 hover:text-white transition-all shadow-lg active:scale-90">
-                                <i data-lucide="power" className="w-7 h-7"></i>
-                            </button>
-                        </div>
+                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-5 rounded-[2rem] hover:bg-rose-600 hover:text-white transition-all shadow-lg active:scale-90">
+                            <i data-lucide="power" className="w-7 h-7"></i>
+                        </button>
                     </div>
 
                     <div className={`grid grid-cols-1 ${currentUserAgency !== 'Admin' ? 'xl:grid-cols-4' : ''} gap-10`}>
-                        {/* Entry Form */}
+                        {/* Sidebar: Entry Form for Agencies */}
                         {currentUserAgency !== 'Admin' && (
                             <div className="xl:col-span-1">
                                 <div className="bg-white rounded-[3.5rem] p-10 shadow-2xl border border-white sticky top-10">
                                     <h2 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-4">
-                                        <i data-lucide="user-plus" className="text-indigo-600"></i> ADD NEW
+                                        <i data-lucide="user-plus" className="text-indigo-600"></i> ADD CANDIDATE
                                     </h2>
                                     <form onSubmit={handleAdd} className="space-y-6">
-                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">DATE</label>
-                                            <input type="date" value={formData.recordDate} onChange={e => setFormData({...formData, recordDate: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" /></div>
-                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">NAME-SURNAME (THAI)</label>
-                                            <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="สมชาย ใจดี" className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" /></div>
-                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">PHONE</label>
-                                            <input type="text" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} placeholder="08XXXXXXXX" className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" /></div>
-                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">EMAIL</label>
-                                            <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="test@mail.com" className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" /></div>
-                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">POSITION</label>
-                                            <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none">
-                                                <option value="">Select Position</option>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2 uppercase">Record Date</label>
+                                            <input type="date" value={formData.recordDate} onChange={e => setFormData({...formData, recordDate: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl p-5 font-bold outline-none focus:border-indigo-500 focus:bg-white" /></div>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2 uppercase">Full Name</label>
+                                            <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="สมชาย ใจดี" className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl p-5 font-bold outline-none focus:border-indigo-500 focus:bg-white" /></div>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2 uppercase">Mobile Phone</label>
+                                            <input type="text" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} placeholder="08XXXXXXXX" className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl p-5 font-bold outline-none focus:border-indigo-500" /></div>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2 uppercase">Email Address</label>
+                                            <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="test@mail.com" className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl p-5 font-bold outline-none focus:border-indigo-500" /></div>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2 uppercase">Applied Position</label>
+                                            <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl p-5 font-bold outline-none">
+                                                <option value="">- เลือกตำแหน่ง -</option>
                                                 {positions.map(p => <option key={p} value={p}>{p}</option>)}
                                             </select></div>
-                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">LOCATION</label>
-                                            <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none">
-                                                <option value="">Select Location</option>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2 uppercase">Branch Location</label>
+                                            <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl p-5 font-bold outline-none">
+                                                <option value="">- เลือกสาขา -</option>
                                                 {locations.map(l => <option key={l} value={l}>{l}</option>)}
                                             </select></div>
                                         <button type="submit" className="w-full bg-slate-950 hover:bg-black text-white font-black py-6 rounded-3xl shadow-2xl flex items-center justify-center gap-3 uppercase tracking-widest text-sm transition-all active:scale-95">
-                                            <i data-lucide="save" className="w-5 h-5"></i> Submit Data
+                                            <i data-lucide="save" className="w-5 h-5"></i> Submit Entry
                                         </button>
                                     </form>
                                 </div>
                             </div>
                         )}
 
-                        {/* Table Display */}
+                        {/* List Area */}
                         <div className={`${currentUserAgency !== 'Admin' ? 'xl:col-span-3' : 'w-full'} space-y-8`}>
-                            <div className="bg-white rounded-[3.5rem] p-8 shadow-xl flex flex-wrap items-center gap-6">
+                            {/* Toolbar */}
+                            <div className="bg-white rounded-[3.5rem] p-8 shadow-xl border border-white flex flex-wrap items-center gap-6">
                                 <div className="flex-1 min-w-[280px] relative">
                                     <i data-lucide="search" className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 w-5 h-5"></i>
-                                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="ค้นหาชื่อ หรือ เบอร์โทร..."
-                                        className="w-full bg-slate-50 rounded-3xl py-4 pl-16 pr-8 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" />
+                                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="ค้นชื่อ หรือ เบอร์โทร..."
+                                        className="w-full bg-slate-50 rounded-3xl py-4 pl-16 pr-8 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500 transition-all" />
                                 </div>
-                                <button onClick={exportToCSV} className="bg-emerald-50 text-emerald-600 font-black px-10 py-4 rounded-3xl uppercase tracking-widest text-[11px] border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-3">
-                                    <i data-lucide="download" className="w-5 h-5"></i> Export CSV
+                                <button onClick={exportToCSV} className="bg-emerald-50 text-emerald-600 font-black px-10 py-4 rounded-3xl uppercase tracking-widest text-[11px] border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all shadow-lg active:scale-95 flex items-center gap-3">
+                                    <i data-lucide="download" className="w-5 h-5"></i> Export Report
                                 </button>
                             </div>
 
+                            {/* Data Table */}
                             <div className="bg-white rounded-[4rem] shadow-2xl overflow-hidden border border-white">
                                 <div className="table-container">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="bg-slate-950 text-white font-black uppercase text-[10px] tracking-[0.2em] sticky top-0 z-10">
+                                        <thead className="bg-slate-950 text-white font-black uppercase text-[10px] tracking-[0.25em] sticky top-0 z-10">
                                             <tr>
-                                                <th className="px-10 py-7">Candidate Info</th>
-                                                <th className="px-10 py-7">Position & Branch</th>
-                                                {currentUserAgency === 'Admin' && <th className="px-10 py-7 text-indigo-400">Agency</th>}
+                                                <th className="px-10 py-7">Candidate Information</th>
+                                                <th className="px-10 py-7">Work Detail</th>
+                                                {currentUserAgency === 'Admin' && <th className="px-10 py-7 text-indigo-400">AGENCY</th>}
                                                 <th className="px-10 py-7 text-center">Prescreen</th>
                                                 <th className="px-10 py-7 text-center">Interview</th>
                                                 <th className="px-10 py-7 text-center">Manage</th>
@@ -419,40 +427,40 @@
                                             {filteredItems.map((item) => (
                                                 <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
                                                     <td className="px-10 py-10">
-                                                        <div className="font-black text-slate-900 text-lg mb-1">{item.name}</div>
-                                                        <div className="text-slate-400 text-xs font-bold">{item.tel} | {item.email}</div>
+                                                        <div className="font-black text-slate-900 text-xl tracking-tighter mb-1">{item.name}</div>
+                                                        <div className="text-slate-400 text-xs font-bold tracking-tight">{item.tel} | {item.email}</div>
                                                     </td>
                                                     <td className="px-10 py-10">
-                                                        <div className="font-black text-indigo-600 text-xs uppercase mb-1">{item.position}</div>
-                                                        <div className="text-slate-400 font-bold text-[10px]">{item.location || 'N/A'}</div>
+                                                        <div className="font-black text-indigo-600 text-[11px] uppercase tracking-wider mb-1">{item.position}</div>
+                                                        <div className="text-slate-400 font-black text-[10px] bg-slate-100 px-3 py-1 rounded-lg w-fit uppercase">{item.location || 'N/A'}</div>
                                                     </td>
                                                     {currentUserAgency === 'Admin' && (
                                                         <td className="px-10 py-10">
-                                                            <span className="bg-slate-900 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest">{item.agency}</span>
+                                                            <span className="bg-slate-900 text-white px-4 py-2 rounded-2xl font-black text-[10px] uppercase tracking-widest">{item.agency}</span>
                                                         </td>
                                                     )}
                                                     <td className="px-10 py-10 text-center">
                                                         {currentUserAgency === 'Admin' ? (
                                                             <select value={item.prescreenStatus || 'Pending'} onChange={e => handleUpdate(item.id, 'prescreenStatus', e.target.value)}
-                                                                className="bg-white border-2 border-slate-100 rounded-xl p-3 font-black text-[10px] outline-none focus:border-indigo-500 uppercase tracking-widest shadow-sm">
+                                                                className="bg-white border-2 border-slate-100 rounded-2xl p-3 font-black text-[10px] outline-none focus:border-indigo-500 uppercase tracking-widest shadow-sm">
                                                                 <option value="Pending">Pending</option>
-                                                                <option value="ผ่าน">PASS</option>
-                                                                <option value="ไม่ผ่าน">FAIL</option>
+                                                                <option value="ผ่าน">Pass</option>
+                                                                <option value="ไม่ผ่าน">Fail</option>
                                                             </select>
                                                         ) : (
                                                             <span className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest ${item.prescreenStatus === 'ผ่าน' ? 'bg-emerald-100 text-emerald-700' : item.prescreenStatus === 'ไม่ผ่าน' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-400'}`}>
-                                                                {item.prescreenStatus || 'Pending'}
+                                                                {item.prescreenStatus || 'Waiting'}
                                                             </span>
                                                         )}
                                                     </td>
                                                     <td className="px-10 py-10">
-                                                        <div className="flex flex-col gap-2 items-center">
+                                                        <div className="flex flex-col gap-3 items-center">
                                                             {currentUserAgency === 'Admin' ? (
                                                                 <>
                                                                     <input type="date" value={item.interviewDate || ''} onChange={e => handleUpdate(item.id, 'interviewDate', e.target.value)}
-                                                                        className="border-2 border-slate-100 rounded-xl p-2 font-bold text-[10px] outline-none w-full" />
+                                                                        className="border-2 border-slate-100 rounded-2xl p-2.5 font-bold text-[10px] outline-none shadow-sm" />
                                                                     <select value={item.interviewStatus || ''} onChange={e => handleUpdate(item.id, 'interviewStatus', e.target.value)}
-                                                                        className="border-2 border-slate-100 rounded-xl p-2 font-bold text-[10px] outline-none w-full">
+                                                                        className="border-2 border-slate-100 rounded-2xl p-2.5 font-bold text-[10px] outline-none w-full uppercase shadow-sm">
                                                                         <option value="">- Result -</option>
                                                                         <option value="ผ่าน">Pass</option>
                                                                         <option value="ไม่ผ่าน">Fail</option>
@@ -461,14 +469,14 @@
                                                                 </>
                                                             ) : (
                                                                 <div className="font-black text-center text-xs">
-                                                                    <div className="text-slate-800">{item.interviewDate || '-'}</div>
-                                                                    <div className="text-indigo-600 uppercase mt-1">{item.interviewStatus || 'N/A'}</div>
+                                                                    <div className="text-slate-800 font-bold mb-1">{item.interviewDate || '-'}</div>
+                                                                    <div className="bg-indigo-50 text-indigo-600 text-[10px] px-3 py-1 rounded-full uppercase tracking-tighter">{item.interviewStatus || 'N/A'}</div>
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </td>
                                                     <td className="px-10 py-10 text-center">
-                                                        <button onClick={() => handleDelete(item.id)} className="p-4 rounded-[1.5rem] bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all transform active:scale-90">
+                                                        <button onClick={() => handleDelete(item.id)} className="p-5 rounded-[1.5rem] bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all transform active:scale-90 opacity-0 group-hover:opacity-100 shadow-sm">
                                                             <i data-lucide="trash-2" className="w-6 h-6"></i>
                                                         </button>
                                                     </td>
@@ -485,9 +493,10 @@
                     {popup && (
                         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center z-[100] p-6">
                             <div className="bg-white rounded-[3.5rem] p-12 max-w-sm w-full shadow-2xl text-center border-t-8 border-indigo-500">
+                                <div className="bg-indigo-50 w-24 h-24 rounded-full flex items-center justify-center text-indigo-600 mx-auto mb-8"><i data-lucide="info" className="w-10 h-10"></i></div>
                                 <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tighter uppercase">{popup.title}</h3>
-                                <p className="text-slate-500 font-bold mb-10 leading-relaxed">{popup.msg}</p>
-                                <button onClick={() => setPopup(null)} className="w-full bg-slate-950 hover:bg-black text-white font-black py-6 rounded-3xl uppercase tracking-widest text-xs">CLOSE</button>
+                                <p className="text-slate-500 font-bold mb-10 leading-relaxed tracking-tight">{popup.msg}</p>
+                                <button onClick={() => setPopup(null)} className="w-full bg-slate-950 hover:bg-black text-white font-black py-6 rounded-3xl shadow-xl uppercase tracking-widest text-xs transition-all active:scale-95">CLOSE</button>
                             </div>
                         </div>
                     )}
@@ -495,11 +504,12 @@
                     {confirm && (
                         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center z-[110] p-6">
                             <div className="bg-white rounded-[3.5rem] p-12 max-w-sm w-full shadow-2xl text-center border-t-8 border-rose-500">
-                                <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tighter uppercase">CONFIRM</h3>
+                                <div className="bg-rose-50 w-20 h-20 rounded-full flex items-center justify-center text-rose-600 mx-auto mb-8"><i data-lucide="alert-circle" className="w-10 h-10"></i></div>
+                                <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tighter uppercase">ARE YOU SURE?</h3>
                                 <p className="text-slate-500 font-bold mb-10 leading-relaxed">{confirm.msg}</p>
                                 <div className="flex gap-5">
                                     <button onClick={() => setConfirm(null)} className="flex-1 bg-slate-100 text-slate-500 font-black py-6 rounded-3xl uppercase tracking-widest text-[10px]">CANCEL</button>
-                                    <button onClick={confirm.onOk} className="flex-1 bg-rose-600 text-white font-black py-6 rounded-3xl uppercase tracking-widest text-[10px]">DELETE NOW</button>
+                                    <button onClick={confirm.onOk} className="flex-1 bg-rose-600 text-white font-black py-6 rounded-3xl uppercase tracking-widest text-[10px] shadow-xl shadow-rose-600/20">DELETE NOW</button>
                                 </div>
                             </div>
                         </div>
