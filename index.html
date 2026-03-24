@@ -66,8 +66,8 @@
         const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
         const App = () => {
-            // อัปเดต URL ใหม่ที่คุณให้มา
-            const scriptURL = "https://script.google.com/macros/s/AKfycbzFlbiGWm6h4UFrXTD05Q9163od4xhiUQdG_IF_lbDrr_aJfGsLE-BC1a5YwsY2F7Vp/exec";
+            // อัปเดต URL ใหม่เรียบร้อยแล้ว
+            const scriptURL = "https://script.google.com/macros/s/AKfycbzjWGRV6zwEeAUYQlUZ-Op1U37TW6NyOWHI908E14h07wBFQAO2-qvnbq_QtW2SdmOY/exec";
 
             const [user, setUser] = useState(null);
             const [currentUserAgency, setCurrentUserAgency] = useState('');
@@ -213,7 +213,7 @@
                             await handleUpdate(targetId, 'resumeLink', result.url);
                             setPopup({ title: "สำเร็จ", msg: "อัปโหลด Resume เข้า Google Drive เรียบร้อย" });
                         } else {
-                            throw new Error(result.message);
+                            throw new Error(result.message || "เกิดข้อผิดพลาดจากระบบหลังบ้าน");
                         }
                     } catch (err) {
                         setPopup({ title: "Error", msg: "อัปโหลดไม่สำเร็จ: " + err.message });
