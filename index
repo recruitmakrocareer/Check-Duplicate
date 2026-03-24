@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate Checker | Enterprise Cloud Edition</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Libraries -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; }
+        .table-container { min-height: 450px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Firebase SDKs Initialization -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ตรวจสอบค่าคอนฟิกจากระบบ หากไม่มีจะใช้ค่าว่าง (สำหรับการนำไปวางใน GitHub ผู้ใช้ต้องใส่เองที่นี่)
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                apiKey: "", // ใส่ API Key ของคุณที่นี่เมื่อนำไปใช้ใน GitHub
+                authDomain: "",
+                projectId: "",
+                storageBucket: "",
+                messagingSenderId: "",
+                appId: ""
+            };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.FB = { 
+            db, 
+            auth,
+            methods: { 
+                signInAnonymously, 
+                signInWithCustomToken,
+                onAuthStateChanged, 
+                collection, 
+                doc, 
+                addDoc, 
+                updateDoc, 
+                deleteDoc, 
+                onSnapshot, 
+                query,
+                getDoc,
+                setDoc
+            }
+        };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [currentUserAgency, setCurrentUserAgency] = useState('');
+            const [loginEmail, setLoginEmail] = useState('');
+            const [isLoading, setIsLoading] = useState(true);
+            const [isSyncing, setIsSyncing] = useState(false);
+
+            const [formData, setFormData] = useState({
+                recordDate: new Date().toISOString().split('T')[0],
+                name: '', tel: '', email: '', position: '', location: ''
+            });
+
+            const [referenceDb, setReferenceDb] = useState([]); 
+            const [cloudCandidates, setCloudCandidates] = useState([]); 
+            const [positions, setPositions] = useState([]);
+            const [locations, setLocations] = useState([]);
+            
+            const [searchTerm, setSearchTerm] = useState('');
+            const [filterAgency, setFilterAgency] = useState('');
+            const [filterStatus, setFilterStatus] = useState('');
+
+            const [popup, setPopup] = useState(null);
+            const [confirm, setConfirm] = useState(null);
+
+            const agenciesList = ["Manpower", "Me Talent", "PRTR", "Talentvis", "Techgrid"];
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'candidate-checker-v2';
+
+            // 1. Authentication FIRST (Rule 3)
+            useEffect(() => {
+                const initAuth = async () => {
+                    if (!window.FB) return;
+                    const { auth, methods } = window.FB;
+                    try {
+                        // Priority 1: Custom Token, Priority 2: Anonymous
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await methods.signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await methods.signInAnonymously(auth);
+                        }
+                    } catch (err) {
+                        console.error("Auth initialization failed:", err);
+                        setPopup({ title: "Auth Error", msg: "ไม่สามารถเชื่อมต่อระบบรักษาความปลอดภัยได้ กรุณาเช็ค API Key" });
+                    }
+                };
+
+                initAuth();
+                const unsubscribe = window.FB.methods.onAuthStateChanged(window.FB.auth, (u) => {
+                    setUser(u);
+                    if (u) loadStaticData();
+                });
+                return () => unsubscribe();
+            }, []);
+
+            const loadStaticData = async () => {
+                try {
+                    const dbUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsDZSCTRBCQ3LojqsCmVPea7qo7uB9VyXne9aZSlqxo8yntizND6o7bpRQfS2rFFHthMB-N0YIqTL6/pub?output=csv';
+                    const locUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTsDZSCTRBCQ3LojqsCmVPea7qo7uB9VyXne9aZSlqxo8yntizND6o7bpRQfS2rFFHthMB-N0YIqTL6/pub?gid=1224535826&single=true&output=csv';
+
+                    const [candRes, locRes] = await Promise.all([
+                        fetch(dbUrl).then(r => r.text()),
+                        fetch(locUrl).then(r => r.text())
+                    ]);
+
+                    const cData = Papa.parse(candRes, { header: true }).data;
+                    const lData = Papa.parse(locRes, { header: true }).data;
+
+                    setReferenceDb(cData.filter(r => r['Name-Surname']).map(r => ({
+                        name: r['Name-Surname'].trim(),
+                        tel: r['Tel'] ? r['Tel'].toString().trim() : ''
+                    })));
+
+                    setPositions(["Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", "Section Manager - Frozen", "Section Manager - Dry Food", "Section Manager - HR", "Supervisor - Office Support"]);
+                    setLocations(lData.map(r => r['Store_Name'] ? `${parseInt(r['Store_No'])}-${r['Store_Name']}` : '').filter(Boolean));
+                    setIsLoading(false);
+                } catch (e) {
+                    console.error("Data loading error:", e);
+                    setIsLoading(false);
+                }
+            };
+
+            // 2. Data Fetching (Guarded by User - Rule 3)
+            useEffect(() => {
+                if (!user || !currentUserAgency) return;
+                const { db, methods } = window.FB;
+                setIsSyncing(true);
+
+                // Fetch Public Data (Rule 1)
+                const q = methods.query(methods.collection(db, 'artifacts', appId, 'public', 'data', 'candidates'));
+                
+                const unsubscribe = methods.onSnapshot(q, (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setCloudCandidates(data);
+                    setIsSyncing(false);
+                }, (err) => {
+                    console.error("Firestore sync error:", err);
+                    setIsSyncing(false);
+                });
+
+                return () => unsubscribe();
+            }, [user, currentUserAgency]);
+
+            useEffect(() => { if(window.lucide) lucide.createIcons(); });
+
+            // Handlers
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const email = loginEmail.trim().toLowerCase();
+                const accessMap = {
+                    "admin@company.com": "Admin",
+                    "manpower@agency.com": "Manpower",
+                    "metalent@agency.com": "Me Talent",
+                    "prtr@agency.com": "PRTR",
+                    "talentvis@agency.com": "Talentvis",
+                    "techgrid@agency.com": "Techgrid"
+                };
+
+                if (accessMap[email]) {
+                    setCurrentUserAgency(accessMap[email]);
+                } else {
+                    setPopup({ title: "Access Denied", msg: "คุณไม่มีสิทธิ์เข้าใช้งานระบบด้วยอีเมลนี้" });
+                }
+            };
+
+            const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '') : '';
+
+            const handleAdd = async (e) => {
+                e.preventDefault();
+                if (!user) return;
+                if (!formData.name || !formData.tel || !formData.email || !formData.position || !formData.location) {
+                    return setPopup({ title: "ข้อมูลไม่ครบ", msg: "กรุณากรอกข้อมูลสำคัญให้ครบถ้วนก่อนบันทึก" });
+                }
+
+                const combined = [...referenceDb, ...cloudCandidates];
+                const isDup = combined.some(c => normalize(c.name) === normalize(formData.name) || normalize(c.tel) === normalize(formData.tel));
+
+                if (isDup) {
+                    return setPopup({ title: "พบข้อมูลซ้ำ!", msg: "รายชื่อนี้มีอยู่ในระบบแล้ว ไม่สามารถบันทึกซ้ำได้" });
+                }
+
+                try {
+                    const { db, methods } = window.FB;
+                    await methods.addDoc(methods.collection(db, 'artifacts', appId, 'public', 'data', 'candidates'), {
+                        ...formData,
+                        agency: currentUserAgency,
+                        prescreenStatus: 'Pending',
+                        interviewDate: '',
+                        interviewStatus: '',
+                        createdAt: Date.now()
+                    });
+                    setFormData({ ...formData, name: '', tel: '', email: '' });
+                } catch (err) {
+                    setPopup({ title: "Error", msg: "เกิดข้อผิดพลาดในการส่งข้อมูลไปที่คลาวด์" });
+                }
+            };
+
+            const handleUpdate = async (id, field, value) => {
+                if (!user) return;
+                const { db, methods } = window.FB;
+                await methods.updateDoc(methods.doc(db, 'artifacts', appId, 'public', 'data', 'candidates', id), { [field]: value });
+            };
+
+            const handleDelete = (id) => {
+                setConfirm({
+                    msg: "ยืนยันการลบข้อมูลรายชื่อนี้ออกจากระบบถาวร?",
+                    onOk: async () => {
+                        if (!user) return;
+                        const { db, methods } = window.FB;
+                        await methods.deleteDoc(methods.doc(db, 'artifacts', appId, 'public', 'data', 'candidates', id));
+                        setConfirm(null);
+                    }
+                });
+            };
+
+            const filteredItems = useMemo(() => {
+                return cloudCandidates.filter(item => {
+                    if (currentUserAgency !== 'Admin' && item.agency !== currentUserAgency) return false;
+                    const search = searchTerm.toLowerCase();
+                    const matchText = !searchTerm || item.name.toLowerCase().includes(search) || item.tel.toString().includes(search);
+                    const matchAgency = !filterAgency || item.agency === filterAgency;
+                    const matchStatus = !filterStatus || item.prescreenStatus === filterStatus;
+                    return matchText && matchAgency && matchStatus;
+                }).sort((a, b) => b.createdAt - a.createdAt);
+            }, [cloudCandidates, currentUserAgency, searchTerm, filterAgency, filterStatus]);
+
+            const exportToCSV = () => {
+                const csvData = filteredItems.map(item => ({
+                    "Date": item.recordDate,
+                    "Name": item.name,
+                    "Phone": item.tel,
+                    "Email": item.email,
+                    "Position": item.position,
+                    "Location": item.location,
+                    "Agency": item.agency,
+                    "Prescreen": item.prescreenStatus,
+                    "Interview Date": item.interviewDate,
+                    "Interview Result": item.interviewStatus
+                }));
+                const csv = Papa.unparse(csvData);
+                const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `report_${new Date().toISOString().split('T')[0]}.csv`);
+                link.click();
+            };
+
+            if (isLoading) return (
+                <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white">
+                    <div className="loader scale-150 mb-6"></div>
+                    <p className="font-bold tracking-widest animate-pulse">SYSTEM INITIALIZING...</p>
+                </div>
+            );
+
+            if (!currentUserAgency) return (
+                <div className="h-screen flex items-center justify-center bg-slate-950 p-6 overflow-hidden relative">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#1e1b4b,transparent)] opacity-50"></div>
+                    <div className="glass-morphism w-full max-w-md rounded-[3rem] p-12 shadow-2xl relative z-10 text-center border-white/20">
+                        <div className="bg-indigo-600 w-24 h-24 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-8 shadow-xl">
+                            <i data-lucide="shield-check" className="w-12 h-12"></i>
+                        </div>
+                        <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tighter">SECURE ACCESS</h1>
+                        <p className="text-slate-500 mb-10 font-medium italic">Authorized Agency Portal</p>
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
+                                className="w-full bg-white border-2 border-slate-100 rounded-2xl p-5 text-slate-800 outline-none focus:border-indigo-500 transition-all font-bold text-center"
+                                placeholder="name@agency.com" required />
+                            <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-sm">
+                                Enter Session
+                            </button>
+                        </form>
+                        <div className="mt-8 grid grid-cols-2 gap-2 opacity-50 text-[10px] font-bold uppercase tracking-tighter">
+                            <span>Manpower</span><span>PRTR</span>
+                            <span>Me Talent</span><span>HR Admin</span>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen p-4 md:p-10 max-w-[1750px] mx-auto">
+                    {/* Header */}
+                    <div className="bg-white rounded-[3rem] p-8 shadow-xl flex flex-col md:flex-row items-center justify-between mb-10 gap-6">
+                        <div className="flex items-center gap-8">
+                            <div className="bg-slate-900 p-5 rounded-[2rem] text-white shadow-2xl">
+                                <i data-lucide={currentUserAgency === 'Admin' ? 'layout-dashboard' : 'user-check'} className="w-8 h-8"></i>
+                            </div>
+                            <div>
+                                <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">{currentUserAgency} SESSION</h1>
+                                <div className="flex items-center gap-3 mt-1">
+                                    <span className="bg-emerald-50 text-emerald-600 text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-tighter border border-emerald-100 flex items-center gap-2">
+                                        <span className="w-2 h-2 bg-emerald-500 rounded-full"></span> CLOUD ACTIVE
+                                    </span>
+                                    {isSyncing && <i data-lucide="refresh-cw" className="w-3.5 h-3.5 animate-spin text-slate-300"></i>}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-5 rounded-[2rem] hover:bg-rose-600 hover:text-white transition-all shadow-lg active:scale-90">
+                                <i data-lucide="power" className="w-7 h-7"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className={`grid grid-cols-1 ${currentUserAgency !== 'Admin' ? 'xl:grid-cols-4' : ''} gap-10`}>
+                        {/* Entry Form */}
+                        {currentUserAgency !== 'Admin' && (
+                            <div className="xl:col-span-1">
+                                <div className="bg-white rounded-[3.5rem] p-10 shadow-2xl border border-white sticky top-10">
+                                    <h2 className="text-2xl font-black text-slate-900 mb-8 flex items-center gap-4">
+                                        <i data-lucide="user-plus" className="text-indigo-600"></i> ADD NEW
+                                    </h2>
+                                    <form onSubmit={handleAdd} className="space-y-6">
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">DATE</label>
+                                            <input type="date" value={formData.recordDate} onChange={e => setFormData({...formData, recordDate: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" /></div>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">NAME-SURNAME (THAI)</label>
+                                            <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="สมชาย ใจดี" className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" /></div>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">PHONE</label>
+                                            <input type="text" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} placeholder="08XXXXXXXX" className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" /></div>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">EMAIL</label>
+                                            <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="test@mail.com" className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" /></div>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">POSITION</label>
+                                            <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none">
+                                                <option value="">Select Position</option>
+                                                {positions.map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select></div>
+                                        <div className="space-y-1"><label className="text-[11px] font-black text-slate-400 ml-2">LOCATION</label>
+                                            <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 rounded-2xl p-5 font-bold outline-none">
+                                                <option value="">Select Location</option>
+                                                {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                                            </select></div>
+                                        <button type="submit" className="w-full bg-slate-950 hover:bg-black text-white font-black py-6 rounded-3xl shadow-2xl flex items-center justify-center gap-3 uppercase tracking-widest text-sm transition-all active:scale-95">
+                                            <i data-lucide="save" className="w-5 h-5"></i> Submit Data
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Table Display */}
+                        <div className={`${currentUserAgency !== 'Admin' ? 'xl:col-span-3' : 'w-full'} space-y-8`}>
+                            <div className="bg-white rounded-[3.5rem] p-8 shadow-xl flex flex-wrap items-center gap-6">
+                                <div className="flex-1 min-w-[280px] relative">
+                                    <i data-lucide="search" className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 w-5 h-5"></i>
+                                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="ค้นหาชื่อ หรือ เบอร์โทร..."
+                                        className="w-full bg-slate-50 rounded-3xl py-4 pl-16 pr-8 font-bold outline-none focus:bg-white border-2 border-transparent focus:border-indigo-500" />
+                                </div>
+                                <button onClick={exportToCSV} className="bg-emerald-50 text-emerald-600 font-black px-10 py-4 rounded-3xl uppercase tracking-widest text-[11px] border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-3">
+                                    <i data-lucide="download" className="w-5 h-5"></i> Export CSV
+                                </button>
+                            </div>
+
+                            <div className="bg-white rounded-[4rem] shadow-2xl overflow-hidden border border-white">
+                                <div className="table-container">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-slate-950 text-white font-black uppercase text-[10px] tracking-[0.2em] sticky top-0 z-10">
+                                            <tr>
+                                                <th className="px-10 py-7">Candidate Info</th>
+                                                <th className="px-10 py-7">Position & Branch</th>
+                                                {currentUserAgency === 'Admin' && <th className="px-10 py-7 text-indigo-400">Agency</th>}
+                                                <th className="px-10 py-7 text-center">Prescreen</th>
+                                                <th className="px-10 py-7 text-center">Interview</th>
+                                                <th className="px-10 py-7 text-center">Manage</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {filteredItems.map((item) => (
+                                                <tr key={item.id} className="hover:bg-slate-50/80 transition-colors group">
+                                                    <td className="px-10 py-10">
+                                                        <div className="font-black text-slate-900 text-lg mb-1">{item.name}</div>
+                                                        <div className="text-slate-400 text-xs font-bold">{item.tel} | {item.email}</div>
+                                                    </td>
+                                                    <td className="px-10 py-10">
+                                                        <div className="font-black text-indigo-600 text-xs uppercase mb-1">{item.position}</div>
+                                                        <div className="text-slate-400 font-bold text-[10px]">{item.location || 'N/A'}</div>
+                                                    </td>
+                                                    {currentUserAgency === 'Admin' && (
+                                                        <td className="px-10 py-10">
+                                                            <span className="bg-slate-900 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest">{item.agency}</span>
+                                                        </td>
+                                                    )}
+                                                    <td className="px-10 py-10 text-center">
+                                                        {currentUserAgency === 'Admin' ? (
+                                                            <select value={item.prescreenStatus || 'Pending'} onChange={e => handleUpdate(item.id, 'prescreenStatus', e.target.value)}
+                                                                className="bg-white border-2 border-slate-100 rounded-xl p-3 font-black text-[10px] outline-none focus:border-indigo-500 uppercase tracking-widest shadow-sm">
+                                                                <option value="Pending">Pending</option>
+                                                                <option value="ผ่าน">PASS</option>
+                                                                <option value="ไม่ผ่าน">FAIL</option>
+                                                            </select>
+                                                        ) : (
+                                                            <span className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest ${item.prescreenStatus === 'ผ่าน' ? 'bg-emerald-100 text-emerald-700' : item.prescreenStatus === 'ไม่ผ่าน' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-400'}`}>
+                                                                {item.prescreenStatus || 'Pending'}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-10 py-10">
+                                                        <div className="flex flex-col gap-2 items-center">
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <>
+                                                                    <input type="date" value={item.interviewDate || ''} onChange={e => handleUpdate(item.id, 'interviewDate', e.target.value)}
+                                                                        className="border-2 border-slate-100 rounded-xl p-2 font-bold text-[10px] outline-none w-full" />
+                                                                    <select value={item.interviewStatus || ''} onChange={e => handleUpdate(item.id, 'interviewStatus', e.target.value)}
+                                                                        className="border-2 border-slate-100 rounded-xl p-2 font-bold text-[10px] outline-none w-full">
+                                                                        <option value="">- Result -</option>
+                                                                        <option value="ผ่าน">Pass</option>
+                                                                        <option value="ไม่ผ่าน">Fail</option>
+                                                                        <option value="รอผล">Wait</option>
+                                                                    </select>
+                                                                </>
+                                                            ) : (
+                                                                <div className="font-black text-center text-xs">
+                                                                    <div className="text-slate-800">{item.interviewDate || '-'}</div>
+                                                                    <div className="text-indigo-600 uppercase mt-1">{item.interviewStatus || 'N/A'}</div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-10 py-10 text-center">
+                                                        <button onClick={() => handleDelete(item.id)} className="p-4 rounded-[1.5rem] bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all transform active:scale-90">
+                                                            <i data-lucide="trash-2" className="w-6 h-6"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Modals */}
+                    {popup && (
+                        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center z-[100] p-6">
+                            <div className="bg-white rounded-[3.5rem] p-12 max-w-sm w-full shadow-2xl text-center border-t-8 border-indigo-500">
+                                <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tighter uppercase">{popup.title}</h3>
+                                <p className="text-slate-500 font-bold mb-10 leading-relaxed">{popup.msg}</p>
+                                <button onClick={() => setPopup(null)} className="w-full bg-slate-950 hover:bg-black text-white font-black py-6 rounded-3xl uppercase tracking-widest text-xs">CLOSE</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {confirm && (
+                        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center z-[110] p-6">
+                            <div className="bg-white rounded-[3.5rem] p-12 max-w-sm w-full shadow-2xl text-center border-t-8 border-rose-500">
+                                <h3 className="text-3xl font-black text-slate-900 mb-4 tracking-tighter uppercase">CONFIRM</h3>
+                                <p className="text-slate-500 font-bold mb-10 leading-relaxed">{confirm.msg}</p>
+                                <div className="flex gap-5">
+                                    <button onClick={() => setConfirm(null)} className="flex-1 bg-slate-100 text-slate-500 font-black py-6 rounded-3xl uppercase tracking-widest text-[10px]">CANCEL</button>
+                                    <button onClick={confirm.onOk} className="flex-1 bg-rose-600 text-white font-black py-6 rounded-3xl uppercase tracking-widest text-[10px]">DELETE NOW</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
