@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Checker | Batch Processing Mode</title>
+    <title>Candidate Checker | Duplicate & Upload System</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -20,17 +20,15 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         th { 
-            white-space: nowrap; font-size: 13px !important; padding: 10px 4px !important; 
+            white-space: nowrap; font-size: 13px !important; padding: 12px 6px !important; 
             background-color: #0f172a; color: white; text-align: center; border: 1px solid #334155;
         }
         td { 
-            font-size: 13px !important; padding: 8px 4px !important; vertical-align: middle; text-align: center; border-bottom: 1px solid #e2e8f0;
+            font-size: 13px !important; padding: 10px 4px !important; vertical-align: middle; text-align: center; border-bottom: 1px solid #e2e8f0;
         }
         .candidate-name { text-align: left; font-weight: 700; min-width: 150px; }
         .admin-input { border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-size: 12px; width: 100%; text-align: center; outline: none; }
         .sidebar-container { max-width: 260px; width: 100%; }
-        
-        /* สไตล์พิเศษสำหรับตารางร่าง */
         .draft-row { background-color: #fffbeb; }
     </style>
 </head>
@@ -69,10 +67,13 @@
             const [isLoading, setIsLoading] = useState(true);
             const [cloudCandidates, setCloudCandidates] = useState([]);
             const [referenceDb, setReferenceDb] = useState([]);
-            const [draftList, setDraftList] = useState([]); // รายการรอตรวจสอบ
-            const [isChecked, setIsChecked] = useState(false); // สถานะว่ากดปุ่ม Check หรือยัง
+            const [draftList, setDraftList] = useState([]);
+            const [isChecked, setIsChecked] = useState(false);
             const [searchTerm, setSearchTerm] = useState('');
             const [popup, setPopup] = useState(null);
+            const [isUploading, setIsUploading] = useState(null);
+            const [targetId, setTargetId] = useState(null);
+            const fileInputRef = useRef(null);
 
             const [formData, setFormData] = useState({ 
                 submissionDate: new Date().toISOString().split('T')[0], 
@@ -85,7 +86,12 @@
 
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
 
-            // โหลดข้อมูล
+            const getDownloadLink = (url) => {
+                if (!url) return "#";
+                const fileId = url.match(/[-\w]{25,}/);
+                return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url;
+            };
+
             useEffect(() => {
                 if (!window.FB) return;
                 const { auth, methods } = window.FB;
@@ -116,63 +122,72 @@
                 });
             }, [user, currentUserAgency, refreshIcons]);
 
-            // ฟังก์ชันเพิ่มลงตารางร่าง (Draft)
             const addToDraft = (e) => {
                 e.preventDefault();
                 const newEntry = { ...formData, draftId: Date.now(), status: 'Pending' };
                 setDraftList([...draftList, newEntry]);
                 setFormData({ ...formData, name: '', tel: '', email: '' });
                 setIsChecked(false);
-                refreshIcons();
             };
 
-            // ฟังก์ชัน Check Duplicate แบบกลุ่ม
             const handleBulkCheck = () => {
-                if (draftList.length === 0) return setPopup({ title: "ว่างเปล่า", msg: "กรุณาเพิ่มรายชื่อผู้สมัครก่อนตรวจสอบ" });
-
+                if (draftList.length === 0) return;
                 const updatedDraft = draftList.map((item, index) => {
-                    // 1. เช็คกับฐานข้อมูลภายนอก (CSV + Firebase)
-                    const isDupExternal = [...referenceDb, ...cloudCandidates].some(c => 
+                    const isDupExt = [...referenceDb, ...cloudCandidates].some(c => 
                         (normalize(c.name) === normalize(item.name)) || 
                         (normalize(c.tel) === normalize(item.tel)) || 
                         (item.email && normalize(c.email) === normalize(item.email))
                     );
-
-                    // 2. เช็คกันเองในรายการร่าง (Draft List)
-                    const isDupInternal = draftList.some((otherItem, otherIndex) => 
-                        index !== otherIndex && (
-                            normalize(otherItem.name) === normalize(item.name) ||
-                            normalize(otherItem.tel) === normalize(item.tel) ||
-                            (item.email && normalize(otherItem.email) === normalize(item.email))
-                        )
+                    const isDupInt = draftList.some((otherItem, otherIdx) => 
+                        index !== otherIdx && (normalize(otherItem.name) === normalize(item.name) || normalize(otherItem.tel) === normalize(item.tel))
                     );
-
-                    return { ...item, status: (isDupExternal || isDupInternal) ? 'Dup' : 'No Dup' };
+                    return { ...item, status: (isDupExt || isDupInt) ? 'Dup' : 'No Dup' };
                 });
-
                 setDraftList(updatedDraft);
                 setIsChecked(true);
             };
 
-            // ฟังก์ชันบันทึกข้อมูลทั้งหมดลง Cloud
             const saveAllToCloud = async () => {
                 if (!isChecked) return;
-                try {
-                    const { db, methods } = window.FB;
-                    const promises = draftList.map(item => 
-                        methods.addDoc(methods.collection(db, 'candidates'), {
-                            ...item,
-                            agency: currentUserAgency,
-                            prescreenStatus: item.status,
-                            interviewDate: '', interviewStatus: 'รอผล', startDate: '', salary: '', resumeLink: '',
-                            createdAt: Date.now()
-                        })
-                    );
-                    await Promise.all(promises);
-                    setDraftList([]);
-                    setIsChecked(false);
-                    setPopup({ title: "สำเร็จ", msg: "บันทึกข้อมูลทั้งหมดเข้าฐานข้อมูลเรียบร้อยแล้ว" });
-                } catch (err) { setPopup({ title: "Error", msg: "เกิดข้อผิดพลาดในการบันทึก" }); }
+                const { db, methods } = window.FB;
+                const promises = draftList.map(item => 
+                    methods.addDoc(methods.collection(db, 'candidates'), {
+                        ...item,
+                        agency: currentUserAgency,
+                        prescreenStatus: item.status,
+                        interviewDate: '', interviewStatus: 'รอผล', startDate: '', salary: '', resumeLink: '',
+                        createdAt: Date.now()
+                    })
+                );
+                await Promise.all(promises);
+                setDraftList([]);
+                setIsChecked(false);
+                setPopup({ title: "สำเร็จ", msg: "บันทึกรายชื่อลงฐานข้อมูลหลักแล้ว" });
+            };
+
+            // ระบบอัปโหลดไฟล์
+            const onFileChange = async (e) => {
+                const file = e.target.files[0];
+                if (!file || !targetId) return;
+                setIsUploading(targetId);
+                const reader = new FileReader();
+                reader.onload = async (f) => {
+                    const base64Data = f.target.result.split(',')[1];
+                    try {
+                        const candidate = cloudCandidates.find(c => c.id === targetId);
+                        const response = await fetch(scriptURL, {
+                            method: "POST",
+                            body: JSON.stringify({ fileData: base64Data, mimeType: file.type, fileName: `${candidate.name}_CV.pdf` })
+                        });
+                        const result = await response.json();
+                        if (result.status === "success") {
+                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { resumeLink: result.url });
+                            setPopup({ title: "สำเร็จ", msg: "อัปโหลด Resume เรียบร้อย" });
+                        }
+                    } catch (err) { setPopup({ title: "Error", msg: "อัปโหลดไม่สำเร็จ" }); }
+                    finally { setIsUploading(null); setTargetId(null); e.target.value = ''; }
+                };
+                reader.readAsDataURL(file);
             };
 
             const filteredItems = useMemo(() => {
@@ -183,11 +198,11 @@
                 }).sort((a, b) => b.createdAt - a.createdAt);
             }, [cloudCandidates, currentUserAgency, searchTerm]);
 
-            if (isLoading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white"><div className="loader mb-4"></div><p>ระบบกำลังเตรียมการ...</p></div>;
+            if (isLoading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white"><div className="loader mb-4"></div><p>กำลังเตรียมระบบ...</p></div>;
 
             if (!currentUserAgency) return (
                 <div className="h-screen flex items-center justify-center bg-slate-950 p-6">
-                    <div className="glass-morphism w-full max-w-md rounded-[2.5rem] p-10 text-center shadow-2xl border-t-4 border-indigo-600">
+                    <div className="glass-morphism w-full max-w-md rounded-[2rem] p-10 text-center shadow-2xl border-t-4 border-indigo-600">
                         <h1 className="text-2xl font-black mb-8 text-slate-800 uppercase">Agency Login</h1>
                         <form onSubmit={(e) => {
                             e.preventDefault();
@@ -196,8 +211,8 @@
                             if (agency) setCurrentUserAgency(agency);
                             else setPopup({ title: "Error", msg: "อีเมลไม่ถูกต้อง" });
                         }} className="space-y-4">
-                            <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full bg-white p-4 rounded-xl text-center font-bold border" placeholder="agency@email.com" required />
-                            <button className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl shadow-lg">Login</button>
+                            <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full bg-white p-4 rounded-xl text-center font-bold border" placeholder="yourname@agency.com" required />
+                            <button className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl shadow-lg uppercase">Login</button>
                         </form>
                     </div>
                 </div>
@@ -205,17 +220,19 @@
 
             return (
                 <div className="min-h-screen p-4 max-w-full mx-auto">
+                    <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
+                    
                     {/* Header */}
                     <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between mb-6 border border-slate-200">
                         <div className="flex items-center gap-4">
-                            <div className="bg-slate-900 p-3 rounded-xl text-white shadow-md"><i data-lucide="layers" className="w-5 h-5"></i></div>
-                            <div>
-                                <h1 className="text-xl font-black uppercase">{currentUserAgency} SESSION</h1>
-                                <p className="text-[10px] text-indigo-500 font-bold tracking-widest uppercase">• Batch Mode Enabled</p>
-                            </div>
+                            <div className="bg-slate-900 p-3 rounded-xl text-white shadow-md"><i data-lucide="shield-check" className="w-5 h-5"></i></div>
+                            <div><h1 className="text-xl font-black uppercase">{currentUserAgency} SESSION</h1><p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest">• Real-time Dashboard</p></div>
                         </div>
                         <div className="flex items-center gap-4">
-                            <input type="text" placeholder="ค้นหาฐานข้อมูล..." className="bg-slate-50 pl-4 p-2 rounded-lg font-bold border text-sm w-48 focus:bg-white" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <div className="relative">
+                                <i data-lucide="search" className="absolute left-3 top-2.5 w-4 h-4 text-slate-300"></i>
+                                <input type="text" placeholder="ค้นหา..." className="bg-slate-50 pl-9 p-2 rounded-lg font-bold border text-sm w-48" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            </div>
                             <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-3 rounded-xl"><i data-lucide="power" className="w-5 h-5"></i></button>
                         </div>
                     </div>
@@ -243,35 +260,33 @@
                         )}
 
                         <div className="flex-1 min-w-0 space-y-6">
-                            {/* ตารางรายการร่าง (Draft List) - จะแสดงเฉพาะเมื่อมีคนใน Draft */}
+                            {/* Draft List (Yellow Table) */}
                             {currentUserAgency !== 'Admin' && draftList.length > 0 && (
-                                <div className="bg-white rounded-2xl shadow-xl border-2 border-amber-200 overflow-hidden">
+                                <div className="bg-white rounded-2xl shadow-xl border-2 border-amber-200 overflow-hidden animate-in fade-in slide-in-from-top-4">
                                     <div className="bg-amber-50 p-4 flex justify-between items-center border-b border-amber-200">
-                                        <h3 className="font-black text-amber-800 flex items-center gap-2 uppercase"><i data-lucide="clipboard-list"></i> รายการที่รอตรวจสอบ ({draftList.length})</h3>
+                                        <h3 className="font-black text-amber-800 flex items-center gap-2 uppercase tracking-tighter"><i data-lucide="clipboard-list" className="w-5 h-5"></i> รายการร่างที่รอตรวจสอบ ({draftList.length})</h3>
                                         <div className="flex gap-2">
-                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-6 py-2 rounded-lg font-black hover:bg-amber-600 transition-all shadow-md uppercase text-xs">1. Check Duplicate All</button>
-                                            {isChecked && <button onClick={saveAllToCloud} className="bg-emerald-600 text-white px-6 py-2 rounded-lg font-black hover:bg-emerald-700 transition-all shadow-md uppercase text-xs">2. บันทึกทั้งหมดลง Cloud</button>}
-                                            <button onClick={() => {setDraftList([]); setIsChecked(false);}} className="text-amber-400 hover:text-amber-700 p-2"><i data-lucide="trash-2" className="w-5 h-5"></i></button>
+                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-5 py-2 rounded-lg font-black hover:bg-amber-600 shadow-md uppercase text-[11px]">1. Check Duplicate All</button>
+                                            {isChecked && <button onClick={saveAllToCloud} className="bg-emerald-600 text-white px-5 py-2 rounded-lg font-black hover:bg-emerald-700 shadow-md uppercase text-[11px]">2. บันทึกเข้าฐานข้อมูลหลัก</button>}
                                         </div>
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full">
                                             <thead>
                                                 <tr>
-                                                    <th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-600">ผลตรวจสอบ</th>
+                                                    <th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-600 text-white">สถานะ</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {draftList.map((item, idx) => (
+                                                {draftList.map((item) => (
                                                     <tr key={item.draftId} className="draft-row">
                                                         <td className="candidate-name">{item.name}</td>
                                                         <td className="font-bold text-slate-500">{item.tel}</td>
-                                                        <td className="text-xs text-slate-400">{item.email || '-'}</td>
-                                                        <td><span className="text-[10px] font-black text-indigo-500">{item.position}</span></td>
+                                                        <td className="text-[11px] font-black text-indigo-500">{item.position}</td>
                                                         <td className="text-xs">{item.location}</td>
                                                         <td>
                                                             <span className={`px-4 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : item.status === 'Dup' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'}`}>
-                                                                {item.status === 'Pending' ? 'Waiting Check' : item.status}
+                                                                {item.status === 'Pending' ? 'Waiting' : item.status}
                                                             </span>
                                                         </td>
                                                     </tr>
@@ -282,33 +297,57 @@
                                 </div>
                             )}
 
-                            {/* ตารางฐานข้อมูลหลัก */}
+                            {/* Main Database Table */}
                             <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
-                                <div className="bg-slate-50 p-4 border-b"><h3 className="font-black text-slate-800 uppercase flex items-center gap-2"><i data-lucide="database" className="w-5 h-5"></i> ฐานข้อมูลพนักงาน (Firebase)</h3></div>
+                                <div className="bg-slate-50 p-4 border-b"><h3 className="font-black text-slate-800 uppercase flex items-center gap-2 tracking-tighter"><i data-lucide="database" className="w-5 h-5 text-indigo-600"></i> ฐานข้อมูลพนักงาน (Firebase)</h3></div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead>
                                             <tr>
-                                                <th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>สาขา</th><th>ตรวจสอบ</th><th>Resume</th><th>สัมภาษณ์</th><th>ผล</th><th>วันเริ่มงาน</th><th>เงินเดือน</th><th>จัดการ</th>
+                                                <th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>สาขา</th><th>ตรวจสอบ</th><th className="bg-indigo-600 text-white">Resume</th><th>วันสัมภาษณ์</th><th>ผล</th><th>เริ่มงาน</th><th>เงินเดือน</th><th>จัดการ</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {filteredItems.map(item => (
-                                                <tr key={item.id} className="hover:bg-slate-50/50">
-                                                    <td className="text-[10px] font-bold text-slate-400">{item.submissionDate}</td>
-                                                    <td className="candidate-name">{item.name}</td>
-                                                    <td className="text-xs font-bold text-slate-400">{item.tel}</td>
-                                                    <td><span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded">{item.position}</span></td>
-                                                    <td className="text-[11px] font-bold text-slate-500">{item.location}</td>
-                                                    <td><span className={`px-2 py-1 rounded-full text-[10px] font-black ${item.prescreenStatus === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.prescreenStatus}</span></td>
-                                                    <td>{item.resumeLink ? <a href={item.resumeLink} target="_blank" className="text-indigo-600"><i data-lucide="eye" className="w-4 h-4 mx-auto"></i></a> : '-'}</td>
-                                                    <td>{currentUserAgency === 'Admin' ? <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-input" /> : <span className="text-[11px] font-bold text-slate-600">{item.interviewDate || '-'}</span>}</td>
-                                                    <td>{currentUserAgency === 'Admin' ? <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-input"><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select> : <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>}</td>
-                                                    <td className="bg-indigo-50/20">{currentUserAgency === 'Admin' ? <input type="date" value={item.startDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { startDate: e.target.value })} className="admin-input" /> : <span className="text-xs font-black text-indigo-700">{item.startDate || '-'}</span>}</td>
-                                                    <td className="bg-indigo-50/20">{currentUserAgency === 'Admin' ? <input type="text" value={item.salary || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { salary: e.target.value })} className="admin-input" /> : <span className="text-xs font-black text-indigo-700">{item.salary ? `฿${Number(item.salary).toLocaleString()}` : '-'}</span>}</td>
-                                                    <td><button onClick={() => { if(confirm("ลบข้อมูล?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-300 hover:text-rose-600"><i data-lucide="trash-2" className="w-4 h-4"></i></button></td>
-                                                </tr>
-                                            ))}
+                                            {filteredItems.map(item => {
+                                                const isNoDup = item.prescreenStatus === 'No Dup' || item.prescreenStatus === 'ผ่าน';
+                                                return (
+                                                    <tr key={item.id} className="hover:bg-slate-50/50 transition-all">
+                                                        <td className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{item.submissionDate}</td>
+                                                        <td className="candidate-name text-slate-800">{item.name}</td>
+                                                        <td className="text-xs font-bold text-slate-400 whitespace-nowrap">{item.tel}</td>
+                                                        <td><span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded whitespace-nowrap">{item.position}</span></td>
+                                                        <td className="text-[11px] font-bold text-slate-500 whitespace-nowrap">{item.location}</td>
+                                                        <td><span className={`px-2 py-1 rounded-full text-[10px] font-black inline-block whitespace-nowrap ${isNoDup ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.prescreenStatus}</span></td>
+                                                        
+                                                        {/* RESUME COLUMN - เงื่อนไข No Dup ถึงจะ Upload ได้ */}
+                                                        <td>
+                                                            <div className="flex justify-center items-center gap-1.5">
+                                                                {item.resumeLink ? (
+                                                                    <div className="flex gap-1">
+                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 p-1.5 bg-indigo-50 rounded-lg hover:scale-110 transition-all"><i data-lucide="eye" className="w-4 h-4"></i></a>
+                                                                        {currentUserAgency === 'Admin' && (
+                                                                            <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 p-1.5 bg-emerald-50 rounded-lg font-black text-[8px] flex items-center gap-0.5 border border-emerald-100"><i data-lucide="download" className="w-3 h-3"></i>DL</a>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    // Agency สามารถอัปโหลดได้เฉพาะกรณี No Dup เท่านั้น
+                                                                    currentUserAgency !== 'Admin' && isNoDup ? (
+                                                                        <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-[9px] font-black border-2 border-dashed border-indigo-200 px-2 py-1 rounded-lg hover:bg-indigo-50 transition-all">
+                                                                            {isUploading === item.id ? "..." : "+ Resume"}
+                                                                        </button>
+                                                                    ) : <i data-lucide="lock" className="text-slate-200 w-4 h-4 mx-auto"></i>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        <td>{currentUserAgency === 'Admin' ? <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-input" /> : <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">{item.interviewDate || '-'}</span>}</td>
+                                                        <td>{currentUserAgency === 'Admin' ? <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-input"><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select> : <span className={`px-2 py-0.5 rounded-full text-[10px] font-black inline-block whitespace-nowrap ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>}</td>
+                                                        <td className="bg-indigo-50/20">{currentUserAgency === 'Admin' ? <input type="date" value={item.startDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { startDate: e.target.value })} className="admin-input" /> : <span className="text-[11px] font-black text-indigo-700 whitespace-nowrap">{item.startDate || '-'}</span>}</td>
+                                                        <td className="bg-indigo-50/20">{currentUserAgency === 'Admin' ? <input type="text" value={item.salary || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { salary: e.target.value })} className="admin-input" /> : <span className="text-[11px] font-black text-indigo-700 whitespace-nowrap">{item.salary ? `฿${Number(item.salary).toLocaleString()}` : '-'}</span>}</td>
+                                                        <td><button onClick={() => { if(confirm("ลบข้อมูลถาวร?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-200 hover:text-rose-600 p-1.5 transition-all active:scale-90"><i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i></button></td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -319,9 +358,9 @@
                     {popup && (
                         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-6 text-center">
                             <div className="bg-white p-10 rounded-[2.5rem] max-w-sm w-full shadow-2xl border-t-4 border-indigo-600">
-                                <h3 className="text-xl font-black mb-4 uppercase">{popup.title}</h3>
+                                <h3 className="text-xl font-black mb-4 uppercase tracking-tighter">{popup.title}</h3>
                                 <p className="text-slate-500 font-bold mb-8 text-sm">{popup.msg}</p>
-                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black">CLOSE</button>
+                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase text-sm hover:bg-black transition-all">CLOSE</button>
                             </div>
                         </div>
                     )}
