@@ -15,15 +15,31 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <style>
-        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; font-size: 14px; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; font-size: 14px; margin: 0; }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        th { white-space: nowrap; font-size: 13px !important; padding: 12px 8px !important; background-color: #0f172a; color: white; text-align: center; }
-        td { font-size: 13.5px !important; padding: 10px 6px !important; vertical-align: middle; text-align: center; }
-        .candidate-name { text-align: left; font-weight: 700; min-width: 160px; }
-        .admin-input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px; font-size: 12px; width: 100%; text-align: center; outline: none; }
+        
+        /* ตารางแบบ Compact เพื่อให้เห็นครบทุกคอลัมน์ */
+        th { 
+            white-space: nowrap; 
+            font-size: 13px !important; 
+            padding: 10px 4px !important; 
+            background-color: #0f172a; 
+            color: white; 
+            text-align: center;
+            border: 1px solid #334155;
+        }
+        td { 
+            font-size: 13.5px !important; 
+            padding: 8px 4px !important; 
+            vertical-align: middle; 
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .candidate-name { text-align: left; font-weight: 700; min-width: 150px; }
+        .admin-input { border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-size: 12px; width: 100%; text-align: center; outline: none; }
         .admin-input:focus { border-color: #4f46e5; }
-        .sidebar-container { max-width: 280px; width: 100%; }
+        .sidebar-container { max-width: 260px; width: 100%; }
     </style>
 </head>
 <body>
@@ -64,16 +80,24 @@
             const [isUploading, setIsUploading] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
             const [popup, setPopup] = useState(null);
-            const [dupStatusPreview, setDupStatusPreview] = useState(null); // 'Waiting', 'Dup', 'No Dup'
+            const [dupStatusPreview, setDupStatusPreview] = useState(null); // 'Dup' | 'No Dup' | null
+            const [targetId, setTargetId] = useState(null);
+            const fileInputRef = useRef(null);
 
             const [formData, setFormData] = useState({ 
-                submissionDate: new Date().toISOString().split('T')[0], name: '', tel: '', email: '', position: '', location: ''
+                submissionDate: new Date().toISOString().split('T')[0], 
+                name: '', tel: '', email: '', position: '', location: ''
             });
 
-            const refreshIcons = useCallback(() => { if (window.lucide) setTimeout(() => lucide.createIcons(), 100); }, []);
+            const refreshIcons = useCallback(() => {
+                if (window.lucide) {
+                    setTimeout(() => lucide.createIcons(), 100);
+                }
+            }, []);
 
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
 
+            // 1. โหลดข้อมูล Static และ Firebase
             useEffect(() => {
                 if (!window.FB) return;
                 const { auth, methods } = window.FB;
@@ -83,8 +107,10 @@
                     fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vTsDZSCTRBCQ3LojqsCmVPea7qo7uB9VyXne9aZSlqxo8yntizND6o7bpRQfS2rFFHthMB-N0YIqTL6/pub?output=csv')
                     .then(r => r.text()).then(res => {
                         const data = Papa.parse(res, { header: true }).data;
-                        setReferenceDb(data.filter(r => r['Name-Surname']).map(r => ({ 
-                            name: (r['Name-Surname']||'').trim(), tel: (r['Tel']||'').trim(), email: (r['Email']||'').trim() 
+                        setReferenceDb(data.filter(r => r['Name-Surname']).map(r => ({
+                            name: (r['Name-Surname']||'').trim(),
+                            tel: (r['Tel']||'').trim(),
+                            email: (r['Email']||'').trim()
                         })));
                         setIsLoading(false);
                         refreshIcons();
@@ -100,8 +126,9 @@
                     setCloudCandidates(sn.docs.map(d => ({ id: d.id, ...d.data() })));
                     refreshIcons();
                 });
-            }, [user, currentUserAgency]);
+            }, [user, currentUserAgency, refreshIcons]);
 
+            // 2. ระบบ Check Duplicate
             const handleCheckDup = () => {
                 if (!formData.name || !formData.tel) {
                     return setPopup({ title: "ข้อมูลไม่ครบ", msg: "กรุณากรอกชื่อและเบอร์โทรศัพท์ก่อนตรวจสอบ" });
@@ -116,17 +143,43 @@
 
             const handleAdd = async (e) => {
                 e.preventDefault();
-                if (!dupStatusPreview) return setPopup({ title: "รอก่อน", msg: "กรุณากดปุ่ม Check Dup. ก่อนบันทึก" });
+                if (!dupStatusPreview) return setPopup({ title: "ต้องตรวจสอบก่อน", msg: "กรุณากดปุ่ม Check Dup. ก่อนบันทึกข้อมูล" });
                 
-                await window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { 
-                    ...formData, 
-                    agency: currentUserAgency, 
-                    prescreenStatus: dupStatusPreview, // บันทึกตามที่เช็คได้
-                    interviewDate: '', interviewStatus: 'รอผล', startDate: '', salary: '', resumeLink: '', createdAt: Date.now() 
-                });
-                setFormData({...formData, name:'', tel:'', email:'', position:'', location:''});
-                setDupStatusPreview(null);
-                setPopup({ title: "สำเร็จ", msg: "บันทึกข้อมูลและสถานะตรวจสอบเรียบร้อย" });
+                try {
+                    await window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), {
+                        ...formData,
+                        agency: currentUserAgency,
+                        prescreenStatus: dupStatusPreview,
+                        interviewDate: '', interviewStatus: 'รอผล', startDate: '', salary: '', resumeLink: '',
+                        createdAt: Date.now()
+                    });
+                    setFormData({ ...formData, name: '', tel: '', email: '', position: '', location: '' });
+                    setDupStatusPreview(null);
+                    setPopup({ title: "สำเร็จ", msg: "บันทึกข้อมูลและสถานะ " + dupStatusPreview + " เรียบร้อย" });
+                } catch (err) { console.error(err); }
+            };
+
+            const onFileChange = async (e) => {
+                const file = e.target.files[0];
+                if (!file || !targetId) return;
+                setIsUploading(targetId);
+                const reader = new FileReader();
+                reader.onload = async (f) => {
+                    const base64Data = f.target.result.split(',')[1];
+                    try {
+                        const response = await fetch(scriptURL, {
+                            method: "POST",
+                            body: JSON.stringify({ fileData: base64Data, mimeType: file.type, fileName: `CV_${Date.now()}.pdf` })
+                        });
+                        const result = await response.json();
+                        if (result.status === "success") {
+                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { resumeLink: result.url });
+                            setPopup({ title: "สำเร็จ", msg: "อัปโหลด Resume เรียบร้อย" });
+                        }
+                    } catch (err) { setPopup({ title: "Error", msg: "อัปโหลดไม่สำเร็จ" }); }
+                    finally { setIsUploading(null); setTargetId(null); e.target.value = ''; }
+                };
+                reader.readAsDataURL(file);
             };
 
             const filteredItems = useMemo(() => {
@@ -137,21 +190,21 @@
                 }).sort((a, b) => b.createdAt - a.createdAt);
             }, [cloudCandidates, currentUserAgency, searchTerm]);
 
-            if (isLoading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white"><div className="loader mb-4"></div><p>กำลังเตรียมระบบ Check Duplicate...</p></div>;
+            if (isLoading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white"><div className="loader mb-4"></div><p>กำลังเตรียมระบบตรวจสอบข้อมูลซ้ำ...</p></div>;
 
             if (!currentUserAgency) return (
                 <div className="h-screen flex items-center justify-center bg-slate-950 p-6">
                     <div className="glass-morphism w-full max-w-md rounded-[2.5rem] p-10 text-center shadow-2xl border-t-4 border-indigo-600">
-                        <h1 className="text-2xl font-black mb-8 text-slate-800 uppercase">Recruit Agency Login</h1>
+                        <h1 className="text-2xl font-black mb-8 text-slate-800 uppercase">Candidate System Login</h1>
                         <form onSubmit={(e) => {
                             e.preventDefault();
                             const accessMap = { "admin@company.com": "Admin", "manpower@agency.com": "Manpower", "metalent@agency.com": "Me Talent", "prtr@agency.com": "PRTR", "talentvis@agency.com": "Talentvis", "techgrid@agency.com": "Techgrid" };
                             const agency = accessMap[loginEmail.trim().toLowerCase()];
-                            if (agency) { setCurrentUserAgency(agency); refreshIcons(); }
+                            if (agency) setCurrentUserAgency(agency);
                             else setPopup({ title: "Error", msg: "อีเมลไม่ถูกต้อง" });
                         }} className="space-y-4">
-                            <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full bg-white p-4 rounded-xl text-center font-bold border border-slate-200" placeholder="agency@email.com" required />
-                            <button className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl shadow-lg uppercase">Login</button>
+                            <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full bg-white p-4 rounded-xl text-center font-bold border" placeholder="yourname@agency.com" required />
+                            <button className="w-full bg-indigo-600 text-white font-black py-4 rounded-xl shadow-lg uppercase active:scale-95">Login</button>
                         </form>
                     </div>
                 </div>
@@ -159,86 +212,153 @@
 
             return (
                 <div className="min-h-screen p-4 max-w-full mx-auto">
-                    <div className="bg-white rounded-2xl p-4 shadow-md flex items-center justify-between mb-6">
+                    <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
+                    
+                    {/* Header */}
+                    <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between mb-6 border border-slate-200">
                         <div className="flex items-center gap-4">
-                            <div className="bg-slate-900 p-3 rounded-xl text-white"><i data-lucide="shield-check"></i></div>
-                            <div><h1 className="text-xl font-black uppercase">{currentUserAgency} SESSION</h1><p className="text-[10px] text-emerald-500 font-bold tracking-widest">• REAL-TIME DUP CHECKER</p></div>
+                            <div className="bg-slate-900 p-3 rounded-xl text-white shadow-md"><i data-lucide="shield-check" className="w-5 h-5"></i></div>
+                            <div>
+                                <h1 className="text-xl font-black uppercase text-slate-800">{currentUserAgency} SESSION</h1>
+                                <p className="text-[10px] text-emerald-500 font-bold tracking-widest uppercase">• Duplicate Self-Check Active</p>
+                            </div>
                         </div>
                         <div className="flex items-center gap-4">
-                            <input type="text" placeholder="ค้นหาชื่อ/เบอร์..." className="bg-slate-50 p-2 rounded-lg font-bold border text-sm w-48" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                            <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-3 rounded-xl"><i data-lucide="power"></i></button>
+                            <div className="relative">
+                                <i data-lucide="search" className="absolute left-3 top-2.5 w-4 h-4 text-slate-300"></i>
+                                <input type="text" placeholder="ค้นหา..." className="bg-slate-50 pl-9 p-2 rounded-lg font-bold border text-sm w-48 focus:bg-white" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            </div>
+                            <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-3 rounded-xl active:scale-90 transition-all"><i data-lucide="power" className="w-5 h-5"></i></button>
                         </div>
                     </div>
 
                     <div className="flex flex-col xl:flex-row gap-6">
-                        {/* Sidebar: Check Dup & Entry Form */}
+                        {/* Sidebar Form: Check Dup & Entry */}
                         {currentUserAgency !== 'Admin' && (
                             <div className="sidebar-container">
                                 <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-100 sticky top-6">
-                                    <h2 className="text-lg font-black mb-6 flex gap-2 items-center text-slate-800"><i data-lucide="search-code" className="text-indigo-600"></i> Check & Submit</h2>
+                                    <h2 className="text-lg font-black mb-6 flex gap-2 items-center text-slate-800 uppercase"><i data-lucide="search-code" className="text-indigo-600 w-5 h-5"></i> Check & Submit</h2>
                                     <div className="space-y-4">
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">ชื่อ-นามสกุล</label><input type="text" value={formData.name} onChange={e => {setFormData({...formData, name: e.target.value}); setDupStatusPreview(null);}} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">เบอร์โทรศัพท์</label><input type="text" value={formData.tel} onChange={e => {setFormData({...formData, tel: e.target.value}); setDupStatusPreview(null);}} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">อีเมล (ถ้ามี)</label><input type="email" value={formData.email} onChange={e => {setFormData({...formData, email: e.target.value}); setDupStatusPreview(null);}} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" /></div>
+                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">ชื่อ-นามสกุล (Thai)</label><input type="text" value={formData.name} onChange={e => {setFormData({...formData, name: e.target.value}); setDupStatusPreview(null);}} placeholder="สมชาย ใจดี" className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">เบอร์โทรศัพท์</label><input type="text" value={formData.tel} onChange={e => {setFormData({...formData, tel: e.target.value}); setDupStatusPreview(null);}} placeholder="08XXXXXXXX" className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">อีเมล</label><input type="email" value={formData.email} onChange={e => {setFormData({...formData, email: e.target.value}); setDupStatusPreview(null);}} placeholder="email@example.com" className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" /></div>
                                         
-                                        <button onClick={handleCheckDup} className="w-full bg-indigo-50 text-indigo-600 py-3 rounded-xl font-black border-2 border-indigo-200 hover:bg-indigo-600 hover:text-white transition-all">Check Dup.</button>
+                                        {/* Step 2: Check Dup Button */}
+                                        <button onClick={handleCheckDup} className="w-full bg-indigo-50 text-indigo-600 py-3 rounded-xl font-black border-2 border-indigo-200 hover:bg-indigo-600 hover:text-white transition-all shadow-sm">Check Duplicate</button>
                                         
                                         {dupStatusPreview && (
-                                            <div className={`p-4 rounded-xl text-center font-black animate-bounce ${dupStatusPreview === 'Dup' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                            <div className={`p-4 rounded-xl text-center font-black animate-pulse shadow-inner ${dupStatusPreview === 'Dup' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
                                                 RESULT: {dupStatusPreview}
                                             </div>
                                         )}
 
                                         <div className="border-t pt-4 space-y-4">
-                                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">ตำแหน่ง</label>
+                                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">ตำแหน่ง</label>
                                                 <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border">
                                                     <option value="">เลือกตำแหน่ง...</option><option value="Sales Executive">Sales Executive</option><option value="Supervisor">Supervisor</option><option value="Office Support">Office Support</option>
                                                 </select>
                                             </div>
-                                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">สาขา</label><input type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" /></div>
-                                            <button onClick={handleAdd} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase shadow-lg">Submit Entry</button>
+                                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">สาขา</label><input type="text" placeholder="ระบุสาขา" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" /></div>
+                                            <button onClick={handleAdd} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase shadow-lg active:scale-95 transition-all">Submit Entry</button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Table Display */}
+                        {/* Main Table Content - Full Width Display */}
                         <div className="flex-1 min-w-0">
-                            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                            <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead>
                                             <tr>
-                                                <th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>สาขา</th>
-                                                <th>ตรวจสอบ</th><th>Resume</th><th>วันสัมภาษณ์</th><th>ผล</th><th>วันเริ่มงาน</th><th>เงินเดือน</th><th>จัดการ</th>
+                                                <th>วันที่ส่ง</th>
+                                                <th className="text-left">ชื่อ-นามสกุล</th>
+                                                <th>เบอร์โทร</th>
+                                                <th>ตำแหน่ง</th>
+                                                <th>สาขา</th>
+                                                <th>ตรวจสอบ</th>
+                                                <th>Resume</th>
+                                                <th>วันสัมภาษณ์</th>
+                                                <th>ผล</th>
+                                                <th className="bg-indigo-900">วันเริ่มงาน</th>
+                                                <th className="bg-indigo-900">เงินเดือน</th>
+                                                <th>จัดการ</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {filteredItems.map(item => (
-                                                <tr key={item.id} className="hover:bg-slate-50/50 transition-all">
-                                                    <td className="text-slate-400 text-[11px] font-bold">{item.submissionDate}</td>
-                                                    <td className="candidate-name text-slate-800">{item.name}</td>
-                                                    <td className="text-slate-400 text-xs font-bold">{item.tel}</td>
-                                                    <td><span className="bg-indigo-50 text-indigo-600 px-2 py-1 rounded text-[10px] font-black whitespace-nowrap">{item.position}</span></td>
-                                                    <td className="font-bold text-slate-500 text-xs">{item.location}</td>
-                                                    <td>
-                                                        <span className={`px-3 py-1 rounded-full text-[11px] font-black inline-block ${item.prescreenStatus === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                                                            {item.prescreenStatus}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div className="flex justify-center items-center gap-1.5">
-                                                            {item.resumeLink ? <a href={item.resumeLink} target="_blank" className="text-indigo-600 p-1.5 bg-indigo-50 rounded-lg"><i data-lucide="eye" className="w-4 h-4"></i></a> : <i data-lucide="file-off" className="text-slate-200 w-4 h-4"></i>}
-                                                        </div>
-                                                    </td>
-                                                    <td>{currentUserAgency === 'Admin' ? <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-input" /> : <span className="font-black text-slate-600 text-xs">{item.interviewDate || '-'}</span>}</td>
-                                                    <td>{currentUserAgency === 'Admin' ? <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-input"><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select> : <span className={`px-3 py-1 rounded-full text-[10px] font-black ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>}</td>
-                                                    <td className="bg-indigo-50/20">{currentUserAgency === 'Admin' ? <input type="date" value={item.startDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { startDate: e.target.value })} className="admin-input" /> : <span className="font-black text-indigo-700 text-xs">{item.startDate || '-'}</span>}</td>
-                                                    <td className="bg-indigo-50/20">{currentUserAgency === 'Admin' ? <input type="text" value={item.salary || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { salary: e.target.value })} className="admin-input" /> : <span className="font-black text-indigo-700 text-xs">{item.salary ? `฿${Number(item.salary).toLocaleString()}` : '-'}</span>}</td>
-                                                    <td><button onClick={() => { if(confirm("ลบ?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-300 hover:text-rose-600 p-1.5"><i data-lucide="trash-2" className="w-4 h-4"></i></button></td>
-                                                </tr>
-                                            ))}
+                                            {filteredItems.map(item => {
+                                                const isDup = item.prescreenStatus === 'Dup';
+                                                return (
+                                                    <tr key={item.id} className="hover:bg-slate-50/50 transition-all">
+                                                        <td className="text-slate-400 text-[10px] font-bold whitespace-nowrap">{item.submissionDate}</td>
+                                                        <td className="candidate-name text-slate-800">{item.name}</td>
+                                                        <td className="text-slate-400 text-[11px] font-bold whitespace-nowrap">{item.tel}</td>
+                                                        <td><span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[10px] font-black whitespace-nowrap">{item.position}</span></td>
+                                                        <td className="font-bold text-slate-500 text-[11px] whitespace-nowrap">{item.location}</td>
+                                                        
+                                                        <td>
+                                                            <span className={`px-2 py-1 rounded-full text-[10px] font-black whitespace-nowrap ${isDup ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                                                                {item.prescreenStatus}
+                                                            </span>
+                                                        </td>
+
+                                                        <td>
+                                                            <div className="flex justify-center items-center gap-1">
+                                                                {item.resumeLink ? (
+                                                                    <div className="flex gap-1">
+                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 p-1 bg-indigo-50 rounded hover:bg-indigo-100 transition-all shadow-sm"><i data-lucide="eye" className="w-3.5 h-3.5"></i></a>
+                                                                        {currentUserAgency === 'Admin' && (
+                                                                            <a href={item.resumeLink} target="_blank" className="text-emerald-600 p-1 bg-emerald-50 rounded font-black text-[8px] flex items-center gap-0.5 border border-emerald-100"><i data-lucide="download" className="w-3 h-3"></i>DL</a>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    currentUserAgency !== 'Admin' && !isDup && (
+                                                                        <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-[9px] font-black border border-dashed border-indigo-300 px-1.5 py-0.5 rounded bg-white hover:bg-indigo-50">
+                                                                            {isUploading === item.id ? "..." : "Upload"}
+                                                                        </button>
+                                                                    )
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        <td>
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-input" />
+                                                            ) : <span className="font-bold text-slate-600 text-[11px] whitespace-nowrap">{item.interviewDate || '-'}</span>}
+                                                        </td>
+
+                                                        <td>
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-input">
+                                                                    <option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option><option value="สละสิทธิ์">สละสิทธิ์</option>
+                                                                </select>
+                                                            ) : (
+                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black inline-block whitespace-nowrap ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>
+                                                            )}
+                                                        </td>
+
+                                                        {/* วันเริ่มงาน */}
+                                                        <td className="bg-indigo-50/20">
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <input type="date" value={item.startDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { startDate: e.target.value })} className="admin-input border-indigo-200" />
+                                                            ) : <span className="font-black text-indigo-700 text-[11px] whitespace-nowrap">{item.startDate || '-'}</span>}
+                                                        </td>
+
+                                                        {/* เงินเดือน */}
+                                                        <td className="bg-indigo-50/20">
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <input type="text" placeholder="0" value={item.salary || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { salary: e.target.value })} className="admin-input border-indigo-200" />
+                                                            ) : <span className="font-black text-indigo-700 text-[11px] whitespace-nowrap">{item.salary ? `฿${Number(item.salary).toLocaleString()}` : '-'}</span>}
+                                                        </td>
+
+                                                        <td>
+                                                            <button onClick={() => { if(confirm("ยืนยันการลบข้อมูล?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-300 hover:text-rose-600 p-1 active:scale-90 transition-all"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -247,11 +367,11 @@
                     </div>
 
                     {popup && (
-                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-6">
-                            <div className="bg-white p-10 rounded-[2rem] max-w-sm w-full text-center shadow-2xl">
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-6 text-center">
+                            <div className="bg-white p-10 rounded-[2.5rem] max-w-sm w-full shadow-2xl border-t-4 border-indigo-600">
                                 <h3 className="text-xl font-black mb-4 text-slate-800 uppercase">{popup.title}</h3>
-                                <p className="text-slate-500 font-bold mb-8 text-sm">{popup.msg}</p>
-                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black">CLOSE</button>
+                                <p className="text-slate-500 font-bold mb-8 text-sm leading-relaxed">{popup.msg}</p>
+                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black hover:bg-black active:scale-95 transition-all">CLOSE</button>
                             </div>
                         </div>
                     )}
