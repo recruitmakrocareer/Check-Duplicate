@@ -85,8 +85,7 @@
                 tel: '', 
                 email: '', 
                 position: '', 
-                location: '',
-                resumeLink: ''
+                location: ''
             });
 
             const [searchTerm, setSearchTerm] = useState('');
@@ -153,7 +152,7 @@
                 e.preventDefault();
                 const isDup = [...referenceDb, ...cloudCandidates].some(c => normalize(c.name) === normalize(formData.name) || normalize(c.tel) === normalize(formData.tel));
                 
-                if (isDup) return setPopup({ title: "พบข้อมูลซ้ำ!", msg: "รายชื่อนี้มีในระบบแล้ว" });
+                if (isDup) return setPopup({ title: "พบข้อมูลซ้ำ!", msg: "รายชื่อนี้มีอยู่ในระบบแล้ว" });
 
                 try {
                     await window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), {
@@ -162,9 +161,10 @@
                         prescreenStatus: 'รอตรวจสอบ',
                         interviewDate: '',
                         interviewStatus: 'รอผล',
+                        resumeLink: '',
                         createdAt: Date.now()
                     });
-                    setFormData({ ...formData, name: '', tel: '', email: '', resumeLink: '' });
+                    setFormData({ ...formData, name: '', tel: '', email: '' });
                     setPopup({ title: "สำเร็จ", msg: "บันทึกข้อมูลเรียบร้อย" });
                 } catch (e) {
                     setPopup({ title: "Error", msg: "บันทึกไม่ได้ กรุณาเช็ค Firestore Rules" });
@@ -191,7 +191,7 @@
                     return;
                 }
 
-                if (file.size > 5 * 1024 * 1024) { // 5MB
+                if (file.size > 5 * 1024 * 1024) {
                     setPopup({ title: "Error", msg: "ไฟล์ PDF มีขนาดใหญ่เกินกว่า 5MB" });
                     return;
                 }
@@ -209,7 +209,7 @@
                     setPopup({ title: "Error", msg: "การอัปโหลดไฟล์ล้มเหลว กรุณาลองใหม่อีกครั้ง" });
                 } finally {
                     setUploadingCandidateId(null);
-                    event.target.value = null; // Reset input
+                    event.target.value = null;
                 }
             };
 
@@ -238,10 +238,8 @@
 
             return (
                 <div key="dashboard" className="min-h-screen p-4 md:p-8 max-w-[1700px] mx-auto">
-                    {/* Hidden File Input */}
                     <input type="file" accept=".pdf" ref={fileInputRef} onChange={onFileChange} style={{ display: 'none' }} />
                     
-                    {/* Header */}
                     <div className="bg-white rounded-[2rem] p-6 shadow-xl flex items-center justify-between mb-8 border border-white">
                         <div className="flex items-center gap-4">
                             <div className="bg-slate-900 p-4 rounded-2xl text-white shadow-lg"><i data-lucide="layout-dashboard"></i></div>
@@ -254,7 +252,6 @@
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                        {/* Sidebar: Form (เฉพาะ Agency) */}
                         {currentUserAgency !== 'Admin' && (
                             <div className="xl:col-span-3">
                                 <div className="bg-white p-8 rounded-[2.5rem] shadow-xl sticky top-8 border border-white">
@@ -286,17 +283,12 @@
                                             <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">สาขา / Branch</label>
                                             <input type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} placeholder="เช่น สาขานนทบุรี" className="w-full bg-slate-50 p-4 rounded-xl font-bold outline-none" required />
                                         </div>
-                                        <div>
-                                            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">ลิงก์ Resume (Google Drive/etc.)</label>
-                                            <input type="url" value={formData.resumeLink} onChange={e => setFormData({...formData, resumeLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-50 p-4 rounded-xl font-bold outline-none" />
-                                        </div>
                                         <button className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black mt-4 shadow-lg hover:bg-black transition-all active:scale-95 uppercase tracking-widest text-sm">Submit Entry</button>
                                     </form>
                                 </div>
                             </div>
                         )}
 
-                        {/* Main Content: Table */}
                         <div className={currentUserAgency === 'Admin' ? 'xl:col-span-12' : 'xl:col-span-9'}>
                             <div className="bg-white p-5 rounded-[2rem] shadow-lg mb-6 flex gap-4 border border-white">
                                 <div className="flex-1 relative">
@@ -324,7 +316,7 @@
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {filteredItems.map(item => {
-                                                const noDupStatus = item.prescreenStatus === 'ผ่าน' || normalize(item.prescreenStatus) === normalize('NoDup');
+                                                const noDupStatus = item.prescreenStatus === 'ผ่าน';
                                                 
                                                 return (
                                                     <tr key={item.id} className={`${noDupStatus ? 'bg-emerald-50/50' : 'hover:bg-indigo-50/30'} transition-colors group`}>
@@ -343,12 +335,11 @@
                                                         </td>
                                                         <td className="p-6 font-bold text-slate-600 text-xs">{item.location}</td>
                                                         
-                                                        {/* 6. สถานะตรวจสอบ (Admin แก้ได้) */}
                                                         <td className="p-6 text-center">
                                                             {currentUserAgency === 'Admin' ? (
                                                                 <select value={item.prescreenStatus} onChange={e => handleUpdate(item.id, 'prescreenStatus', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none bg-white shadow-sm">
                                                                     <option value="รอตรวจสอบ">รอตรวจสอบ</option>
-                                                                    <option value="ผ่าน">ผ่าน/NoDup</option>
+                                                                    <option value="ผ่าน">ผ่าน (NoDup)</option>
                                                                     <option value="ไม่ผ่าน">ไม่ผ่าน</option>
                                                                 </select>
                                                             ) : (
@@ -358,7 +349,6 @@
                                                             )}
                                                         </td>
 
-                                                        {/* 7. Resume */}
                                                         <td className="p-6 text-center">
                                                             {item.resumeLink ? (
                                                                 <a href={item.resumeLink} target="_blank" className="text-indigo-500 hover:text-indigo-700 inline-block p-2 bg-indigo-50 rounded-xl transition-all">
@@ -367,14 +357,12 @@
                                                             ) : <span className="text-slate-300 text-[10px] font-bold">N/A</span>}
                                                         </td>
 
-                                                        {/* 8. วันสัมภาษณ์ (Admin แก้ได้) */}
                                                         <td className="p-6 text-center">
                                                             {currentUserAgency === 'Admin' ? (
                                                                 <input type="date" value={item.interviewDate || ''} onChange={e => handleUpdate(item.id, 'interviewDate', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none" />
                                                             ) : <span className="text-[10px] font-black text-slate-600">{item.interviewDate || '-'}</span>}
                                                         </td>
 
-                                                        {/* 9. ผลสัมภาษณ์ (Admin แก้ได้) */}
                                                         <td className="p-6 text-center">
                                                             {currentUserAgency === 'Admin' ? (
                                                                 <select value={item.interviewStatus} onChange={e => handleUpdate(item.id, 'interviewStatus', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none bg-white shadow-sm">
@@ -390,7 +378,6 @@
                                                             )}
                                                         </td>
 
-                                                        {/* 10. จัดการ */}
                                                         <td className="p-6 text-right">
                                                             <div className="flex gap-2 justify-center opacity-0 group-hover:opacity-100 transition-all">
                                                                 <button onClick={() => { if(confirm("ต้องการลบข้อมูลถาวร?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="bg-rose-50 text-rose-600 p-3 rounded-xl hover:bg-rose-600 hover:text-white shadow-sm">
@@ -408,7 +395,6 @@
                         </div>
                     </div>
 
-                    {/* Popup Modal */}
                     {popup && (
                         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100] p-6">
                             <div className="bg-white p-10 rounded-[3rem] max-w-sm w-full text-center shadow-2xl border-t-8 border-indigo-500">
