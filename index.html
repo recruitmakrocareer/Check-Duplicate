@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Checker | Full Validation Edition</title>
+    <title>Candidate Checker | Phone Validation Edition</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -19,25 +19,14 @@
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        th { 
-            white-space: nowrap; font-size: 13px !important; padding: 10px 6px !important; 
-            background-color: #0f172a; color: white; text-align: center; border: 1px solid #334155;
-        }
-        td { 
-            font-size: 13px !important; padding: 10px 4px !important; vertical-align: middle; text-align: center; border-bottom: 1px solid #e2e8f0;
-        }
+        th { white-space: nowrap; font-size: 13px !important; padding: 10px 6px !important; background-color: #0f172a; color: white; text-align: center; border: 1px solid #334155; }
+        td { font-size: 13px !important; padding: 10px 4px !important; vertical-align: middle; text-align: center; border-bottom: 1px solid #e2e8f0; }
         .candidate-name { text-align: left; font-weight: 700; min-width: 150px; }
         .admin-input { border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-size: 12px; width: 100%; text-align: center; outline: none; }
         .sidebar-container { max-width: 320px; width: 100%; }
         .pagination-btn { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; font-weight: bold; }
         .pagination-active { background: #4f46e5 !important; color: white !important; }
-        
-        .filter-input {
-            width: 100%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; outline: none;
-        }
-        .filter-input:focus { border-color: #6366f1; background-color: white; }
-
-        /* Highlight สำหรับช่องที่จำเป็น */
+        .filter-input { width: 100%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; outline: none; }
         .required-star { color: #ef4444; margin-left: 2px; }
     </style>
 </head>
@@ -128,16 +117,24 @@
                 });
             }, [user, currentUserAgency, refreshIcons]);
 
-            useEffect(() => { setCurrentPage(1); }, [filters]);
-
-            // --- ตรวจสอบว่ากรอกครบทุกช่องไหม ---
             const addToDraft = (e) => {
                 e.preventDefault();
-                // ป้องกันกรณี bypass HTML validation
+
+                // 1. ตรวจสอบข้อมูลเบื้องต้น
                 if (!formData.firstName || !formData.lastName || !formData.tel || !formData.email || !formData.position || !formData.location) {
-                    return setPopup({ title: "ข้อมูลไม่ครบ", msg: "กรุณากรอกข้อมูลให้ครบทุกช่องก่อนเพิ่มลงรายการร่าง" });
+                    return setPopup({ title: "ข้อมูลไม่ครบ", msg: "กรุณากรอกข้อมูลให้ครบทุกช่อง" });
                 }
-                setDraftList([...draftList, { ...formData, draftId: Date.now(), status: 'Pending' }]);
+
+                // 2. ตรวจสอบเบอร์โทรศัพท์ (ต้อง 10 หลัก และขึ้นต้นด้วย 0)
+                const telClean = formData.tel.replace(/\D/g, ''); // ลบตัวอักษรที่ไม่ใช่ตัวเลข
+                if (telClean.length !== 10 || !telClean.startsWith('0')) {
+                    return setPopup({ 
+                        title: "เบอร์โทรศัพท์ไม่ถูกต้อง", 
+                        msg: "กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก และต้องขึ้นต้นด้วยเลข 0 เท่านั้น" 
+                    });
+                }
+
+                setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
                 setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
                 setIsChecked(false);
             };
@@ -166,7 +163,7 @@
                 );
                 await Promise.all(promises);
                 setDraftList([]); setIsChecked(false);
-                setPopup({ title: "สำเร็จ", msg: "บันทึกข้อมูลเข้าสู่ฐานข้อมูลหลักเรียบร้อย" });
+                setPopup({ title: "สำเร็จ", msg: "บันทึกข้อมูลเรียบร้อยแล้ว" });
             };
 
             const onFileChange = async (e) => {
@@ -213,12 +210,12 @@
                 return allFiltered.slice(start, start + itemsPerPage);
             }, [allFiltered, currentPage]);
 
-            if (isLoading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white"><div className="loader mb-4"></div><p>กำลังเตรียมข้อมูล...</p></div>;
+            if (isLoading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white"><div className="loader mb-4"></div><p>Loading...</p></div>;
 
             if (!currentUserAgency) return (
                 <div className="h-screen flex items-center justify-center bg-slate-950 p-6">
                     <div className="glass-morphism w-full max-w-md rounded-[2.5rem] p-10 text-center shadow-2xl border-t-4 border-indigo-600">
-                        <h1 className="text-2xl font-black mb-8 text-slate-800 uppercase">System Login</h1>
+                        <h1 className="text-2xl font-black mb-8 text-slate-800 uppercase">Login</h1>
                         <form onSubmit={(e) => {
                             e.preventDefault();
                             const accessMap = { "admin@company.com": "Admin", "manpower@agency.com": "Manpower", "metalent@agency.com": "Me Talent", "prtr@agency.com": "PRTR", "talentvis@agency.com": "Talentvis", "techgrid@agency.com": "Techgrid" };
@@ -237,53 +234,49 @@
                 <div className="min-h-screen p-4 max-w-full mx-auto">
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
                     
-                    {/* Header */}
                     <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between mb-6 border border-slate-200">
                         <div className="flex items-center gap-4">
                             <div className="bg-slate-900 p-3 rounded-xl text-white shadow-md"><i data-lucide="shield-check"></i></div>
-                            <div><h1 className="text-xl font-black uppercase text-slate-800">{currentUserAgency} SESSION</h1><p className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">• Validation Active</p></div>
+                            <div><h1 className="text-xl font-black uppercase text-slate-800">{currentUserAgency} SESSION</h1><p className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">• Phone Validation Active</p></div>
                         </div>
-                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-3 rounded-xl"><i data-lucide="power"></i></button>
+                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-3 rounded-xl active:scale-90 transition-all"><i data-lucide="power"></i></button>
                     </div>
 
                     <div className="flex flex-col xl:flex-row gap-6">
-                        {/* Sidebar: Entry Form (ทุกช่องจำเป็น) */}
                         {currentUserAgency !== 'Admin' && (
                             <div className="sidebar-container">
                                 <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-100 sticky top-6">
                                     <h2 className="text-lg font-black mb-6 flex gap-2 items-center text-slate-800 uppercase"><i data-lucide="user-plus" className="text-indigo-600 w-5 h-5"></i> เพิ่มรายชื่อใหม่</h2>
                                     <form onSubmit={addToDraft} className="space-y-4">
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">วันที่ส่ง<span className="required-star">*</span></label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <div><label className="text-[10px] font-black text-slate-400 uppercase">วันที่ส่ง<span className="required-star">*</span></label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
                                         <div className="grid grid-cols-2 gap-2">
-                                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">ชื่อ<span className="required-star">*</span></label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">นามสกุล<span className="required-star">*</span></label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                            <div><label className="text-[10px] font-black text-slate-400 uppercase">ชื่อ<span className="required-star">*</span></label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                            <div><label className="text-[10px] font-black text-slate-400 uppercase">นามสกุล<span className="required-star">*</span></label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
                                         </div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">เบอร์โทรศัพท์<span className="required-star">*</span></label><input type="text" placeholder="08XXXXXXXX" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">อีเมล<span className="required-star">*</span></label><input type="email" placeholder="example@mail.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">ตำแหน่ง<span className="required-star">*</span></label><select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required><option value="">เลือกตำแหน่ง...</option><option value="Sales Executive">Sales Executive</option><option value="Supervisor">Supervisor</option><option value="Office Support">Office Support</option></select></div>
-                                        <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">สาขา<span className="required-star">*</span></label><input type="text" placeholder="ระบุสาขา" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                        <button className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg hover:bg-indigo-700 transition-all">+ เพิ่มลงรายการร่าง</button>
+                                        <div><label className="text-[10px] font-black text-slate-400 uppercase">เบอร์โทรศัพท์ (10 หลัก)<span className="required-star">*</span></label><input type="text" placeholder="08XXXXXXXX" maxLength="10" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value.replace(/\D/g,'')})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <div><label className="text-[10px] font-black text-slate-400 uppercase">อีเมล<span className="required-star">*</span></label><input type="email" placeholder="example@mail.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <div><label className="text-[10px] font-black text-slate-400 uppercase">ตำแหน่ง<span className="required-star">*</span></label><select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required><option value="">เลือกตำแหน่ง...</option><option value="Sales Executive">Sales Executive</option><option value="Supervisor">Supervisor</option><option value="Office Support">Office Support</option></select></div>
+                                        <div><label className="text-[10px] font-black text-slate-400 uppercase">สาขา<span className="required-star">*</span></label><input type="text" placeholder="ระบุสาขา" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <button className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg active:scale-95 transition-all">+ เพิ่มลงรายการร่าง</button>
                                     </form>
                                 </div>
                             </div>
                         )}
 
                         <div className="flex-1 min-w-0 space-y-4">
-                            {/* Filter Bar */}
                             <div className="bg-white p-4 rounded-2xl shadow-md border border-slate-200 grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="filter-input" /></div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">ชื่อ-นามสกุล</label><input type="text" placeholder="ค้นหาชื่อ..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="filter-input" /></div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">ตำแหน่ง</label><select value={filters.position} onChange={e => setFilters({...filters, position: e.target.value})} className="filter-input"><option value="">ทั้งหมด...</option><option value="Sales Executive">Sales Executive</option><option value="Supervisor">Supervisor</option><option value="Office Support">Office Support</option></select></div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">สาขา</label><input type="text" placeholder="ค้นหาสาขา..." value={filters.location} onChange={e => setFilters({...filters, location: e.target.value})} className="filter-input" /></div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase ml-1">วันที่สัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="filter-input" /></div>
-                                <button onClick={() => setFilters({subDate:'', name:'', position:'', location:'', intDate:''})} className="bg-slate-100 text-slate-600 py-2.5 rounded-lg font-black text-[11px] hover:bg-slate-200 border">ล้างตัวกรอง</button>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="filter-input" /></div>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1">ชื่อ-นามสกุล</label><input type="text" placeholder="ค้นหาชื่อ..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="filter-input" /></div>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1">ตำแหน่ง</label><select value={filters.position} onChange={e => setFilters({...filters, position: e.target.value})} className="filter-input"><option value="">ทั้งหมด...</option><option value="Sales Executive">Sales Executive</option><option value="Supervisor">Supervisor</option><option value="Office Support">Office Support</option></select></div>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1">สาขา</label><input type="text" placeholder="ค้นหาสาขา..." value={filters.location} onChange={e => setFilters({...filters, location: e.target.value})} className="filter-input" /></div>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="filter-input" /></div>
+                                <button onClick={() => setFilters({subDate:'', name:'', position:'', location:'', intDate:''})} className="bg-slate-100 text-slate-600 py-2.5 rounded-lg font-black text-[11px] border">ล้างตัวกรอง</button>
                             </div>
 
-                            {/* Draft List */}
                             {currentUserAgency !== 'Admin' && draftList.length > 0 && (
                                 <div className="bg-white rounded-2xl shadow-xl border-2 border-amber-200 overflow-hidden">
                                     <div className="bg-amber-50 p-4 flex justify-between items-center border-b">
-                                        <h3 className="font-black text-amber-800 flex items-center gap-2 uppercase text-xs"><i data-lucide="clipboard-list"></i> รายการร่างรอตรวจสอบ ({draftList.length})</h3>
+                                        <h3 className="font-black text-amber-800 uppercase text-xs">รายการร่างรอตรวจสอบ ({draftList.length})</h3>
                                         <div className="flex gap-2">
                                             <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-2 rounded-lg font-black shadow-md uppercase text-[10px]">1. Check Duplicate All</button>
                                             {isChecked && <button onClick={saveAllToCloud} className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black shadow-md uppercase text-[10px]">2. บันทึกเข้า Cloud</button>}
@@ -293,9 +286,8 @@
                                 </div>
                             )}
 
-                            {/* Main Table */}
                             <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
-                                <div className="bg-slate-50 p-4 border-b font-black text-slate-800 uppercase flex justify-between items-center text-xs"><span>ฐานข้อมูลหลัก - หน้า {currentPage} (พบ {allFiltered.length} รายการ)</span></div>
+                                <div className="bg-slate-50 p-4 border-b font-black text-slate-800 flex justify-between items-center text-xs uppercase"><span>ฐานข้อมูลหลัก - หน้า {currentPage} (พบ {allFiltered.length} รายการ)</span></div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead><tr><th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>สาขา</th><th>ตรวจสอบ</th><th>Resume</th><th>สัมภาษณ์</th><th>ผล</th><th>เริ่มงาน</th><th>เงินเดือน</th><th>จัดการ</th></tr></thead>
@@ -315,7 +307,7 @@
                                                         <td>{currentUserAgency === 'Admin' ? <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-input"><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option><option value="สละสิทธิ์">สละสิทธิ์</option></select> : <span className={`px-2 py-0.5 rounded-full text-[10px] font-black inline-block ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>}</td>
                                                         <td className="bg-indigo-50/20">{currentUserAgency === 'Admin' ? <input type="date" value={item.startDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { startDate: e.target.value })} className="admin-input" /> : <span className="text-[11px] font-black text-indigo-700">{item.startDate || '-'}</span>}</td>
                                                         <td className="bg-indigo-50/20">{currentUserAgency === 'Admin' ? <input type="text" value={item.salary || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { salary: e.target.value })} className="admin-input" /> : <span className="text-[11px] font-black text-indigo-700">{item.salary ? `฿${Number(item.salary).toLocaleString()}` : '-'}</span>}</td>
-                                                        <td><button onClick={() => { if(confirm("ลบข้อมูล?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-200 hover:text-rose-600 transition-all"><i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i></button></td>
+                                                        <td><button onClick={() => { if(confirm("ลบข้อมูล?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-200 hover:text-rose-600 p-1 transition-all"><i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i></button></td>
                                                     </tr>
                                                 );
                                             })}
@@ -342,7 +334,7 @@
                             <div className="bg-white p-10 rounded-[2.5rem] max-w-sm w-full shadow-2xl border-t-4 border-indigo-600">
                                 <h3 className="text-xl font-black mb-4 uppercase">{popup.title}</h3>
                                 <p className="text-slate-500 font-bold mb-8 text-sm">{popup.msg}</p>
-                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase shadow-lg">CLOSE</button>
+                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase text-sm">CLOSE</button>
                             </div>
                         </div>
                     )}
