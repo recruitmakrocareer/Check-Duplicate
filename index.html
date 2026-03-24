@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Checker | Full Info & Bold Edition</title>
+    <title>Candidate Checker | Admin Control Edition</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -44,13 +44,25 @@
             font-size: 1rem !important;
             letter-spacing: 0.05em;
             text-align: center;
+            background-color: #0f172a;
+            color: white;
+            padding: 1.5rem 1rem;
         }
         td {
             font-size: 1.1rem !important;
             vertical-align: middle;
+            padding: 1.5rem 1rem;
         }
-        .font-bold-table { font-weight: 700; }
-        .font-black-table { font-weight: 800; }
+        .admin-input {
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.5rem;
+            font-weight: 700;
+            outline: none;
+            width: 100%;
+            text-align: center;
+        }
+        .admin-input:focus { border-color: #4f46e5; }
     </style>
 </head>
 <body>
@@ -205,7 +217,7 @@
             );
 
             return (
-                <div className="min-h-screen p-4 md:p-10 max-w-[1900px] mx-auto">
+                <div className="min-h-screen p-4 md:p-10 max-w-[2200px] mx-auto">
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
                     
                     {/* Header */}
@@ -230,7 +242,16 @@
                                         e.preventDefault();
                                         const isDup = [...referenceDb, ...cloudCandidates].some(c => (c.name.replace(/\s/g,'') === formData.name.replace(/\s/g,'')) || (c.tel === formData.tel));
                                         if (isDup) return setPopup({ title: "ข้อมูลซ้ำ!", msg: "ชื่อหรือเบอร์โทรนี้มีในระบบแล้ว" });
-                                        await window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...formData, agency: currentUserAgency, prescreenStatus: 'รอตรวจสอบ', interviewStatus: 'รอผล', resumeLink: '', createdAt: Date.now() });
+                                        await window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { 
+                                            ...formData, 
+                                            agency: currentUserAgency, 
+                                            prescreenStatus: 'รอตรวจสอบ', 
+                                            interviewStatus: 'รอผล', 
+                                            startDate: '', // เริ่มต้นว่างไว้
+                                            salary: '',    // เริ่มต้นว่างไว้
+                                            resumeLink: '', 
+                                            createdAt: Date.now() 
+                                        });
                                         setFormData({...formData, name:'', tel:'', email:''});
                                         setPopup({ title: "สำเร็จ", msg: "บันทึกข้อมูลเรียบร้อย" });
                                     }} className="space-y-6">
@@ -258,18 +279,20 @@
                             <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-white">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left">
-                                        <thead className="bg-slate-950 text-white uppercase tracking-wider">
+                                        <thead>
                                             <tr>
-                                                <th className="p-8">วันที่ส่ง</th>
-                                                <th className="p-8">ชื่อ-นามสกุล</th>
-                                                <th className="p-8">เบอร์โทร</th>
-                                                <th className="p-8 text-center">ตำแหน่ง</th>
-                                                <th className="p-8 text-center">สาขา</th>
-                                                <th className="p-8 text-center">ตรวจสอบ</th>
-                                                <th className="p-8 text-center">Resume (Drive)</th>
-                                                <th className="p-8 text-center">วันสัมภาษณ์</th>
-                                                <th className="p-8 text-center">ผลสัมภาษณ์</th>
-                                                <th className="p-8 text-center">จัดการ</th>
+                                                <th>วันที่ส่ง</th>
+                                                <th>ชื่อ-นามสกุล</th>
+                                                <th>เบอร์โทร</th>
+                                                <th>ตำแหน่ง</th>
+                                                <th>สาขา</th>
+                                                <th>ตรวจสอบ</th>
+                                                <th>Resume</th>
+                                                <th>วันสัมภาษณ์</th>
+                                                <th>ผลสัมภาษณ์</th>
+                                                <th className="bg-indigo-900">วันเริ่มงาน</th>
+                                                <th className="bg-indigo-900">เงินเดือน</th>
+                                                <th>จัดการ</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 text-center">
@@ -277,16 +300,16 @@
                                                 const isPass = item.prescreenStatus === 'ผ่าน' || item.prescreenStatus === 'ผ่าน (NoDup)';
                                                 return (
                                                     <tr key={item.id} className="hover:bg-slate-50 transition-all group">
-                                                        <td className="p-8 text-slate-400 font-bold text-left">{item.submissionDate}</td>
-                                                        <td className="p-8 font-black text-slate-800 text-2xl text-left">{item.name}</td>
-                                                        <td className="p-8 text-slate-400 font-bold text-left">{item.tel}</td>
-                                                        <td className="p-8"><span className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-black">{item.position}</span></td>
-                                                        <td className="p-8 font-bold text-slate-500">{item.location}</td>
+                                                        <td className="text-slate-400 font-bold text-left">{item.submissionDate}</td>
+                                                        <td className="font-black text-slate-800 text-2xl text-left">{item.name}</td>
+                                                        <td className="text-slate-400 font-bold text-left">{item.tel}</td>
+                                                        <td><span className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-black">{item.position}</span></td>
+                                                        <td className="font-bold text-slate-500">{item.location}</td>
                                                         
                                                         {/* ตรวจสอบ */}
-                                                        <td className="p-8">
+                                                        <td>
                                                             {currentUserAgency === 'Admin' ? (
-                                                                <select value={item.prescreenStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { prescreenStatus: e.target.value })} className="p-3 border rounded-xl font-bold text-sm outline-none bg-white shadow-sm mx-auto">
+                                                                <select value={item.prescreenStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { prescreenStatus: e.target.value })} className="admin-input text-sm">
                                                                     <option value="รอตรวจสอบ">รอตรวจสอบ</option><option value="ผ่าน">ผ่าน (NoDup)</option><option value="ไม่ผ่าน">ไม่ผ่าน</option>
                                                                 </select>
                                                             ) : (
@@ -297,43 +320,63 @@
                                                         </td>
 
                                                         {/* Resume & Download */}
-                                                        <td className="p-8">
-                                                            <div className="flex justify-center items-center gap-4">
+                                                        <td>
+                                                            <div className="flex justify-center items-center gap-2">
                                                                 {isPass ? (
                                                                     item.resumeLink ? (
-                                                                        <div className="flex gap-2">
-                                                                            <a href={item.resumeLink} target="_blank" className="text-indigo-600 p-3 bg-indigo-50 rounded-xl hover:scale-110 transition-all shadow-sm" title="View CV"><i data-lucide="eye" className="w-6 h-6"></i></a>
+                                                                        <div className="flex gap-1">
+                                                                            <a href={item.resumeLink} target="_blank" className="text-indigo-600 p-2 bg-indigo-50 rounded-xl hover:scale-110 transition-all shadow-sm"><i data-lucide="eye" className="w-5 h-5"></i></a>
                                                                             {currentUserAgency === 'Admin' && (
-                                                                                <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 p-3 bg-emerald-50 rounded-xl hover:scale-110 transition-all shadow-sm flex items-center gap-2 font-black text-xs" title="Download CV"><i data-lucide="download" className="w-6 h-6"></i><span>DL</span></a>
+                                                                                <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 p-2 bg-emerald-50 rounded-xl hover:scale-110 transition-all shadow-sm flex items-center gap-1 font-black text-[10px]"><i data-lucide="download" className="w-4 h-4"></i>DL</a>
                                                                             )}
                                                                         </div>
                                                                     ) : (
                                                                         currentUserAgency !== 'Admin' && (
-                                                                            <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-xs font-black uppercase p-3 border-2 border-dashed border-indigo-200 rounded-xl hover:bg-indigo-50 transition-all">{isUploading === item.id ? "..." : "Upload CV"}</button>
+                                                                            <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-[10px] font-black uppercase p-2 border-2 border-dashed border-indigo-200 rounded-xl">{isUploading === item.id ? "..." : "Upload"}</button>
                                                                         )
                                                                     )
-                                                                ) : <i data-lucide="lock" className="text-slate-200 w-6 h-6 mx-auto"></i>}
+                                                                ) : <i data-lucide="lock" className="text-slate-200 w-5 h-5 mx-auto"></i>}
                                                             </div>
                                                         </td>
 
-                                                        <td className="p-8">
+                                                        {/* วันสัมภาษณ์ */}
+                                                        <td>
                                                             {currentUserAgency === 'Admin' ? (
-                                                                <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="p-3 border rounded-xl font-bold text-sm outline-none bg-white mx-auto" />
+                                                                <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-input text-xs" />
                                                             ) : <span className="font-black text-slate-600">{item.interviewDate || '-'}</span>}
                                                         </td>
 
-                                                        <td className="p-8">
+                                                        {/* ผลสัมภาษณ์ */}
+                                                        <td>
                                                             {currentUserAgency === 'Admin' ? (
-                                                                <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="p-3 border rounded-xl font-bold text-sm outline-none bg-white shadow-sm mx-auto">
+                                                                <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-input text-sm">
                                                                     <option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option><option value="สละสิทธิ์">สละสิทธิ์</option>
                                                                 </select>
                                                             ) : (
-                                                                <span className={`px-5 py-2 rounded-full text-sm font-black mx-auto inline-block ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>
+                                                                <span className={`px-5 py-2 rounded-full text-sm font-black mx-auto inline-block ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>
                                                             )}
                                                         </td>
 
-                                                        <td className="p-8">
-                                                            <button onClick={() => { if(confirm("ต้องการลบข้อมูลถาวร?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all p-2 bg-rose-50 rounded-xl mx-auto block"><i data-lucide="trash-2" className="w-7 h-7"></i></button>
+                                                        {/* วันเริ่มงาน (ใหม่) */}
+                                                        <td className="bg-indigo-50/30">
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <input type="date" value={item.startDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { startDate: e.target.value })} className="admin-input text-xs border-indigo-200" />
+                                                            ) : (
+                                                                <span className="font-black text-indigo-700">{item.startDate || '-'}</span>
+                                                            )}
+                                                        </td>
+
+                                                        {/* เงินเดือน (ใหม่) */}
+                                                        <td className="bg-indigo-50/30">
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <input type="text" placeholder="0.00" value={item.salary || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { salary: e.target.value })} className="admin-input text-sm border-indigo-200" />
+                                                            ) : (
+                                                                <span className="font-black text-indigo-700">{item.salary ? `฿${Number(item.salary).toLocaleString()}` : '-'}</span>
+                                                            )}
+                                                        </td>
+
+                                                        <td>
+                                                            <button onClick={() => { if(confirm("ต้องการลบข้อมูลถาวร?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all p-2 bg-rose-50 rounded-xl mx-auto block"><i data-lucide="trash-2" className="w-6 h-6"></i></button>
                                                         </td>
                                                     </tr>
                                                 );
