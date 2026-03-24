@@ -42,6 +42,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAX6alx5rJRDRd8Wcvj4rDLLsYwz37NXEQ",
@@ -56,15 +57,17 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
         window.FB = { 
-            db, auth,
-            methods: { signInAnonymously, onAuthStateChanged, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query }
+            db, auth, storage,
+            methods: { signInAnonymously, onAuthStateChanged, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query },
+            storageMethods: { ref, uploadBytes, getDownloadURL }
         };
     </script>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useCallback } = React;
+        const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
         const App = () => {
             const [user, setUser] = useState(null);
@@ -73,8 +76,9 @@
             const [isLoading, setIsLoading] = useState(true);
             const [cloudCandidates, setCloudCandidates] = useState([]);
             const [referenceDb, setReferenceDb] = useState([]);
+            const fileInputRef = useRef(null);
+            const [uploadingCandidateId, setUploadingCandidateId] = useState(null);
             
-            // เพิ่มฟิลด์ใน FormData
             const [formData, setFormData] = useState({ 
                 submissionDate: new Date().toISOString().split('T')[0], 
                 name: '', 
@@ -143,9 +147,10 @@
                 else setPopup({ title: "ล้มเหลว", msg: "ไม่พบอีเมลนี้ในระบบ" });
             };
 
+            const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '') : '';
+
             const handleAdd = async (e) => {
                 e.preventDefault();
-                const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '') : '';
                 const isDup = [...referenceDb, ...cloudCandidates].some(c => normalize(c.name) === normalize(formData.name) || normalize(c.tel) === normalize(formData.tel));
                 
                 if (isDup) return setPopup({ title: "พบข้อมูลซ้ำ!", msg: "รายชื่อนี้มีในระบบแล้ว" });
@@ -170,6 +175,42 @@
                 try {
                     await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', id), { [field]: value });
                 } catch (e) { console.error(e); }
+            };
+
+            const handleUploadResume = async (id) => {
+                setUploadingCandidateId(id);
+                fileInputRef.current.click();
+            };
+
+            const onFileChange = async (event) => {
+                const file = event.target.files[0];
+                if (!file || !uploadingCandidateId) return;
+
+                if (file.type !== 'application/pdf') {
+                    setPopup({ title: "Error", msg: "กรุณาอัปโหลดไฟล์ในรูปแบบ PDF เท่านั้น" });
+                    return;
+                }
+
+                if (file.size > 5 * 1024 * 1024) { // 5MB
+                    setPopup({ title: "Error", msg: "ไฟล์ PDF มีขนาดใหญ่เกินกว่า 5MB" });
+                    return;
+                }
+
+                const { storage, storageMethods } = window.FB;
+                const storageRef = storageMethods.ref(storage, `resumes/${uploadingCandidateId}/${file.name}`);
+
+                try {
+                    await storageMethods.uploadBytes(storageRef, file);
+                    const resumeUrl = await storageMethods.getDownloadURL(storageRef);
+                    await handleUpdate(uploadingCandidateId, 'resumeLink', resumeUrl);
+                    setPopup({ title: "สำเร็จ", msg: "อัปโหลด Resume เรียบร้อยแล้ว" });
+                } catch (error) {
+                    console.error("Upload failed", error);
+                    setPopup({ title: "Error", msg: "การอัปโหลดไฟล์ล้มเหลว กรุณาลองใหม่อีกครั้ง" });
+                } finally {
+                    setUploadingCandidateId(null);
+                    event.target.value = null; // Reset input
+                }
             };
 
             const filteredItems = useMemo(() => {
@@ -197,6 +238,9 @@
 
             return (
                 <div key="dashboard" className="min-h-screen p-4 md:p-8 max-w-[1700px] mx-auto">
+                    {/* Hidden File Input */}
+                    <input type="file" accept=".pdf" ref={fileInputRef} onChange={onFileChange} style={{ display: 'none' }} />
+                    
                     {/* Header */}
                     <div className="bg-white rounded-[2rem] p-6 shadow-xl flex items-center justify-between mb-8 border border-white">
                         <div className="flex items-center gap-4">
@@ -279,73 +323,84 @@
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {filteredItems.map(item => (
-                                                <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors group">
-                                                    <td className="p-6 font-bold text-slate-500 text-xs">{item.submissionDate}</td>
-                                                    <td className="p-6 font-black text-slate-800">{item.name}</td>
-                                                    <td className="p-6 font-bold text-slate-500 text-xs">{item.tel}</td>
-                                                    <td className="p-6">
-                                                        <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg font-black text-[10px]">{item.position}</span>
-                                                    </td>
-                                                    <td className="p-6 font-bold text-slate-600 text-xs">{item.location}</td>
-                                                    
-                                                    {/* 6. สถานะตรวจสอบ (Admin แก้ได้) */}
-                                                    <td className="p-6 text-center">
-                                                        {currentUserAgency === 'Admin' ? (
-                                                            <select value={item.prescreenStatus} onChange={e => handleUpdate(item.id, 'prescreenStatus', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none bg-white shadow-sm">
-                                                                <option value="รอตรวจสอบ">รอตรวจสอบ</option>
-                                                                <option value="ผ่าน">ผ่าน</option>
-                                                                <option value="ไม่ผ่าน">ไม่ผ่าน</option>
-                                                            </select>
-                                                        ) : (
-                                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black ${item.prescreenStatus === 'ผ่าน' ? 'bg-emerald-100 text-emerald-600' : item.prescreenStatus === 'ไม่ผ่าน' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'}`}>
-                                                                {item.prescreenStatus}
-                                                            </span>
-                                                        )}
-                                                    </td>
+                                            {filteredItems.map(item => {
+                                                const noDupStatus = item.prescreenStatus === 'ผ่าน' || normalize(item.prescreenStatus) === normalize('NoDup');
+                                                
+                                                return (
+                                                    <tr key={item.id} className={`${noDupStatus ? 'bg-emerald-50/50' : 'hover:bg-indigo-50/30'} transition-colors group`}>
+                                                        <td className="p-6 font-bold text-slate-500 text-xs">{item.submissionDate}</td>
+                                                        <td className="p-6 font-black text-slate-800">
+                                                            <div>{item.name}</div>
+                                                            {noDupStatus && (
+                                                                <button onClick={() => handleUploadResume(item.id)} className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-lg font-black text-[10px] mt-1 hover:bg-emerald-200 transition-all">
+                                                                    <i data-lucide="upload-cloud" className="w-3.5 h-3.5"></i> {uploadingCandidateId === item.id ? 'กำลังอัปโหลด...' : 'Upload CV (PDF)'}
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                        <td className="p-6 font-bold text-slate-500 text-xs">{item.tel}</td>
+                                                        <td className="p-6">
+                                                            <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg font-black text-[10px]">{item.position}</span>
+                                                        </td>
+                                                        <td className="p-6 font-bold text-slate-600 text-xs">{item.location}</td>
+                                                        
+                                                        {/* 6. สถานะตรวจสอบ (Admin แก้ได้) */}
+                                                        <td className="p-6 text-center">
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <select value={item.prescreenStatus} onChange={e => handleUpdate(item.id, 'prescreenStatus', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none bg-white shadow-sm">
+                                                                    <option value="รอตรวจสอบ">รอตรวจสอบ</option>
+                                                                    <option value="ผ่าน">ผ่าน/NoDup</option>
+                                                                    <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+                                                                </select>
+                                                            ) : (
+                                                                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black ${item.prescreenStatus === 'ผ่าน' ? 'bg-emerald-100 text-emerald-600' : item.prescreenStatus === 'ไม่ผ่าน' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                                    {item.prescreenStatus === 'ผ่าน' ? 'NoDup' : item.prescreenStatus}
+                                                                </span>
+                                                            )}
+                                                        </td>
 
-                                                    {/* 7. Resume */}
-                                                    <td className="p-6 text-center">
-                                                        {item.resumeLink ? (
-                                                            <a href={item.resumeLink} target="_blank" className="text-indigo-500 hover:text-indigo-700 inline-block p-2 bg-indigo-50 rounded-xl transition-all">
-                                                                <i data-lucide="external-link" className="w-5 h-5"></i>
-                                                            </a>
-                                                        ) : <span className="text-slate-300 text-[10px] font-bold">N/A</span>}
-                                                    </td>
+                                                        {/* 7. Resume */}
+                                                        <td className="p-6 text-center">
+                                                            {item.resumeLink ? (
+                                                                <a href={item.resumeLink} target="_blank" className="text-indigo-500 hover:text-indigo-700 inline-block p-2 bg-indigo-50 rounded-xl transition-all">
+                                                                    <i data-lucide="external-link" className="w-5 h-5"></i>
+                                                                </a>
+                                                            ) : <span className="text-slate-300 text-[10px] font-bold">N/A</span>}
+                                                        </td>
 
-                                                    {/* 8. วันสัมภาษณ์ (Admin แก้ได้) */}
-                                                    <td className="p-6 text-center">
-                                                        {currentUserAgency === 'Admin' ? (
-                                                            <input type="date" value={item.interviewDate || ''} onChange={e => handleUpdate(item.id, 'interviewDate', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none" />
-                                                        ) : <span className="text-[10px] font-black text-slate-600">{item.interviewDate || '-'}</span>}
-                                                    </td>
+                                                        {/* 8. วันสัมภาษณ์ (Admin แก้ได้) */}
+                                                        <td className="p-6 text-center">
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <input type="date" value={item.interviewDate || ''} onChange={e => handleUpdate(item.id, 'interviewDate', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none" />
+                                                            ) : <span className="text-[10px] font-black text-slate-600">{item.interviewDate || '-'}</span>}
+                                                        </td>
 
-                                                    {/* 9. ผลสัมภาษณ์ (Admin แก้ได้) */}
-                                                    <td className="p-6 text-center">
-                                                        {currentUserAgency === 'Admin' ? (
-                                                            <select value={item.interviewStatus} onChange={e => handleUpdate(item.id, 'interviewStatus', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none bg-white shadow-sm">
-                                                                <option value="รอผล">รอผล</option>
-                                                                <option value="ผ่าน">ผ่าน</option>
-                                                                <option value="ไม่ผ่าน">ไม่ผ่าน</option>
-                                                                <option value="สละสิทธิ์">สละสิทธิ์</option>
-                                                            </select>
-                                                        ) : (
-                                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black ${item.interviewStatus === 'ผ่าน' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 bg-slate-100'}`}>
-                                                                {item.interviewStatus}
-                                                            </span>
-                                                        )}
-                                                    </td>
+                                                        {/* 9. ผลสัมภาษณ์ (Admin แก้ได้) */}
+                                                        <td className="p-6 text-center">
+                                                            {currentUserAgency === 'Admin' ? (
+                                                                <select value={item.interviewStatus} onChange={e => handleUpdate(item.id, 'interviewStatus', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none bg-white shadow-sm">
+                                                                    <option value="รอผล">รอผล</option>
+                                                                    <option value="ผ่าน">ผ่าน</option>
+                                                                    <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+                                                                    <option value="สละสิทธิ์">สละสิทธิ์</option>
+                                                                </select>
+                                                            ) : (
+                                                                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black ${item.interviewStatus === 'ผ่าน' ? 'bg-emerald-500 text-white shadow-md' : 'text-slate-500 bg-slate-100'}`}>
+                                                                    {item.interviewStatus}
+                                                                </span>
+                                                            )}
+                                                        </td>
 
-                                                    {/* 10. จัดการ */}
-                                                    <td className="p-6 text-right">
-                                                        <div className="flex gap-2 justify-center opacity-0 group-hover:opacity-100 transition-all">
-                                                            <button onClick={() => { if(confirm("ต้องการลบข้อมูลถาวร?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="bg-rose-50 text-rose-600 p-3 rounded-xl hover:bg-rose-600 hover:text-white shadow-sm">
-                                                                <i data-lucide="trash-2" className="w-5 h-5"></i>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                        {/* 10. จัดการ */}
+                                                        <td className="p-6 text-right">
+                                                            <div className="flex gap-2 justify-center opacity-0 group-hover:opacity-100 transition-all">
+                                                                <button onClick={() => { if(confirm("ต้องการลบข้อมูลถาวร?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="bg-rose-50 text-rose-600 p-3 rounded-xl hover:bg-rose-600 hover:text-white shadow-sm">
+                                                                    <i data-lucide="trash-2" className="w-5 h-5"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
