@@ -6,7 +6,6 @@
     <title>Candidate Checker | Google Drive Edition</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -67,8 +66,8 @@
         const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
         const App = () => {
-            // Google Apps Script URL ที่ให้มา
-            const scriptURL = "https://script.google.com/macros/s/AKfycbwlNnL5A0hCoiaIrqaiMYmK-BbHNGOAMLwVnmYLLy8AXwN2tL2qhLNZwOSP7ElBhrMn/exec";
+            // อัปเดต URL ใหม่ที่คุณให้มา
+            const scriptURL = "https://script.google.com/macros/s/AKfycbzFlbiGWm6h4UFrXTD05Q9163od4xhiUQdG_IF_lbDrr_aJfGsLE-BC1a5YwsY2F7Vp/exec";
 
             const [user, setUser] = useState(null);
             const [currentUserAgency, setCurrentUserAgency] = useState('');
@@ -92,7 +91,6 @@
             const [searchTerm, setSearchTerm] = useState('');
             const [popup, setPopup] = useState(null);
 
-            // ป้องกัน React Crash จาก Lucide
             const refreshIcons = useCallback(() => {
                 if (window.lucide) {
                     setTimeout(() => lucide.createIcons(), 100);
@@ -184,7 +182,6 @@
                 } catch (e) { console.error(e); }
             };
 
-            // ระบบอัปโหลดเข้า Google Drive
             const onFileChange = async (e) => {
                 const file = e.target.files[0];
                 if (!file || !targetId) return;
@@ -256,7 +253,6 @@
 
             return (
                 <div key="dashboard" className="min-h-screen p-4 md:p-8 max-w-[1750px] mx-auto">
-                    {/* Hidden File Input */}
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
                     
                     {/* Header */}
@@ -272,7 +268,6 @@
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                        {/* Sidebar: Form (เฉพาะ Agency) */}
                         {currentUserAgency !== 'Admin' && (
                             <div className="xl:col-span-3">
                                 <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-white sticky top-8">
@@ -310,7 +305,6 @@
                             </div>
                         )}
 
-                        {/* Main Content: Table */}
                         <div className={currentUserAgency === 'Admin' ? 'xl:col-span-12' : 'xl:col-span-9'}>
                             <div className="bg-white p-5 rounded-[2rem] shadow-lg mb-6 flex gap-4 border border-white">
                                 <div className="flex-1 relative">
@@ -349,7 +343,6 @@
                                                         </td>
                                                         <td className="p-6 font-bold text-slate-500 text-xs">{item.location}</td>
                                                         
-                                                        {/* 6. ตรวจสอบข้อมูล */}
                                                         <td className="p-6 text-center">
                                                             {currentUserAgency === 'Admin' ? (
                                                                 <select value={item.prescreenStatus} onChange={e => handleUpdate(item.id, 'prescreenStatus', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none shadow-sm">
@@ -364,7 +357,6 @@
                                                             )}
                                                         </td>
 
-                                                        {/* 7. Resume (อัปโหลดเข้า Drive) */}
                                                         <td className="p-6 text-center">
                                                             {isPass ? (
                                                                 <div className="flex flex-col items-center gap-2">
@@ -382,14 +374,12 @@
                                                             ) : <span className="text-slate-200"><i data-lucide="lock"></i></span>}
                                                         </td>
 
-                                                        {/* 8. วันสัมภาษณ์ */}
                                                         <td className="p-6 text-center">
                                                             {currentUserAgency === 'Admin' ? (
                                                                 <input type="date" value={item.interviewDate || ''} onChange={e => handleUpdate(item.id, 'interviewDate', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none" />
                                                             ) : <span className="text-[10px] font-black text-slate-600">{item.interviewDate || '-'}</span>}
                                                         </td>
 
-                                                        {/* 9. ผลสัมภาษณ์ */}
                                                         <td className="p-6 text-center">
                                                             {currentUserAgency === 'Admin' ? (
                                                                 <select value={item.interviewStatus} onChange={e => handleUpdate(item.id, 'interviewStatus', e.target.value)} className="p-2 border rounded-xl font-bold text-[10px] outline-none shadow-sm">
@@ -405,7 +395,6 @@
                                                             )}
                                                         </td>
 
-                                                        {/* 10. จัดการ */}
                                                         <td className="p-6 text-center">
                                                             <button onClick={() => { if(confirm("ต้องการลบข้อมูลถาวร?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="bg-rose-50 text-rose-300 hover:text-rose-600 p-3 rounded-xl transition-all opacity-0 group-hover:opacity-100">
                                                                 <i data-lucide="trash-2" className="w-5 h-5"></i>
@@ -421,7 +410,6 @@
                         </div>
                     </div>
 
-                    {/* Popups */}
                     {popup && (
                         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100] p-6">
                             <div className="bg-white p-10 rounded-[3rem] max-w-sm w-full text-center shadow-2xl border-t-8 border-indigo-500">
