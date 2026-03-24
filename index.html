@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Checker | Clean & Bold Edition</title>
+    <title>Candidate Checker | Full Info & Bold Edition</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
             background-color: #f1f5f9; 
             margin: 0; 
             padding: 0;
-            font-size: 16px; /* ปรับขนาดพื้นฐานให้อ่านง่าย */
+            font-size: 16px; 
         }
         .loader {
             border: 4px solid #f3f3f3;
@@ -36,25 +36,21 @@
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
-        /* ปรับ Input ให้ตัวใหญ่ขึ้น */
         input, select, button { 
             font-size: 1.1rem !important; 
-            border: 1px solid #e2e8f0 !important; 
         }
         th { 
             white-space: nowrap; 
             font-size: 1rem !important;
             letter-spacing: 0.05em;
+            text-align: center;
         }
         td {
             font-size: 1.1rem !important;
+            vertical-align: middle;
         }
-        label {
-            font-size: 0.9rem !important;
-            font-weight: 700 !important;
-            margin-bottom: 0.5rem;
-            display: block;
-        }
+        .font-bold-table { font-weight: 700; }
+        .font-black-table { font-weight: 800; }
     </style>
 </head>
 <body>
@@ -209,7 +205,7 @@
             );
 
             return (
-                <div className="min-h-screen p-4 md:p-10 max-w-[1850px] mx-auto">
+                <div className="min-h-screen p-4 md:p-10 max-w-[1900px] mx-auto">
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
                     
                     {/* Header */}
@@ -225,7 +221,7 @@
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-                        {/* Sidebar: Form */}
+                        {/* Sidebar Form */}
                         {currentUserAgency !== 'Admin' && (
                             <div className="xl:col-span-3">
                                 <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-white sticky top-10">
@@ -238,55 +234,37 @@
                                         setFormData({...formData, name:'', tel:'', email:''});
                                         setPopup({ title: "สำเร็จ", msg: "บันทึกข้อมูลเรียบร้อย" });
                                     }} className="space-y-6">
-                                        <div>
-                                            <label>วันที่ส่งผู้สมัคร</label>
-                                            <input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full bg-slate-50 p-5 rounded-xl font-bold outline-none" required />
-                                        </div>
-                                        <div>
-                                            <label>ชื่อ-นามสกุล (Thai)</label>
-                                            <input type="text" placeholder="สมชาย ใจดี" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 p-5 rounded-xl font-bold outline-none" required />
-                                        </div>
-                                        <div>
-                                            <label>เบอร์โทรศัพท์</label>
-                                            <input type="text" placeholder="08XXXXXXXX" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full bg-slate-50 p-5 rounded-xl font-bold outline-none" required />
-                                        </div>
-                                        <div>
-                                            <label>ตำแหน่งงาน</label>
+                                        <div><label className="font-bold text-slate-400 ml-2">วันที่ส่งผู้สมัคร</label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full bg-slate-50 p-5 rounded-xl font-bold outline-none" required /></div>
+                                        <div><label className="font-bold text-slate-400 ml-2">ชื่อ-นามสกุล (Thai)</label><input type="text" placeholder="ชื่อ-นามสกุล" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 p-5 rounded-xl font-bold outline-none" required /></div>
+                                        <div><label className="font-bold text-slate-400 ml-2">เบอร์โทรศัพท์</label><input type="text" placeholder="08XXXXXXXX" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full bg-slate-50 p-5 rounded-xl font-bold outline-none" required /></div>
+                                        <div><label className="font-bold text-slate-400 ml-2">ตำแหน่งงาน</label>
                                             <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full bg-slate-50 p-5 rounded-xl font-bold outline-none" required>
-                                                <option value="">เลือกตำแหน่ง...</option>
-                                                <option value="Sales Executive">Sales Executive</option>
-                                                <option value="Supervisor">Supervisor</option>
-                                                <option value="Office Support">Office Support</option>
+                                                <option value="">เลือกตำแหน่ง...</option><option value="Sales Executive">Sales Executive</option><option value="Supervisor">Supervisor</option><option value="Office Support">Office Support</option>
                                             </select>
                                         </div>
-                                        <div>
-                                            <label>สาขา / พื้นที่</label>
-                                            <input type="text" placeholder="เช่น นนทบุรี" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 p-5 rounded-xl font-bold outline-none" required />
-                                        </div>
+                                        <div><label className="font-bold text-slate-400 ml-2">สาขา / พื้นที่</label><input type="text" placeholder="ระบุสาขา" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 p-5 rounded-xl font-bold outline-none" required /></div>
                                         <button className="w-full bg-slate-900 text-white py-6 rounded-2xl font-black mt-4 hover:bg-black transition-all uppercase tracking-widest text-lg">Submit Record</button>
                                     </form>
                                 </div>
                             </div>
                         )}
 
-                        {/* Main Content: Table */}
+                        {/* Main Content Table */}
                         <div className={currentUserAgency === 'Admin' ? 'xl:col-span-12' : 'xl:col-span-9'}>
                             <div className="bg-white p-6 rounded-[2.5rem] shadow-lg mb-8 flex gap-4 border border-white">
-                                <div className="flex-1 relative">
-                                    <i data-lucide="search" className="absolute left-6 top-6 text-slate-300"></i>
-                                    <input type="text" placeholder="ค้นหาชื่อ หรือ เบอร์โทรศัพท์..." className="w-full bg-slate-50 pl-16 p-5 rounded-2xl font-bold outline-none focus:bg-white transition-all text-xl" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                                </div>
+                                <div className="flex-1 relative"><i data-lucide="search" className="absolute left-6 top-6 text-slate-300"></i><input type="text" placeholder="ค้นหาชื่อ หรือ เบอร์โทรศัพท์..." className="w-full bg-slate-50 pl-16 p-5 rounded-2xl font-bold outline-none focus:bg-white transition-all text-xl" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
                             </div>
 
                             <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-white">
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
+                                    <table className="w-full text-left">
                                         <thead className="bg-slate-950 text-white uppercase tracking-wider">
                                             <tr>
                                                 <th className="p-8">วันที่ส่ง</th>
                                                 <th className="p-8">ชื่อ-นามสกุล</th>
                                                 <th className="p-8">เบอร์โทร</th>
-                                                <th className="p-8">ตำแหน่ง</th>
+                                                <th className="p-8 text-center">ตำแหน่ง</th>
+                                                <th className="p-8 text-center">สาขา</th>
                                                 <th className="p-8 text-center">ตรวจสอบ</th>
                                                 <th className="p-8 text-center">Resume (Drive)</th>
                                                 <th className="p-8 text-center">วันสัมภาษณ์</th>
@@ -294,76 +272,68 @@
                                                 <th className="p-8 text-center">จัดการ</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
+                                        <tbody className="divide-y divide-slate-100 text-center">
                                             {filteredItems.map(item => {
                                                 const isPass = item.prescreenStatus === 'ผ่าน' || item.prescreenStatus === 'ผ่าน (NoDup)';
                                                 return (
                                                     <tr key={item.id} className="hover:bg-slate-50 transition-all group">
-                                                        <td className="p-8 text-slate-400 font-bold">{item.submissionDate}</td>
-                                                        <td className="p-8 font-black text-slate-800 text-2xl">{item.name}</td>
-                                                        <td className="p-8 text-slate-400 font-bold">{item.tel}</td>
+                                                        <td className="p-8 text-slate-400 font-bold text-left">{item.submissionDate}</td>
+                                                        <td className="p-8 font-black text-slate-800 text-2xl text-left">{item.name}</td>
+                                                        <td className="p-8 text-slate-400 font-bold text-left">{item.tel}</td>
                                                         <td className="p-8"><span className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl text-xs font-black">{item.position}</span></td>
+                                                        <td className="p-8 font-bold text-slate-500">{item.location}</td>
                                                         
                                                         {/* ตรวจสอบ */}
-                                                        <td className="p-8 text-center">
+                                                        <td className="p-8">
                                                             {currentUserAgency === 'Admin' ? (
-                                                                <select value={item.prescreenStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { prescreenStatus: e.target.value })} className="p-3 border rounded-xl font-bold text-sm outline-none bg-white shadow-sm">
-                                                                    <option value="รอตรวจสอบ">รอตรวจสอบ</option>
-                                                                    <option value="ผ่าน">ผ่าน (NoDup)</option>
-                                                                    <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+                                                                <select value={item.prescreenStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { prescreenStatus: e.target.value })} className="p-3 border rounded-xl font-bold text-sm outline-none bg-white shadow-sm mx-auto">
+                                                                    <option value="รอตรวจสอบ">รอตรวจสอบ</option><option value="ผ่าน">ผ่าน (NoDup)</option><option value="ไม่ผ่าน">ไม่ผ่าน</option>
                                                                 </select>
                                                             ) : (
-                                                                <span className={`px-5 py-2 rounded-full text-sm font-black ${isPass ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                                <span className={`px-5 py-2 rounded-full text-sm font-black mx-auto inline-block ${isPass ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
                                                                     {item.prescreenStatus === 'ผ่าน' ? 'NoDup' : item.prescreenStatus}
                                                                 </span>
                                                             )}
                                                         </td>
 
-                                                        {/* Resume + Download */}
-                                                        <td className="p-8 text-center">
+                                                        {/* Resume & Download */}
+                                                        <td className="p-8">
                                                             <div className="flex justify-center items-center gap-4">
                                                                 {isPass ? (
                                                                     item.resumeLink ? (
                                                                         <div className="flex gap-2">
-                                                                            <a href={item.resumeLink} target="_blank" className="text-indigo-600 p-3 bg-indigo-50 rounded-xl hover:scale-110 transition-all shadow-sm" title="View CV">
-                                                                                <i data-lucide="eye" className="w-6 h-6"></i>
-                                                                            </a>
+                                                                            <a href={item.resumeLink} target="_blank" className="text-indigo-600 p-3 bg-indigo-50 rounded-xl hover:scale-110 transition-all shadow-sm" title="View CV"><i data-lucide="eye" className="w-6 h-6"></i></a>
                                                                             {currentUserAgency === 'Admin' && (
-                                                                                <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 p-3 bg-emerald-50 rounded-xl hover:scale-110 transition-all shadow-sm flex items-center gap-2 font-black text-xs" title="Download CV">
-                                                                                    <i data-lucide="download" className="w-6 h-6"></i>
-                                                                                    <span>DOWNLOAD</span>
-                                                                                </a>
+                                                                                <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 p-3 bg-emerald-50 rounded-xl hover:scale-110 transition-all shadow-sm flex items-center gap-2 font-black text-xs" title="Download CV"><i data-lucide="download" className="w-6 h-6"></i><span>DL</span></a>
                                                                             )}
                                                                         </div>
                                                                     ) : (
                                                                         currentUserAgency !== 'Admin' && (
-                                                                            <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-xs font-black uppercase p-3 border-2 border-dashed border-indigo-200 rounded-xl hover:bg-indigo-50 transition-all">
-                                                                                {isUploading === item.id ? "Uploading..." : "Upload CV"}
-                                                                            </button>
+                                                                            <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-xs font-black uppercase p-3 border-2 border-dashed border-indigo-200 rounded-xl hover:bg-indigo-50 transition-all">{isUploading === item.id ? "..." : "Upload CV"}</button>
                                                                         )
                                                                     )
                                                                 ) : <i data-lucide="lock" className="text-slate-200 w-6 h-6 mx-auto"></i>}
                                                             </div>
                                                         </td>
 
-                                                        <td className="p-8 text-center">
+                                                        <td className="p-8">
                                                             {currentUserAgency === 'Admin' ? (
-                                                                <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="p-3 border rounded-xl font-bold text-sm outline-none bg-white" />
+                                                                <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="p-3 border rounded-xl font-bold text-sm outline-none bg-white mx-auto" />
                                                             ) : <span className="font-black text-slate-600">{item.interviewDate || '-'}</span>}
                                                         </td>
 
-                                                        <td className="p-8 text-center">
+                                                        <td className="p-8">
                                                             {currentUserAgency === 'Admin' ? (
-                                                                <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="p-3 border rounded-xl font-bold text-sm outline-none bg-white shadow-sm">
+                                                                <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="p-3 border rounded-xl font-bold text-sm outline-none bg-white shadow-sm mx-auto">
                                                                     <option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option><option value="สละสิทธิ์">สละสิทธิ์</option>
                                                                 </select>
                                                             ) : (
-                                                                <span className={`px-5 py-2 rounded-full text-sm font-black ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>
+                                                                <span className={`px-5 py-2 rounded-full text-sm font-black mx-auto inline-block ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>
                                                             )}
                                                         </td>
 
-                                                        <td className="p-8 text-center">
-                                                            <button onClick={() => { if(confirm("ต้องการลบข้อมูลถาวร?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all p-2 bg-rose-50 rounded-xl"><i data-lucide="trash-2" className="w-7 h-7"></i></button>
+                                                        <td className="p-8">
+                                                            <button onClick={() => { if(confirm("ต้องการลบข้อมูลถาวร?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all p-2 bg-rose-50 rounded-xl mx-auto block"><i data-lucide="trash-2" className="w-7 h-7"></i></button>
                                                         </td>
                                                     </tr>
                                                 );
