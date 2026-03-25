@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Checker | Original Layout</title>
+    <title>Candidate Checker | Full Original Layout</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -13,10 +13,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; font-size: 13px; }
-        th { white-space: nowrap; font-size: 11px !important; padding: 10px 4px !important; background-color: #0f172a; color: white; text-align: center; }
-        td { font-size: 12px !important; padding: 10px 4px !important; text-align: center; border-bottom: 1px solid #e2e8f0; }
-        .sidebar-container { width: 300px; flex-shrink: 0; }
+        th { white-space: nowrap; font-size: 11px !important; padding: 12px 4px !important; background-color: #0f172a; color: white; border: 1px solid #334155; }
+        td { font-size: 12.5px !important; padding: 10px 4px !important; border-bottom: 1px solid #e2e8f0; text-align: center; }
+        .sidebar-container { width: 320px; flex-shrink: 0; }
         .draft-row { background-color: #fffbeb; }
+        .popup-animate { animation: scaleIn 0.3s ease-out; }
+        @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -43,6 +45,7 @@
         const { useState, useEffect, useMemo, useRef } = React;
 
         const App = () => {
+            // *** สำคัญ: เปลี่ยนลิงก์ข้างล่างนี้เป็น URL ล่าสุดจากการ Deploy ของคุณ ***
             const scriptURL = "https://script.google.com/macros/s/AKfycbyHSv_7wt3jlYJQWVlnE5GF06y3tgf-FLcyz6AQDnNoBtIs0PqfCVw5AM_SYlSNxJHYhg/exec";
 
             const [user, setUser] = useState(null);
@@ -58,9 +61,11 @@
             const itemsPerPage = 50;
 
             const [filters, setFilters] = useState({ name: '' });
+            const [popup, setPopup] = useState(null);
             const [isUploading, setIsUploading] = useState(null);
             const [targetId, setTargetId] = useState(null);
             const fileInputRef = useRef(null);
+
             const [formData, setFormData] = useState({ submissionDate: new Date().toISOString().split('T')[0], firstName: '', lastName: '', tel: '', email: '', position: '', location: '' });
 
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
@@ -91,7 +96,8 @@
             const allFiltered = useMemo(() => {
                 return cloudCandidates.filter(item => {
                     if (currentUserAgency !== 'Admin' && item.agency !== currentUserAgency) return false;
-                    return normalize((item.firstName || '') + (item.lastName || '')).includes(normalize(filters.name));
+                    const fullName = normalize((item.firstName || '') + (item.lastName || '') + (item.name || ''));
+                    return fullName.includes(normalize(filters.name));
                 }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
             }, [cloudCandidates, currentUserAgency, filters]);
 
@@ -101,7 +107,7 @@
             const handleBulkCheck = () => {
                 const updated = draftList.map((item) => {
                     const email = item.email.toLowerCase().trim();
-                    const isDupExt = [...referenceDb, ...cloudCandidates].some(c => normalize(c.firstName + c.lastName) === normalize(item.firstName + item.lastName) || normalize(c.tel) === normalize(item.tel) || (email && normalize(c.email) === email));
+                    const isDupExt = [...referenceDb, ...cloudCandidates].some(c => normalize((c.firstName||'')+(c.lastName||'')) === normalize(item.firstName+item.lastName) || normalize(c.tel) === normalize(item.tel) || (email && normalize(c.email) === email));
                     const isDupGmail = gmailDb.includes(email);
                     let status = isDupExt ? 'Dup' : (isDupGmail ? 'Dup (Gmail)' : 'No Dup');
                     return { ...item, status };
@@ -119,13 +125,20 @@
                         const candidate = cloudCandidates.find(c => c.id === targetId);
                         const response = await fetch(scriptURL, { method: "POST", body: JSON.stringify({ fileData: base64, mimeType: file.type, fileName: `${candidate.firstName}_CV.pdf` }) });
                         const res = await response.json();
-                        if (res.status === "success") await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { resumeLink: res.url });
-                    } finally { setIsUploading(null); setTargetId(null); }
+                        if (res.status === "success") {
+                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { resumeLink: res.url });
+                            // แจ้งเตือนสำเร็จ
+                            setPopup({ title: "SUCCESS", msg: "อัปโหลด Resume สำเร็จแล้ว!" });
+                        } else {
+                            setPopup({ title: "ERROR", msg: "อัปโหลดล้มเหลว: " + res.message });
+                        }
+                    } catch (err) { setPopup({ title: "ERROR", msg: "เกิดข้อผิดพลาดในการเชื่อมต่อ" }); }
+                    finally { setIsUploading(null); setTargetId(null); e.target.value = ''; }
                 };
                 reader.readAsDataURL(file);
             };
 
-            if (isLoading) return <div className="h-screen flex items-center justify-center font-black">INITIALIZING...</div>;
+            if (isLoading) return <div className="h-screen flex items-center justify-center font-black">SYNCING DATABASE...</div>;
 
             if (!currentUserAgency) return (
                 <div className="h-screen flex items-center justify-center bg-slate-900">
@@ -136,8 +149,8 @@
                         if (agency) setCurrentUserAgency(agency); else alert("Login Failed");
                     }} className="bg-white p-10 rounded-3xl w-80 shadow-2xl">
                         <h1 className="text-xl font-black mb-6 text-center">RECRUIT LOGIN</h1>
-                        <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full border p-3 rounded-xl mb-4" placeholder="Email" required />
-                        <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">ENTER</button>
+                        <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full border p-3 rounded-xl mb-4 text-center font-bold" placeholder="Your Email" required />
+                        <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold active:scale-95 transition-all uppercase">Enter</button>
                     </form>
                 </div>
             );
@@ -145,95 +158,122 @@
             return (
                 <div className="p-4 max-w-full">
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
-                    <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border">
-                        <h1 className="font-black uppercase tracking-tighter">{currentUserAgency} SESSION</h1>
-                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-2.5 rounded-xl"><i data-lucide="power"></i></button>
+                    
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-indigo-600 p-2 rounded-lg text-white shadow-md"><i data-lucide="users"></i></div>
+                            <h1 className="font-black uppercase tracking-tight text-slate-700">{currentUserAgency} SESSION</h1>
+                        </div>
+                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-2.5 rounded-xl hover:bg-rose-600 hover:text-white transition-all active:scale-90"><i data-lucide="power"></i></button>
                     </div>
 
                     <div className="flex flex-col xl:flex-row gap-6">
+                        {/* Sidebar Left */}
                         {currentUserAgency !== 'Admin' && (
-                            <div className="sidebar-container bg-white p-6 rounded-2xl shadow-md border h-fit sticky top-4">
-                                <h2 className="font-black mb-4 flex items-center gap-2 uppercase text-xs text-indigo-600"><i data-lucide="user-plus"></i> เพิ่มรายชื่อ</h2>
+                            <div className="sidebar-container bg-white p-6 rounded-2xl shadow-md border border-slate-100 h-fit sticky top-4">
+                                <h2 className="font-black mb-4 flex items-center gap-2 uppercase text-xs text-indigo-600"><i data-lucide="user-plus"></i> เพิ่มรายชื่อใหม่</h2>
                                 <form onSubmit={(e) => {
                                     e.preventDefault();
                                     setDraftList([...draftList, { ...formData, draftId: Date.now(), status: 'Pending' }]);
                                     setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
                                     setIsChecked(false);
                                 }} className="space-y-3">
-                                    <input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full border p-2 rounded-lg text-sm" required />
-                                    <input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full border p-2 rounded-lg text-sm" required />
-                                    <input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full border p-2 rounded-lg text-sm" required />
+                                    <input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full border p-2 rounded-lg text-sm bg-slate-50" required />
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="border p-2 rounded-lg text-sm" required />
+                                        <input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="border p-2 rounded-lg text-sm" required />
+                                    </div>
                                     <input type="text" placeholder="เบอร์โทร" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full border p-2 rounded-lg text-sm" required />
                                     <input type="email" placeholder="อีเมล" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border p-2 rounded-lg text-sm" required />
-                                    <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full border p-2 rounded-lg text-sm" required><option value="">ตำแหน่ง...</option><option value="Sales Executive">Sales Executive</option></select>
+                                    <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full border p-2 rounded-lg text-sm" required><option value="">เลือกตำแหน่ง...</option><option value="Sales Executive">Sales Executive</option></select>
                                     <input type="text" placeholder="สาขา" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full border p-2 rounded-lg text-sm" required />
-                                    <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-xs active:scale-95 transition-all">+ เพิ่มลงร่าง</button>
+                                    <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-xs active:scale-95 transition-all shadow-lg">+ เพิ่มลงตารางร่าง</button>
                                 </form>
                             </div>
                         )}
 
-                        <div className="flex-1 space-y-4">
-                            <div className="bg-white p-4 rounded-xl border flex gap-2">
-                                <input type="text" placeholder="ค้นหาชื่อ..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="border p-2 rounded-lg text-sm w-full" />
+                        {/* Content Right */}
+                        <div className="flex-1 space-y-4 min-w-0">
+                            <div className="bg-white p-4 rounded-xl border border-slate-200 flex gap-2">
+                                <input type="text" placeholder="ค้นหาตามชื่อ-นามสกุล..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="border p-2 rounded-lg text-sm w-full" />
                             </div>
 
+                            {/* Draft Checker */}
                             {draftList.length > 0 && (
-                                <div className="bg-white rounded-xl border-2 border-amber-200 overflow-hidden shadow-lg">
-                                    <div className="bg-amber-50 p-3 flex justify-between items-center border-b">
-                                        <span className="font-black text-xs uppercase">รายการรอตรวจสอบ ({draftList.length})</span>
+                                <div className="bg-white rounded-xl border-2 border-amber-200 overflow-hidden shadow-xl">
+                                    <div className="bg-amber-50 p-4 flex justify-between items-center border-b border-amber-200">
+                                        <span className="font-black text-xs uppercase text-amber-800 tracking-wider">รายการรอตรวจสอบ ({draftList.length})</span>
                                         <div className="flex gap-2">
-                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase">1. Check Duplicate</button>
+                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95 transition-all">1. Check Duplicate</button>
                                             {isChecked && <button onClick={async () => {
                                                 const promises = draftList.map(item => window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...item, agency: currentUserAgency, prescreenStatus: item.status, interviewStatus: 'รอผล', createdAt: Date.now() }));
                                                 await Promise.all(promises); setDraftList([]); setIsChecked(false);
-                                            }} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase animate-bounce">2. บันทึกเข้า Cloud</button>}
+                                                setPopup({ title: "SUCCESS", msg: "บันทึกข้อมูลเข้า Cloud เรียบร้อยแล้ว!" });
+                                            }} className="bg-emerald-600 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase shadow-md animate-bounce">2. บันทึกเข้า Cloud</button>}
                                         </div>
                                     </div>
-                                    <div className="overflow-x-auto"><table className="w-full"><thead><tr><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ผลตรวจ</th></tr></thead><tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.firstName} {item.lastName}</td><td>{item.tel}</td><td><span className={`px-4 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td></tr>))}</tbody></table></div>
+                                    <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th className="bg-amber-600">ผลตรวจสอบ</th></tr></thead><tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.firstName} {item.lastName}</td><td className="font-bold">{item.tel}</td><td><span className={`px-4 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td></tr>))}</tbody></table></div>
                                 </div>
                             )}
 
-                            <div className="bg-white rounded-2xl shadow-lg border overflow-hidden">
-                                <div className="bg-slate-50 p-4 border-b flex justify-between font-black text-xs text-slate-500 uppercase">
+                            {/* Main Table */}
+                            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                                <div className="bg-slate-50 p-4 border-b font-black text-[11px] flex justify-between uppercase text-slate-500">
                                     <span>ฐานข้อมูลหลัก - หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
-                                        <thead><tr><th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตรวจสอบ</th><th className="bg-indigo-600 text-white">Resume</th><th>สัมภาษณ์</th><th>จัดการ</th></tr></thead>
+                                        <thead><tr><th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตรวจสอบ</th><th className="bg-indigo-600 text-white">Resume</th><th>สัมภาษณ์</th><th>จัดการ</th></tr></thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {paginatedItems.map(item => {
                                                 const isNoDup = item.prescreenStatus === 'No Dup' || item.interviewStatus === 'ผ่าน';
                                                 return (
-                                                    <tr key={item.id}>
+                                                    <tr key={item.id} className="hover:bg-slate-50/40 transition-all">
                                                         <td className="text-[10px] text-slate-400 font-bold">{item.submissionDate}</td>
-                                                        <td className="text-left font-black">{item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-') }</td>
-                                                        <td className="font-bold">{item.tel}</td>
+                                                        <td className="text-left font-black text-slate-700">{item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-') }</td>
+                                                        <td className="font-bold text-slate-600">{item.tel}</td>
                                                         <td><span className={`px-2 py-1 rounded-full text-[10px] font-black inline-block ${isNoDup ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.prescreenStatus}</span></td>
                                                         <td>
                                                             <div className="flex justify-center gap-1">
                                                                 {item.resumeLink ? (
                                                                     <div className="flex gap-1">
-                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 p-1.5 rounded-lg"><i data-lucide="eye" className="w-4 h-4"></i></a>
+                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 p-1.5 rounded-lg hover:scale-110 transition-all"><i data-lucide="eye" className="w-4 h-4"></i></a>
                                                                         {currentUserAgency === 'Admin' && (<a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 bg-emerald-50 p-1.5 rounded font-black text-[9px] border border-emerald-100">DL</a>)}
                                                                     </div>
                                                                 ) : (currentUserAgency !== 'Admin' && isNoDup ? (<button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-[10px] font-black border-2 border-dashed border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50 transition-all">{isUploading === item.id ? "..." : "+ Resume"}</button>) : <i data-lucide="lock" className="text-slate-200 w-4 h-4 mx-auto"></i>)}
                                                             </div>
                                                         </td>
                                                         <td className="text-[10px]">{item.interviewDate || '-'}</td>
-                                                        <td><button onClick={() => { if(confirm("ลบ?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-200 hover:text-rose-600 active:scale-90 transition-all"><i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i></button></td>
+                                                        <td><button onClick={() => { if(confirm("ต้องการลบข้อมูลรายการนี้?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-200 hover:text-rose-600 active:scale-90 transition-all"><i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i></button></td>
                                                     </tr>
                                                 );
                                             })}
                                         </tbody>
                                     </table>
                                 </div>
-                                <div className="p-4 flex justify-between bg-slate-50 border-t">
-                                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="bg-white border px-4 py-1.5 rounded-xl text-xs font-bold disabled:opacity-30">PREV</button>
-                                    <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="bg-white border px-4 py-1.5 rounded-xl text-xs font-bold disabled:opacity-30">NEXT</button>
+                                <div className="p-4 flex justify-between bg-slate-50 border-t items-center font-bold text-xs">
+                                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="bg-white border px-4 py-2 rounded-xl active:scale-95 transition-all disabled:opacity-30">PREV</button>
+                                    <span className="text-slate-400 uppercase tracking-widest text-[10px]">Page {currentPage} of {totalPages}</span>
+                                    <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="bg-white border px-4 py-2 rounded-xl active:scale-95 transition-all disabled:opacity-30">NEXT</button>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
+                    {/* Success/Error Popup */}
+                    {popup && (
+                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[999] p-6">
+                            <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border-t-4 border-indigo-600 w-full max-w-sm text-center popup-animate">
+                                <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6 ${popup.title === 'SUCCESS' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                                    <i data-lucide={popup.title === 'SUCCESS' ? "check-circle" : "alert-circle"} className="w-8 h-8"></i>
+                                </div>
+                                <h3 className="text-xl font-black mb-2 uppercase tracking-tight">{popup.title}</h3>
+                                <p className="text-slate-500 font-bold mb-8 text-sm leading-relaxed">{popup.msg}</p>
+                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-slate-800 active:scale-95 transition-all">Close</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
