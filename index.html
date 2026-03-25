@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Checker | Full Duplicate Scan Build</title>
+    <title>Candidate Checker | Simplified Dup Scan</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -56,7 +56,7 @@
             const [currentUserAgency, setCurrentUserAgency] = useState('');
             const [loginEmail, setLoginEmail] = useState('');
             const [isLoading, setIsLoading] = useState(true);
-            const [cloudCandidates, setCloudCandidates] = useState([]); // เก็บฐานข้อมูลจากทุก User
+            const [cloudCandidates, setCloudCandidates] = useState([]);
             const [referenceDb, setReferenceDb] = useState([]);
             const [gmailDb, setGmailDb] = useState([]); 
             
@@ -76,9 +76,7 @@
 
             const [formData, setFormData] = useState({ submissionDate: new Date().toISOString().split('T')[0], firstName: '', lastName: '', tel: '', email: '', position: '', location: '' });
 
-            // 🚩 ปรับ Logic การ Normalize ให้แม่นยำ
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
-
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
 
             useEffect(() => {
@@ -111,7 +109,7 @@
 
             useEffect(() => {
                 if (!user || !currentUserAgency) return;
-                // 🚩 โหลดข้อมูลทั้งหมดจากทุก User มาใส่ cloudCandidates เพื่อใช้เช็คซ้ำ
+                // โหลดข้อมูลทุก Agency เพื่อเช็คซ้ำข้าม User
                 const q = window.FB.methods.query(window.FB.methods.collection(window.FB.db, 'candidates'));
                 return window.FB.methods.onSnapshot(q, (sn) => { setCloudCandidates(sn.docs.map(d => ({ id: d.id, ...d.data() }))); setTimeout(() => lucide.createIcons(), 100); });
             }, [user, currentUserAgency]);
@@ -133,28 +131,26 @@
             const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-            // 🚩 แก้ไข Logic การตรวจสอบซ้ำให้ครอบคลุมและถูกต้อง
+            // 🚩 ปรับ Logic การตรวจสอบซ้ำ: เหลือแค่ Dup / No Dup
             const handleBulkCheck = () => {
                 const updated = draftList.map((item) => {
                     const inputEmail = item.email.toLowerCase().trim();
                     const inputTel = item.tel.replace(/\D/g, '');
                     const inputNameNormalized = normalize(item.firstName + item.lastName);
 
-                    // 1. เช็คกับฐานข้อมูล Cloud (ทุก User) และฐานข้อมูลอ้างอิง Excel/Blacklist
+                    // 1. เช็ค Cloud DB (ทุก User) และ Reference DB
                     const isDupExt = [...referenceDb, ...cloudCandidates].some(c => {
                         const dbEmail = (c.email || '').toLowerCase().trim();
                         const dbTel = (c.tel || '').replace(/\D/g, '');
                         const dbNameNormalized = normalize((c.firstName||'') + (c.lastName||'') + (c.name||''));
-                        
-                        return (inputEmail && dbEmail === inputEmail) || 
-                               (inputTel && dbTel === inputTel) || 
-                               (inputNameNormalized === dbNameNormalized);
+                        return (inputEmail && dbEmail === inputEmail) || (inputTel && dbTel === inputTel) || (inputNameNormalized === dbNameNormalized);
                     });
 
-                    // 2. เช็คกับ GmailCache (ข้อมูล 4 หมื่นคน)
+                    // 2. เช็ค GmailCache (4 หมื่นรายชื่อ)
                     const isDupGmail = gmailDb.some(e => e.toLowerCase().trim() === inputEmail);
 
-                    let status = isDupExt ? 'Dup' : (isDupGmail ? 'Dup (Gmail)' : 'No Dup');
+                    // ยุบเหลือแค่ Dup / No Dup
+                    let status = (isDupExt || isDupGmail) ? 'Dup' : 'No Dup';
                     return { ...item, status };
                 });
                 setDraftList(updated); setIsChecked(true);
@@ -188,9 +184,9 @@
                         const agency = map[loginEmail.trim().toLowerCase()];
                         if (agency) setCurrentUserAgency(agency); else alert("Login Failed");
                     }} className="bg-white p-10 rounded-3xl w-full max-w-sm shadow-2xl">
-                        <h1 className="text-xl font-black mb-6 uppercase tracking-tighter">Login</h1>
+                        <h1 className="text-xl font-black mb-6 uppercase">Login</h1>
                         <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full border p-3 rounded-xl mb-4 text-center font-bold" placeholder="Email" required />
-                        <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase active:scale-95 transition-all">Enter</button>
+                        <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase">Enter</button>
                     </form>
                 </div>
             );
@@ -200,57 +196,63 @@
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
                     <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border">
                         <h1 className="font-black uppercase tracking-tighter text-slate-700">{currentUserAgency} SESSION</h1>
-                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-2.5 rounded-xl hover:bg-rose-600 hover:text-white transition-all"><i data-lucide="power"></i></button>
+                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-2.5 rounded-xl hover:bg-rose-600 active:scale-95 transition-all"><i data-lucide="power"></i></button>
                     </div>
 
                     <div className="flex flex-col xl:flex-row gap-6">
-                        <div className="sidebar-container bg-white p-5 rounded-2xl shadow-md border border-slate-100 h-fit sticky top-4">
-                            <h2 className="font-black mb-4 flex items-center gap-2 uppercase text-[11px] text-indigo-600"><i data-lucide="user-plus" className="w-4 h-4"></i> เพิ่มรายชื่อ</h2>
-                            <form onSubmit={(e) => {
-                                e.preventDefault();
-                                const telClean = formData.tel.replace(/\D/g, '');
-                                if (telClean.length !== 10) return alert("กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก");
-                                setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
-                                setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
-                                setIsChecked(false);
-                            }} className="space-y-3">
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">วันที่ส่ง *</label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full border p-2 rounded-lg text-xs bg-slate-50" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">ชื่อ *</label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">นามสกุล *</label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">เบอร์โทร *</label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">อีเมล *</label><input type="email" placeholder="example@mail.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">ตำแหน่งงาน *</label>
-                                    <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
-                                        <option value="">เลือกตำแหน่ง...</option>
-                                        {positions.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                </div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">สาขา *</label>
-                                    <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
-                                        <option value="">เลือกสาขา...</option>
-                                        {locations.map(l => <option key={l} value={l}>{l}</option>)}
-                                    </select>
-                                </div>
-                                <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-[10px] active:scale-95 shadow-lg">+ เพิ่มลงร่าง</button>
-                            </form>
-                        </div>
+                        {/* Sidebar Left - Validation Rules Inactive/Active */}
+                        {currentUserAgency !== 'Admin' && (
+                            <div className="sidebar-container bg-white p-5 rounded-2xl shadow-md border border-slate-100 h-fit sticky top-4">
+                                <h2 className="font-black mb-4 flex items-center gap-2 uppercase text-[11px] text-indigo-600"><i data-lucide="user-plus" className="w-4 h-4"></i> เพิ่มรายชื่อ</h2>
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const telClean = formData.tel.replace(/\D/g, '');
+                                    if (telClean.length !== 10) return alert("กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก");
+                                    setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
+                                    setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
+                                    setIsChecked(false);
+                                }} className="space-y-3">
+                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">วันที่ส่ง *</label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full border p-2 rounded-lg text-xs bg-slate-50" required /></div>
+                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">ชื่อ *</label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
+                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">นามสกุล *</label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
+                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">เบอร์โทร *</label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
+                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">อีเมล *</label><input type="email" placeholder="example@mail.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
+                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">ตำแหน่งงาน *</label>
+                                        <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
+                                            <option value="">เลือกตำแหน่ง...</option>
+                                            {positions.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
+                                    </div>
+                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">สาขา *</label>
+                                        <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
+                                            <option value="">เลือกสาขา...</option>
+                                            {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                                        </select>
+                                    </div>
+                                    <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-[10px] active:scale-95 shadow-lg">+ เพิ่มลงร่าง</button>
+                                </form>
+                            </div>
+                        )}
 
                         <div className="flex-1 space-y-4 min-w-0">
+                            {/* Filter Bar */}
                             <div className="compact-filter-bar">
                                 <div className="filter-item"><label className="filter-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="filter-input" /></div>
                                 <div className="filter-item"><label className="filter-label">ชื่อ-นามสกุล</label><input type="text" placeholder="ค้นชื่อ..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="filter-input" /></div>
-                                <div className="filter-item"><label className="filter-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="filter-input"><option value="">ทั้งหมด</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option><option value="Dup (Gmail)">Dup (Gmail)</option></select></div>
+                                {/* 🚩 ปรับ Status Filter */}
+                                <div className="filter-item"><label className="filter-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="filter-input"><option value="">ทั้งหมด</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option></select></div>
                                 <div className="filter-item"><label className="filter-label">ตำแหน่ง</label><select value={filters.pos} onChange={e => setFilters({...filters, pos: e.target.value})} className="filter-input"><option value="">ทั้งหมด</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
                                 <div className="filter-item"><label className="filter-label">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="filter-input" /></div>
                                 <div className="filter-item"><label className="filter-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({...filters, intResult: e.target.value})} className="filter-input"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
                                 <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 border p-2 rounded-lg text-[9px] font-black uppercase hover:bg-slate-200">Reset</button>
                             </div>
 
+                            {/* Draft Box - Verified Dup/No Dup only */}
                             {draftList.length > 0 && (
                                 <div className="bg-white rounded-xl border-2 border-amber-200 overflow-hidden shadow-xl mb-4">
                                     <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase tracking-widest text-amber-800">รอตรวจสอบ ({draftList.length})
                                         <div className="flex gap-2">
-                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95 transition-all tracking-tighter">1. Check Dup (Cross-User)</button>
+                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95 transition-all">1. Check Dup (All Users)</button>
                                             {isChecked && <button onClick={async () => {
                                                 const promises = draftList.map(item => window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...item, agency: currentUserAgency, prescreenStatus: item.status, interviewStatus: 'รอผล', createdAt: Date.now(), resumeLink: '' }));
                                                 await Promise.all(promises); setDraftList([]); setIsChecked(false);
@@ -260,13 +262,14 @@
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-[11px]">
-                                            <thead><tr><th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-100">ผลตรวจสอบ</th></tr></thead>
+                                            <thead><tr><th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-100 text-amber-900">ผลตรวจสอบ</th></tr></thead>
                                             <tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.submissionDate}</td><td className="font-black text-slate-700">{item.firstName} {item.lastName}</td><td>{item.tel}</td><td className="text-slate-500">{item.email}</td><td className="font-bold text-indigo-600">{item.position}</td><td>{item.location}</td><td><span className={`px-3 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td></tr>))}</tbody>
                                         </table>
                                     </div>
                                 </div>
                             )}
 
+                            {/* Main Table - Simplified Status Display */}
                             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                                 <div className="bg-slate-50 p-3 border-b font-black text-[10.5px] flex justify-between uppercase text-slate-500 tracking-widest">
                                     <span>ฐานข้อมูลหลัก - หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)</span>
@@ -278,7 +281,7 @@
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {paginatedItems.map(item => {
-                                                const isNoDup = item.prescreenStatus === 'No Dup' || item.interviewStatus === 'ผ่าน';
+                                                const isNoDup = item.prescreenStatus === 'No Dup'; // 🚩 แก้ไข: ไม่รวมสถานะสัมภาษณ์มาตัดสินผลตรวจสอบซ้ำ
                                                 return (
                                                     <tr key={item.id} className="hover:bg-slate-50/50 transition-all">
                                                         <td className="text-[10px] text-slate-400 font-bold">{item.submissionDate}</td>
