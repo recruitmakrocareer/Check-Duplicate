@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate System | Master Build V6</title>
+    <title>Candidate Checker | Full Duplicate Scan Build</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -56,14 +56,11 @@
             const [currentUserAgency, setCurrentUserAgency] = useState('');
             const [loginEmail, setLoginEmail] = useState('');
             const [isLoading, setIsLoading] = useState(true);
-            const [cloudCandidates, setCloudCandidates] = useState([]);
+            const [cloudCandidates, setCloudCandidates] = useState([]); // เก็บฐานข้อมูลจากทุก User
             const [referenceDb, setReferenceDb] = useState([]);
             const [gmailDb, setGmailDb] = useState([]); 
             
-            // 🚩 ตำแหน่งงาน (มาครบแน่นอน)
             const [positions, setPositions] = useState(["Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", "Section Manager - Frozen", "Section Manager - Dry Food 1", "Section Manager - Dry Food 2", "Section Manager - F&V", "Section Manager - Non Food 1", "Section Manager - Non Fresh", "Section Manager - Fish", "Section Manager - GA", "Section Manager - GR", "Section Manager - HR", "Supervisor - Office Support"]);
-            
-            // 🚩 รายชื่อสาขา 167 แห่ง (ครบถ้วนและตัดข้อมูลซ้ำแล้ว)
             const [locations, setLocations] = useState(['1-Lardprao', '2-Chaengwattana', '3-Srinakarin', '4-Bangbon', '5-Chonburi', '6-Chiang Mai 1', '7-Nakhon Ratchasima', '8-Rangsit', '9-Hat Yai', '10-Udonthani', '11-Phitsanulok', '12-Khon Kaen', '13-Surat Thani', '14-Ubol Ratchathani', '15-Rayong', '16-Nakhon Sawan', '17-Charansanitwongse', '18-Sathorn', '19-Nakhon Pathom', '20-Surin', '21-Samsen', '22-Nakhon Si Thammarat', '23-Chiang Rai', '24-Sakon Nakhon', '25-Suphan Buri', '26-Chanthaburi', '27-Phuket', '28-Roi Et', '29-Trang', '30-Sakaeo', '31-Koh Samui', '32-Buri Ram', '33-Sisaket', '34-Lamphun', '35-Krabi', '36-Phetchaburi', '37-Chaiyaphum', '38-Saraburi', '39-Pran Buri', '40-Chachoengsao', '41-Chiang Mai 2', '42-Ram Inthra', '43-Chumphon', '44-Pattaya', '45-Kamphangphet', '46-Kanchanaburi', '47-Lop Buri', '48-Nong Khai', '49-Ratchaburi', '50-Mae Rim', '51-Ayutthaya', '52-Lampang', '53-Hua Hin', '54-Khlong Luang', '55-Loei', '56-Phetchaboon', '57-Bang Phli', '58-Mukdahan', '59-Satun', '60-Trat', '61-Chum Pae', '62-Rawai', '63-Nakorn Panom', '64-Koh Phangan', '65-Bueng Kan', '66-North Pattaya', '67-Mae Sai', '68-Salaya', '69-Pattalung', '70-Sukhothai', '71-Patong', '72-Samutsakhon', '73-Maesod', '74-Pakchong', '75-Thalang', '76-Ranong', '77-Lamai', '78-Kalapapurk', '79-Yasothon', '80-Mahasarakam', '81-Phang', '82-Nakhon Nayok', '83-Nakhon In', '84-Banphae', '85-Tung Song', '86-Srinakarin 2', '87-Phayao', '89-Phitsanulok 2', '96-nan', '100-Phrae', '101-Koh Chang', '102-Nakhon Ratchasima 2', '103-Nan', '104-Ao Nang', '105-Karon', '106-Warinchamrab', '107-Nongbualamphu', '108-Nong Chok', '109-Laem Chabang', '110-Prachuap Khiri Khan', '111-Phetchakasem', '113-Wang Hin', '114-Singburi', '115-Bang Bua Thong', '116-Kalasin', '117-Udomsuk', '118-Ramkhamhaeng (Sammakorn)', '119-Phichit', '120-Pathumthani', '121-Bodindecha', '122-Prachautit', '123-Sukhumvit 71', '124-Navamin 70', '125-Cha-am', '126-On Nut', '127-Suksawas', '128-Kabin Buri', '129-Ladkrabang', '130-Nathong Charoen', '131-Bo Win', '132-Sattahip', '133-Ramkhamhaeng 24', '134-Amata Nakorn', '135-Bangkholaem', '136-Khon Kaen 2', '137-Wongsakorn 2', '138-Meng Jai', '139-Sukhumvit 22', '140-Chan Road', '141-Lam Luk Ka', '142-Phraeksa', '143-Praditmanutham', '144-Rungroj Market (Klong 4)Branch', '145-Pongpeth', '146-Uttaradit', '147-Muangthong', '148-Liap Khlong Song', '149-Omnoi', '150-Sanam Bin Nam', '151-Thep Rak', '152-Samut Songkharm', '153-Wiang Sa', '154-Prachin Buri', '155-Pinklao', '156-Samut Prakan', '157-Nakhon Ratchasima 3', '158-Nakhon Sawan2 (Phrom Nimit)', '159-Udon Thani 2 (Ban Lueam)', '160-Mahachai', '161-Khon Kaen 3 (Ban Non Muang)', '162-Amatanakorn 2', '163-Songkhla 2', '164-Chainat', '165-Sri Ayutthaya Road', '166-Rawai 2', '167-Chiang Mai (Chom Thong)', '168-Ban Bueng', '169-Phang Nga', '170-Amnat Charoen', '171-Jo Ho (Nakhon Ratchasima)', '172-Ban Pai', '175-Happitat (Forestias – Bangna)', '301-Rama 4 Branch', '303-Sirimangkalajarn Branch', '350-Ram Intra KM4 Branch', '351-Sinopark Branch', '352-Patthanakarn Branch']);
 
             const [draftList, setDraftList] = useState([]);
@@ -79,7 +76,9 @@
 
             const [formData, setFormData] = useState({ submissionDate: new Date().toISOString().split('T')[0], firstName: '', lastName: '', tel: '', email: '', position: '', location: '' });
 
+            // 🚩 ปรับ Logic การ Normalize ให้แม่นยำ
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
+
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
 
             useEffect(() => {
@@ -100,10 +99,8 @@
                             if(code && name && code !== 'Store_No') locSet.add(`${code.trim()}-${name.trim()}`);
                         });
                         if(locSet.size > 0) setLocations(Array.from(locSet).sort((a,b) => parseInt(a) - parseInt(b)));
-
                         const posList = [...new Set(parsed.map(r => r['Position']).filter(p => p && p !== 'Position'))];
                         if(posList.length > 0) setPositions(prev => [...new Set([...prev, ...posList])].sort());
-
                         return fetch(scriptURL + "?action=getGmail");
                     }).then(r => r.json()).then(emails => { 
                         setGmailDb(emails); setIsLoading(false); 
@@ -114,6 +111,7 @@
 
             useEffect(() => {
                 if (!user || !currentUserAgency) return;
+                // 🚩 โหลดข้อมูลทั้งหมดจากทุก User มาใส่ cloudCandidates เพื่อใช้เช็คซ้ำ
                 const q = window.FB.methods.query(window.FB.methods.collection(window.FB.db, 'candidates'));
                 return window.FB.methods.onSnapshot(q, (sn) => { setCloudCandidates(sn.docs.map(d => ({ id: d.id, ...d.data() }))); setTimeout(() => lucide.createIcons(), 100); });
             }, [user, currentUserAgency]);
@@ -135,11 +133,27 @@
             const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+            // 🚩 แก้ไข Logic การตรวจสอบซ้ำให้ครอบคลุมและถูกต้อง
             const handleBulkCheck = () => {
                 const updated = draftList.map((item) => {
-                    const email = item.email.toLowerCase().trim();
-                    const isDupExt = [...referenceDb, ...cloudCandidates].some(c => normalize((c.firstName||'')+(c.lastName||'')) === normalize(item.firstName+item.lastName) || normalize(c.tel) === normalize(item.tel) || (email && normalize(c.email) === email));
-                    const isDupGmail = gmailDb.includes(email);
+                    const inputEmail = item.email.toLowerCase().trim();
+                    const inputTel = item.tel.replace(/\D/g, '');
+                    const inputNameNormalized = normalize(item.firstName + item.lastName);
+
+                    // 1. เช็คกับฐานข้อมูล Cloud (ทุก User) และฐานข้อมูลอ้างอิง Excel/Blacklist
+                    const isDupExt = [...referenceDb, ...cloudCandidates].some(c => {
+                        const dbEmail = (c.email || '').toLowerCase().trim();
+                        const dbTel = (c.tel || '').replace(/\D/g, '');
+                        const dbNameNormalized = normalize((c.firstName||'') + (c.lastName||'') + (c.name||''));
+                        
+                        return (inputEmail && dbEmail === inputEmail) || 
+                               (inputTel && dbTel === inputTel) || 
+                               (inputNameNormalized === dbNameNormalized);
+                    });
+
+                    // 2. เช็คกับ GmailCache (ข้อมูล 4 หมื่นคน)
+                    const isDupGmail = gmailDb.some(e => e.toLowerCase().trim() === inputEmail);
+
                     let status = isDupExt ? 'Dup' : (isDupGmail ? 'Dup (Gmail)' : 'No Dup');
                     return { ...item, status };
                 });
@@ -167,16 +181,16 @@
             if (isLoading) return <div className="h-screen flex items-center justify-center font-black">SYNCING...</div>;
 
             if (!currentUserAgency) return (
-                <div className="h-screen flex items-center justify-center bg-slate-900 text-center">
+                <div className="h-screen flex items-center justify-center bg-slate-900 text-center p-6">
                     <form onSubmit={(e) => {
                         e.preventDefault();
                         const map = { "admin@company.com": "Admin", "manpower@agency.com": "Manpower", "metalent@agency.com": "Me Talent", "prtr@agency.com": "PRTR", "talentvis@agency.com": "Talentvis", "techgrid@agency.com": "Techgrid" };
                         const agency = map[loginEmail.trim().toLowerCase()];
                         if (agency) setCurrentUserAgency(agency); else alert("Login Failed");
-                    }} className="bg-white p-10 rounded-3xl w-80 shadow-2xl">
-                        <h1 className="text-xl font-black mb-6 uppercase">Login</h1>
+                    }} className="bg-white p-10 rounded-3xl w-full max-w-sm shadow-2xl">
+                        <h1 className="text-xl font-black mb-6 uppercase tracking-tighter">Login</h1>
                         <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full border p-3 rounded-xl mb-4 text-center font-bold" placeholder="Email" required />
-                        <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase">Enter</button>
+                        <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase active:scale-95 transition-all">Enter</button>
                     </form>
                 </div>
             );
@@ -184,49 +198,42 @@
             return (
                 <div className="p-4 max-w-full min-h-screen">
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
-                    
                     <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border">
                         <h1 className="font-black uppercase tracking-tighter text-slate-700">{currentUserAgency} SESSION</h1>
                         <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-2.5 rounded-xl hover:bg-rose-600 hover:text-white transition-all"><i data-lucide="power"></i></button>
                     </div>
 
                     <div className="flex flex-col xl:flex-row gap-6">
-                        {/* Sidebar Left - Rules Applied */}
-                        {currentUserAgency !== 'Admin' && (
-                            <div className="sidebar-container bg-white p-5 rounded-2xl shadow-md border border-slate-100 h-fit sticky top-4">
-                                <h2 className="font-black mb-4 flex items-center gap-2 uppercase text-[11px] text-indigo-600"><i data-lucide="user-plus" className="w-4 h-4"></i> เพิ่มรายชื่อ</h2>
-                                <form onSubmit={(e) => {
-                                    e.preventDefault();
-                                    const telClean = formData.tel.replace(/\D/g, '');
-                                    if (telClean.length !== 10) return alert("กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก");
-                                    setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
-                                    setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
-                                    setIsChecked(false);
-                                }} className="space-y-3">
-                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">วันที่ส่ง *</label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full border p-2 rounded-lg text-xs bg-slate-50" required /></div>
-                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">ชื่อ *</label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">นามสกุล *</label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">เบอร์โทร *</label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">อีเมล *</label><input type="email" placeholder="example@mail.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                    
-                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">ตำแหน่งงาน *</label>
-                                        <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
-                                            <option value="">เลือกตำแหน่ง...</option>
-                                            {positions.map(p => <option key={p} value={p}>{p}</option>)}
-                                        </select>
-                                    </div>
-                                    
-                                    <div><label className="text-[9px] font-bold text-slate-400 uppercase">สาขา *</label>
-                                        <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
-                                            <option value="">เลือกสาขา...</option>
-                                            {locations.map(l => <option key={l} value={l}>{l}</option>)}
-                                        </select>
-                                    </div>
-                                    
-                                    <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-[10px] active:scale-95 shadow-lg">+ เพิ่มลงร่าง</button>
-                                </form>
-                            </div>
-                        )}
+                        <div className="sidebar-container bg-white p-5 rounded-2xl shadow-md border border-slate-100 h-fit sticky top-4">
+                            <h2 className="font-black mb-4 flex items-center gap-2 uppercase text-[11px] text-indigo-600"><i data-lucide="user-plus" className="w-4 h-4"></i> เพิ่มรายชื่อ</h2>
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                const telClean = formData.tel.replace(/\D/g, '');
+                                if (telClean.length !== 10) return alert("กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก");
+                                setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
+                                setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
+                                setIsChecked(false);
+                            }} className="space-y-3">
+                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">วันที่ส่ง *</label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full border p-2 rounded-lg text-xs bg-slate-50" required /></div>
+                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">ชื่อ *</label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
+                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">นามสกุล *</label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
+                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">เบอร์โทร *</label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
+                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">อีเมล *</label><input type="email" placeholder="example@mail.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
+                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">ตำแหน่งงาน *</label>
+                                    <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
+                                        <option value="">เลือกตำแหน่ง...</option>
+                                        {positions.map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                </div>
+                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">สาขา *</label>
+                                    <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
+                                        <option value="">เลือกสาขา...</option>
+                                        {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                                    </select>
+                                </div>
+                                <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-[10px] active:scale-95 shadow-lg">+ เพิ่มลงร่าง</button>
+                            </form>
+                        </div>
 
                         <div className="flex-1 space-y-4 min-w-0">
                             <div className="compact-filter-bar">
@@ -239,12 +246,11 @@
                                 <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 border p-2 rounded-lg text-[9px] font-black uppercase hover:bg-slate-200">Reset</button>
                             </div>
 
-                            {/* Draft Box - 7 Columns Verified */}
                             {draftList.length > 0 && (
                                 <div className="bg-white rounded-xl border-2 border-amber-200 overflow-hidden shadow-xl mb-4">
-                                    <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase tracking-widest">รอตรวจสอบ ({draftList.length})
+                                    <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase tracking-widest text-amber-800">รอตรวจสอบ ({draftList.length})
                                         <div className="flex gap-2">
-                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95 transition-all">1. Check Dup</button>
+                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95 transition-all tracking-tighter">1. Check Dup (Cross-User)</button>
                                             {isChecked && <button onClick={async () => {
                                                 const promises = draftList.map(item => window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...item, agency: currentUserAgency, prescreenStatus: item.status, interviewStatus: 'รอผล', createdAt: Date.now(), resumeLink: '' }));
                                                 await Promise.all(promises); setDraftList([]); setIsChecked(false);
@@ -255,13 +261,12 @@
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-[11px]">
                                             <thead><tr><th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-100">ผลตรวจสอบ</th></tr></thead>
-                                            <tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.submissionDate}</td><td className="font-black">{item.firstName} {item.lastName}</td><td>{item.tel}</td><td>{item.email}</td><td className="font-bold text-indigo-600">{item.position}</td><td>{item.location}</td><td><span className={`px-3 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td></tr>))}</tbody>
+                                            <tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.submissionDate}</td><td className="font-black text-slate-700">{item.firstName} {item.lastName}</td><td>{item.tel}</td><td className="text-slate-500">{item.email}</td><td className="font-bold text-indigo-600">{item.position}</td><td>{item.location}</td><td><span className={`px-3 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td></tr>))}</tbody>
                                         </table>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Main Table */}
                             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                                 <div className="bg-slate-50 p-3 border-b font-black text-[10.5px] flex justify-between uppercase text-slate-500 tracking-widest">
                                     <span>ฐานข้อมูลหลัก - หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)</span>
