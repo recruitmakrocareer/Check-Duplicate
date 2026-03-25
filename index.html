@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Checker | Final Master Build V3</title>
+    <title>Candidate Checker | Final Certified Build V4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -51,9 +51,6 @@
         const App = () => {
             const scriptURL = "https://script.google.com/macros/s/AKfycbyHSv_7wt3jlYJQWVlnE5GF06y3tgf-FLcyz6AQDnNoBtIs0PqfCVw5AM_SYlSNxJHYhg/exec";
             const configCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxq53q5Vk4M8Pl198a5N1znINRlUqpbB4E8ZFBVE_GYTWX9qwuHSIljFlImhM110x0d2XeER8A28up/pub?output=csv";
-            // 🚩 กำหนดลิงก์สำหรับ Sheet Manpower_Status (ถ้าเป็นลิงก์เดียวกับตัวบนแต่คนละแผ่น ให้ใช้ลิงก์ที่ระบุ gid หรือส่งมาเป็น CSV แยก)
-            // ในที่นี้ผมใช้ลิงก์ที่คุณส่งมาล่าสุดเป็นหลักเพื่อดึงข้อมูลสาขา
-            const manpowerStatusCSV = configCSV; 
 
             const [user, setUser] = useState(null);
             const [currentUserAgency, setCurrentUserAgency] = useState('');
@@ -62,8 +59,17 @@
             const [cloudCandidates, setCloudCandidates] = useState([]);
             const [referenceDb, setReferenceDb] = useState([]);
             const [gmailDb, setGmailDb] = useState([]); 
-            const [positions, setPositions] = useState(["Sales Executive"]); 
-            const [locations, setLocations] = useState([]); // 🚩 เพิ่ม State สำหรับสาขา
+            
+            // 🚩 ตรึงตำแหน่งงานเริ่มต้น เพื่อไม่ให้ Dropdown หาย
+            const [positions, setPositions] = useState([
+                "Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", 
+                "Section Manager - Frozen", "Section Manager - Dry Food 1", "Section Manager - Dry Food 2", 
+                "Section Manager - F&V", "Section Manager - Non Food 1", "Section Manager - Non Fresh", 
+                "Section Manager - Fish", "Section Manager - GA", "Section Manager - GR", 
+                "Section Manager - HR", "Supervisor - Office Support"
+            ]);
+            const [locations, setLocations] = useState([]); 
+
             const [draftList, setDraftList] = useState([]);
             const [isChecked, setIsChecked] = useState(false);
             const [currentPage, setCurrentPage] = useState(1);
@@ -93,18 +99,17 @@
                         return fetch(configCSV);
                     }).then(r => r.text()).then(res => {
                         const data = Papa.parse(res, { header: true }).data;
-                        // ดึงตำแหน่ง
-                        const posList = [...new Set(data.map(r => r.Position).filter(p => p))].sort();
-                        if(posList.length > 0) setPositions(posList);
-                        
-                        // 🚩 2. ดึงสาขา (อ้างอิง Col A และ Col B)
-                        // สมมติว่า Column A คือ 'Code' และ Column B คือ 'Branch_Name' หรือใช้ index 0, 1
+                        // 🚩 ดึงตำแหน่งเพิ่มเติมจาก CSV (ถ้ามี) โดยไม่ลบค่าเดิม
+                        const posListCSV = [...new Set(data.map(r => r.Position).filter(p => p))];
+                        if(posListCSV.length > 0) setPositions(prev => [...new Set([...prev, ...posListCSV])].sort());
+
+                        // 🚩 ดึงสาขา (Col A - Col B)
                         const locList = data.map(r => {
                             const keys = Object.keys(r);
-                            const code = r[keys[0]]; // คอลัมน์ A
-                            const name = r[keys[1]]; // คอลัมน์ B
+                            const code = r[keys[0]]; // Col A
+                            const name = r[keys[1]]; // Col B
                             return (code && name) ? `${code}-${name}` : null;
-                        }).filter(l => l);
+                        }).filter(l => l && !l.includes('Position-Category'));
                         setLocations([...new Set(locList)].sort());
 
                         return fetch(scriptURL + "?action=getGmail");
@@ -217,7 +222,6 @@
                                             {positions.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
                                     </div>
-                                    {/* 🚩 แก้ไขจุดนี้: เปลี่ยนจาก Input เป็น Dropdown สาขา */}
                                     <div><label className="text-[9px] font-bold text-slate-400 uppercase">สาขา *</label>
                                         <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
                                             <option value="">เลือกสาขา...</option>
@@ -231,7 +235,6 @@
 
                         {/* Content Right */}
                         <div className="flex-1 space-y-4 min-w-0">
-                            {/* 🚩 Filter Bar 1 บรรทัด */}
                             <div className="compact-filter-bar">
                                 <div className="filter-item"><label className="filter-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="filter-input" /></div>
                                 <div className="filter-item"><label className="filter-label">ชื่อ-นามสกุล</label><input type="text" placeholder="ค้นชื่อ..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="filter-input" /></div>
@@ -239,13 +242,12 @@
                                 <div className="filter-item"><label className="filter-label">ตำแหน่ง</label><select value={filters.pos} onChange={e => setFilters({...filters, pos: e.target.value})} className="filter-input"><option value="">ทั้งหมด</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
                                 <div className="filter-item"><label className="filter-label">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="filter-input" /></div>
                                 <div className="filter-item"><label className="filter-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({...filters, intResult: e.target.value})} className="filter-input"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
-                                <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 border p-2 rounded-lg text-[9px] font-black uppercase hover:bg-slate-200 active:scale-90 transition-all">Reset</button>
+                                <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 border p-2 rounded-lg text-[9px] font-black uppercase hover:bg-slate-200">Reset</button>
                             </div>
 
-                            {/* Draft Box - โชว์ข้อมูลครบ 7 ช่อง */}
                             {draftList.length > 0 && (
                                 <div className="bg-white rounded-xl border-2 border-amber-200 overflow-hidden shadow-xl mb-4">
-                                    <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase text-amber-800 tracking-wider">รอตรวจสอบ ({draftList.length})
+                                    <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase">รอตรวจสอบ ({draftList.length})
                                         <div className="flex gap-2">
                                             <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95">1. Check Dup</button>
                                             {isChecked && <button onClick={async () => {
@@ -257,40 +259,21 @@
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-[11px]">
-                                            <thead>
-                                                <tr>
-                                                    <th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-100 text-amber-900">ผลตรวจสอบ</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {draftList.map((item) => (
-                                                    <tr key={item.draftId} className="draft-row">
-                                                        <td>{item.submissionDate}</td>
-                                                        <td className="font-black">{item.firstName} {item.lastName}</td>
-                                                        <td>{item.tel}</td>
-                                                        <td className="text-slate-500">{item.email}</td>
-                                                        <td className="font-bold text-indigo-600">{item.position}</td>
-                                                        <td>{item.location}</td>
-                                                        <td><span className={`px-3 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
+                                            <thead><tr><th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-100">ผลตรวจสอบ</th></tr></thead>
+                                            <tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.submissionDate}</td><td className="font-black">{item.firstName} {item.lastName}</td><td>{item.tel}</td><td className="text-slate-500">{item.email}</td><td className="font-bold text-indigo-600">{item.position}</td><td>{item.location}</td><td><span className={`px-3 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td></tr>))}</tbody>
                                         </table>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Main Table */}
                             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-                                <div className="bg-slate-50 p-3 border-b font-black text-[10.5px] flex justify-between uppercase text-slate-500 tracking-widest">
+                                <div className="bg-slate-50 p-3 border-b font-black text-[10.5px] flex justify-between uppercase text-slate-500">
                                     <span>ฐานข้อมูลหลัก - หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead>
-                                            <tr>
-                                                <th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>สาขา</th><th>ตรวจสอบ</th><th className="bg-indigo-600 text-white">Resume</th><th>สัมภาษณ์</th><th>ผลสัมภาษณ์</th><th>จัดการ</th>
-                                            </tr>
+                                            <tr><th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>สาขา</th><th>ตรวจสอบ</th><th className="bg-indigo-600 text-white">Resume</th><th>สัมภาษณ์</th><th>ผลสัมภาษณ์</th><th>จัดการ</th></tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {paginatedItems.map(item => {
@@ -307,10 +290,10 @@
                                                             <div className="flex justify-center gap-1">
                                                                 {item.resumeLink ? (
                                                                     <div className="flex gap-1">
-                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 p-1.5 rounded-lg hover:scale-110 transition-all"><i data-lucide="eye" className="w-4 h-4"></i></a>
-                                                                        {currentUserAgency === 'Admin' && (<a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 bg-emerald-50 p-1.5 rounded font-black text-[9px] border border-emerald-100">DL</a>) }
+                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 p-1.5 rounded-lg hover:scale-110"><i data-lucide="eye" className="w-4 h-4"></i></a>
+                                                                        {currentUserAgency === 'Admin' && (<a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 bg-emerald-50 p-1.5 rounded font-black text-[9px] border border-emerald-100">DL</a>)}
                                                                     </div>
-                                                                ) : (currentUserAgency !== 'Admin' && isNoDup ? (<button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-[10px] font-black border-2 border-dashed border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50 transition-all">{isUploading === item.id ? "..." : "+ Resume"}</button>) : <i data-lucide="lock" className="text-slate-200 w-4 h-4 mx-auto"></i>)}
+                                                                ) : (currentUserAgency !== 'Admin' && isNoDup ? (<button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-[10px] font-black border-2 border-dashed border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50">{isUploading === item.id ? "..." : "+ Resume"}</button>) : <i data-lucide="lock" className="text-slate-200 w-4 h-4 mx-auto"></i>)}
                                                             </div>
                                                         </td>
                                                         <td>{currentUserAgency === 'Admin' ? <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-edit" /> : (item.interviewDate || '-')}</td>
@@ -324,14 +307,13 @@
                                 </div>
                                 <div className="p-3 flex justify-between bg-slate-50 border-t items-center font-bold text-xs">
                                     <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="bg-white border px-4 py-1.5 rounded-xl active:scale-95 disabled:opacity-30">PREV</button>
-                                    <span className="text-slate-400 text-[10px] uppercase tracking-widest">Page {currentPage} of {totalPages}</span>
+                                    <span className="text-slate-400 text-[10px]">Page {currentPage} of {totalPages}</span>
                                     <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="bg-white border px-4 py-1.5 rounded-xl active:scale-95 disabled:opacity-30">NEXT</button>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Success/Error Popup */}
                     {popup && (
                         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center">
                             <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border-t-4 border-indigo-600 w-full max-w-sm popup-animate">
