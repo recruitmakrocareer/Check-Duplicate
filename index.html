@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Checker | Final Master Certified</title>
+    <title>Candidate Checker | Final Master Verified</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -51,11 +51,8 @@
         const App = () => {
             const scriptURL = "https://script.google.com/macros/s/AKfycbyHSv_7wt3jlYJQWVlnE5GF06y3tgf-FLcyz6AQDnNoBtIs0PqfCVw5AM_SYlSNxJHYhg/exec";
             
-            // 🚩 ลิงก์สำหรับ Manpower_Status (ดึงข้อมูลสาขา)
+            // 🚩 ตรวจสอบลิงก์นี้ใน Browser: ต้องดาวน์โหลดเป็นไฟล์ .csv ได้ทันทีและเห็นข้อมูลครบ
             const manpowerCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxq53q5Vk4M8Pl198a5N1znINRlUqpbB4E8ZFBVE_GYTWX9qwuHSIljFlImhM110x0d2XeER8A28up/pub?output=csv";
-            
-            // 🚩 ลิงก์สำหรับ Config_Mapping (ดึงข้อมูลตำแหน่ง)
-            const configCSV = manpowerCSV; // หากอยู่ในไฟล์เดียวกัน
 
             const [user, setUser] = useState(null);
             const [currentUserAgency, setCurrentUserAgency] = useState('');
@@ -66,7 +63,7 @@
             const [gmailDb, setGmailDb] = useState([]); 
             
             const [positions, setPositions] = useState(["Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", "Section Manager - Frozen", "Section Manager - Dry Food 1", "Section Manager - Dry Food 2", "Section Manager - F&V", "Section Manager - Non Food 1", "Section Manager - Non Fresh", "Section Manager - Fish", "Section Manager - GA", "Section Manager - GR", "Section Manager - HR", "Supervisor - Office Support"]);
-            const [locations, setLocations] = useState(["1-Lardprao", "2-Sathorn", "3-Bangna"]);
+            const [locations, setLocations] = useState(["Loading Stores..."]);
 
             const [draftList, setDraftList] = useState([]);
             const [isChecked, setIsChecked] = useState(false);
@@ -89,29 +86,32 @@
                 window.FB.methods.signInAnonymously(window.FB.auth);
                 window.FB.methods.onAuthStateChanged(window.FB.auth, (u) => {
                     setUser(u);
-                    // 1. Blacklist
                     fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vTsDZSCTRBCQ3LojqsCmVPea7qo7uB9VyXne9aZSlqxo8yntizND6o7bpRQfS2rFFHthMB-N0YIqTL6/pub?output=csv')
                     .then(r => r.text()).then(res => {
                         const data = Papa.parse(res, { header: true }).data;
                         setReferenceDb(data.filter(r => r['Name-Surname']).map(r => ({ name: (r['Name-Surname']||'').trim(), tel: (r['Tel']||'').trim(), email: (r['Email']||'').trim() })));
                         return fetch(manpowerCSV);
                     }).then(r => r.text()).then(res => {
-                        // 🚩 2. แก้ไขการดึงข้อมูลสาขา (ใช้ Header เพื่อความแม่นยำ)
+                        // 🚩 Logic ใหม่: ดึง Store_No (A) และ Store_Name (B) แบบกำจัดรายการซ้ำ
                         const parsed = Papa.parse(res, { header: true }).data; 
-                        const locList = parsed.map(row => {
+                        const locMap = new Set();
+                        parsed.forEach(row => {
                             const code = row['Store_No'];
                             const name = row['Store_Name'];
-                            return (code && name) ? `${code}-${name}`.trim() : null;
-                        }).filter(l => l && !l.includes('Store_No'));
+                            if(code && name && code !== 'Store_No') {
+                                locMap.add(`${code.trim()}-${name.trim()}`);
+                            }
+                        });
                         
-                        if(locList.length > 0) {
-                            // เรียงลำดับตามรหัสสาขา
-                            const uniqueSorted = [...new Set(locList)].sort((a,b) => parseInt(a) - parseInt(b));
-                            setLocations(uniqueSorted);
-                        }
+                        const finalLocs = Array.from(locMap).sort((a, b) => {
+                            return parseInt(a.split('-')[0]) - parseInt(b.split('-')[0]);
+                        });
 
-                        // 3. ดึงตำแหน่งงานเพิ่มเติม
-                        const posList = parsed.map(row => row['Position'] || row['Department']).filter(p => p && p !== 'Position');
+                        if(finalLocs.length > 0) setLocations(finalLocs);
+                        else setLocations(["1-Lardprao", "2-Sathorn", "3-Bangna"]); // Fallback
+
+                        // ดึงตำแหน่งเพิ่ม
+                        const posList = [...new Set(parsed.map(r => r['Position']).filter(p => p && p !== 'Position'))];
                         if(posList.length > 0) setPositions(prev => [...new Set([...prev, ...posList])].sort());
 
                         return fetch(scriptURL + "?action=getGmail");
@@ -186,7 +186,7 @@
                     }} className="bg-white p-10 rounded-3xl w-full max-w-sm shadow-2xl">
                         <h1 className="text-xl font-black mb-6 uppercase">Login</h1>
                         <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full border p-3 rounded-xl mb-4 text-center font-bold" placeholder="Email" required />
-                        <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase">Enter</button>
+                        <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase active:scale-95 transition-all">Enter</button>
                     </form>
                 </div>
             );
@@ -195,13 +195,13 @@
                 <div className="p-4 max-w-full min-h-screen">
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
                     
-                    <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                        <div className="flex items-center gap-3 font-black uppercase text-slate-700 tracking-tight">{currentUserAgency} SESSION</div>
+                    <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border">
+                        <h1 className="font-black uppercase tracking-tighter text-slate-700">{currentUserAgency} SESSION</h1>
                         <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-2.5 rounded-xl hover:bg-rose-600 hover:text-white transition-all"><i data-lucide="power"></i></button>
                     </div>
 
                     <div className="flex flex-col xl:flex-row gap-6">
-                        {/* Sidebar Left - Rules Applied */}
+                        {/* Sidebar Left - Validation Rules */}
                         {currentUserAgency !== 'Admin' && (
                             <div className="sidebar-container bg-white p-5 rounded-2xl shadow-md border border-slate-100 h-fit sticky top-4">
                                 <h2 className="font-black mb-4 flex items-center gap-2 uppercase text-[11px] text-indigo-600"><i data-lucide="user-plus" className="w-4 h-4"></i> เพิ่มรายชื่อ</h2>
@@ -238,7 +238,6 @@
                             </div>
                         )}
 
-                        {/* Content Right */}
                         <div className="flex-1 space-y-4 min-w-0">
                             {/* Filter Bar 1 บรรทัด */}
                             <div className="compact-filter-bar">
@@ -256,11 +255,11 @@
                                 <div className="bg-white rounded-xl border-2 border-amber-200 overflow-hidden shadow-xl mb-4">
                                     <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase">รอตรวจสอบ ({draftList.length})
                                         <div className="flex gap-2">
-                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95">1. Check Dup</button>
+                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95 transition-all">1. Check Dup</button>
                                             {isChecked && <button onClick={async () => {
                                                 const promises = draftList.map(item => window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...item, agency: currentUserAgency, prescreenStatus: item.status, interviewStatus: 'รอผล', createdAt: Date.now(), resumeLink: '' }));
                                                 await Promise.all(promises); setDraftList([]); setIsChecked(false);
-                                                setPopup({ title: "SUCCESS", msg: "บันทึกเรียบร้อย!" });
+                                                setPopup({ title: "SUCCESS", msg: "บันทึกข้อมูลเรียบร้อย!" });
                                             }} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md animate-bounce">2. Save to Cloud</button>}
                                         </div>
                                     </div>
@@ -273,7 +272,6 @@
                                 </div>
                             )}
 
-                            {/* Main Table */}
                             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                                 <div className="bg-slate-50 p-3 border-b font-black text-[10.5px] flex justify-between uppercase text-slate-500 tracking-widest">
                                     <span>ฐานข้อมูลหลัก - หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)</span>
@@ -315,21 +313,21 @@
                                 </div>
                                 <div className="p-3 flex justify-between bg-slate-50 border-t items-center font-bold text-xs">
                                     <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="bg-white border px-4 py-1.5 rounded-xl active:scale-95 disabled:opacity-30">PREV</button>
-                                    <span className="text-slate-400 text-[10px] uppercase">Page {currentPage} of {totalPages}</span>
+                                    <span className="text-slate-400 text-[10px]">Page {currentPage} of {totalPages}</span>
                                     <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="bg-white border px-4 py-1.5 rounded-xl active:scale-95 disabled:opacity-30">NEXT</button>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Notification Popup */}
+                    {/* Success/Error Popup */}
                     {popup && (
                         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center">
                             <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border-t-4 border-indigo-600 w-full max-w-sm popup-animate">
                                 <div className={`w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-6 bg-emerald-100 text-emerald-600`}><i data-lucide="check-circle" className="w-8 h-8"></i></div>
                                 <h3 className="text-xl font-black mb-2 uppercase tracking-tight">{popup.title}</h3>
                                 <p className="text-slate-500 font-bold mb-8 text-sm leading-relaxed">{popup.msg}</p>
-                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black active:scale-95 transition-all">Close</button>
+                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">Close</button>
                             </div>
                         </div>
                     )}
