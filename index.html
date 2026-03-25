@@ -23,7 +23,7 @@
         .candidate-name { text-align: left; font-weight: 700; min-width: 150px; }
         .admin-input { border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-size: 12px; width: 100%; text-align: center; outline: none; }
         .sidebar-container { max-width: 320px; width: 100%; }
-        .pagination-btn { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; font-weight: bold; }
+        .pagination-btn { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; font-weight: bold; transition: all 0.2s; }
         .pagination-active { background: #4f46e5 !important; color: white !important; }
         .filter-input { width: 100%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600; outline: none; }
         .required-star { color: #ef4444; margin-left: 2px; }
@@ -57,7 +57,7 @@
         const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
         const App = () => {
-            const scriptURL = "https://script.google.com/macros/s/AKfycbzjWGRV6zwEeAUYQlUZ-Op1U37TW6NyOWHI908E14h07wBFQAO2-qvnbq_QtW2SdmOY/exec";
+            const scriptURL = "https://script.google.com/macros/s/AKfycbyVwJEDtqF33tDN8fz1Qw7Tz29ubemUABlF0zrvhTkohNIxavnBrpULVh9BZcZUavs/exec";
 
             const [user, setUser] = useState(null);
             const [currentUserAgency, setCurrentUserAgency] = useState('');
@@ -65,6 +65,7 @@
             const [isLoading, setIsLoading] = useState(true);
             const [cloudCandidates, setCloudCandidates] = useState([]);
             const [referenceDb, setReferenceDb] = useState([]);
+            const [gmailDb, setGmailDb] = useState([]); // คืนค่าระบบ Gmail Check ย้อนหลัง 1 ปี
             const [draftList, setDraftList] = useState([]);
             const [isChecked, setIsChecked] = useState(false);
             const [currentPage, setCurrentPage] = useState(1);
@@ -85,20 +86,33 @@
             const refreshIcons = useCallback(() => { if (window.lucide) setTimeout(() => lucide.createIcons(), 100); }, []);
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
 
+            // --- ส่วนที่คืนค่ามา: การโหลดข้อมูลรวมถึง Gmail ---
             useEffect(() => {
                 if (!window.FB) return;
                 const { auth, methods } = window.FB;
                 methods.signInAnonymously(auth).catch(console.error);
                 methods.onAuthStateChanged(auth, (u) => {
                     setUser(u);
+                    // 1. โหลด Blacklist CSV
                     fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vTsDZSCTRBCQ3LojqsCmVPea7qo7uB9VyXne9aZSlqxo8yntizND6o7bpRQfS2rFFHthMB-N0YIqTL6/pub?output=csv')
                     .then(r => r.text()).then(res => {
                         const data = Papa.parse(res, { header: true }).data;
                         setReferenceDb(data.filter(r => r['Name-Surname']).map(r => ({
                             name: (r['Name-Surname']||'').trim(), tel: (r['Tel']||'').trim(), email: (r['Email']||'').trim()
                         })));
+                        
+                        // 2. โหลด Gmail Sync (1 ปี) - คืนค่าส่วนที่หายไป
+                        return fetch(scriptURL + "?action=getGmail");
+                    })
+                    .then(r => r.json())
+                    .then(emails => {
+                        setGmailDb(emails);
                         setIsLoading(false);
                         refreshIcons();
+                    })
+                    .catch(err => {
+                        console.error("System Error:", err);
+                        setIsLoading(false);
                     });
                 });
             }, []);
@@ -113,7 +127,6 @@
                 });
             }, [user, currentUserAgency, refreshIcons]);
 
-            // FIX: ย้ายการคำนวณมาไว้ก่อนการใช้ใน Render เพื่อป้องกัน ReferenceError
             const allFiltered = useMemo(() => {
                 return cloudCandidates.filter(item => {
                     if (currentUserAgency !== 'Admin' && item.agency !== currentUserAgency) return false;
@@ -129,14 +142,16 @@
             const totalPages = Math.ceil(allFiltered.length / itemsPerPage);
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+            useEffect(() => { setCurrentPage(1); }, [filters]);
+
+            // --- ฟังก์ชันหลัก ---
+
             const handleImportCSV = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 Papa.parse(file, {
-                    header: true,
-                    skipEmptyLines: true,
+                    header: true, skipEmptyLines: true,
                     complete: async (results) => {
-                        if (results.data.length === 0) return alert("ไฟล์ว่างเปล่า");
                         setIsLoading(true);
                         const { db, methods } = window.FB;
                         const batch = methods.writeBatch(db);
@@ -166,6 +181,10 @@
 
             const addToDraft = (e) => {
                 e.preventDefault();
+                // คืนค่า Strict Validation: เช็คทุกช่อง
+                if (!formData.firstName || !formData.lastName || !formData.tel || !formData.email || !formData.position || !formData.location) {
+                    return setPopup({ title: "ข้อมูลไม่ครบ", msg: "กรุณากรอกข้อมูลให้ครบทุกช่อง" });
+                }
                 const telClean = formData.tel.replace(/\D/g, '');
                 if (telClean.length !== 10 || !telClean.startsWith('0')) {
                     return setPopup({ title: "เบอร์โทรไม่ถูกต้อง", msg: "ต้องครบ 10 หลักและขึ้นต้นด้วย 0" });
@@ -179,12 +198,23 @@
                 if (draftList.length === 0) return;
                 const updatedDraft = draftList.map((item, index) => {
                     const currentFull = normalize(item.firstName + item.lastName);
+                    const currentEmail = item.email.toLowerCase().trim();
+                    
+                    // เช็ค Cloud + CSV
                     const isDupExt = [...referenceDb, ...cloudCandidates].some(c => {
                         const dbFull = normalize(c.firstName && c.lastName ? (c.firstName + c.lastName) : (c.name || ''));
-                        return (dbFull === currentFull) || (normalize(c.tel) === normalize(item.tel)) || (item.email && normalize(c.email) === normalize(item.email));
+                        return (dbFull === currentFull) || (normalize(c.tel) === normalize(item.tel)) || (currentEmail && normalize(c.email) === currentEmail);
                     });
+
+                    // คืนค่าการเช็ค Gmail (Inbox)
+                    const isDupGmail = gmailDb.includes(currentEmail);
                     const isDupInt = draftList.some((other, oIdx) => index !== oIdx && (normalize(other.firstName + other.lastName) === currentFull || normalize(other.tel) === normalize(item.tel)));
-                    return { ...item, status: (isDupExt || isDupInt) ? 'Dup' : 'No Dup' };
+
+                    let finalStatus = 'No Dup';
+                    if (isDupExt || isDupInt) finalStatus = 'Dup';
+                    else if (isDupGmail) finalStatus = 'Dup (Gmail)';
+
+                    return { ...item, status: finalStatus };
                 });
                 setDraftList(updatedDraft);
                 setIsChecked(true);
@@ -199,15 +229,41 @@
                 );
                 await Promise.all(promises);
                 setDraftList([]); setIsChecked(false);
-                setPopup({ title: "สำเร็จ", msg: "บันทึกเรียบร้อย" });
+                setPopup({ title: "สำเร็จ", msg: "บันทึกข้อมูลเรียบร้อยแล้ว" });
             };
 
-            if (isLoading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-bold">กำลังจัดการข้อมูล...</div>;
+            // คืนค่าระบบอัปโหลด Resume
+            const onFileChange = async (e) => {
+                const file = e.target.files[0];
+                if (!file || !targetId) return;
+                setIsUploading(targetId);
+                const reader = new FileReader();
+                reader.onload = async (f) => {
+                    const base64Data = f.target.result.split(',')[1];
+                    try {
+                        const candidate = cloudCandidates.find(c => c.id === targetId);
+                        const fileName = `${candidate.firstName}_${candidate.lastName}_CV.pdf`;
+                        const response = await fetch(scriptURL, {
+                            method: "POST",
+                            body: JSON.stringify({ fileData: base64Data, mimeType: file.type, fileName: fileName })
+                        });
+                        const result = await response.json();
+                        if (result.status === "success") {
+                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { resumeLink: result.url });
+                            setPopup({ title: "สำเร็จ", msg: "อัปโหลด Resume เรียบร้อย" });
+                        }
+                    } catch (err) { setPopup({ title: "Error", msg: "อัปโหลดล้มเหลว" }); }
+                    finally { setIsUploading(null); setTargetId(null); e.target.value = ''; }
+                };
+                reader.readAsDataURL(file);
+            };
+
+            if (isLoading) return <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white font-bold"><div className="loader mb-4"></div><p>กำลังซิงค์ฐานข้อมูลและอีเมลย้อนหลัง 1 ปี...</p></div>;
 
             if (!currentUserAgency) return (
                 <div className="h-screen flex items-center justify-center bg-slate-950 p-6 text-center">
-                    <div className="glass-morphism w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl border-t-4 border-indigo-600">
-                        <h1 className="text-2xl font-black mb-8 uppercase text-slate-800">Login Access</h1>
+                    <div className="glass-morphism w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl border-t-4 border-indigo-600 bg-white">
+                        <h1 className="text-2xl font-black mb-8 uppercase text-slate-800">Recruit Access</h1>
                         <form onSubmit={(e) => {
                             e.preventDefault();
                             const accessMap = { "admin@company.com": "Admin", "manpower@agency.com": "Manpower", "metalent@agency.com": "Me Talent", "prtr@agency.com": "PRTR", "talentvis@agency.com": "Talentvis", "techgrid@agency.com": "Techgrid" };
@@ -225,11 +281,12 @@
             return (
                 <div className="min-h-screen p-4 max-w-full mx-auto">
                     <input type="file" ref={importFileRef} onChange={handleImportCSV} accept=".csv" className="hidden" />
+                    <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
                     
                     <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between mb-6 border border-slate-200">
                         <div className="flex items-center gap-4">
                             <div className="bg-slate-900 p-3 rounded-xl text-white shadow-md"><i data-lucide="shield-check"></i></div>
-                            <div><h1 className="text-xl font-black uppercase">{currentUserAgency} SESSION</h1><p className="text-[10px] text-emerald-500 font-bold uppercase">• Live Database Ready</p></div>
+                            <div><h1 className="text-xl font-black uppercase">{currentUserAgency} SESSION</h1><p className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">• All Database Synced</p></div>
                         </div>
                         <div className="flex gap-3">
                             {currentUserAgency === 'Admin' && (
@@ -247,75 +304,99 @@
                                 <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-100 sticky top-6">
                                     <h2 className="text-lg font-black mb-6 flex gap-2 items-center text-slate-800 uppercase"><i data-lucide="user-plus" className="text-indigo-600 w-5 h-5"></i> คีย์รายชื่อ</h2>
                                     <form onSubmit={addToDraft} className="space-y-4">
-                                        <div><label className="text-[10px] font-black text-slate-400">วันที่ส่ง</label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <div><label className="text-[10px] font-black text-slate-400">วันที่ส่ง<span className="required-star">*</span></label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
                                         <div className="grid grid-cols-2 gap-2">
-                                            <div><label className="text-[10px] font-black text-slate-400">ชื่อ</label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                            <div><label className="text-[10px] font-black text-slate-400">นามสกุล</label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                            <div><label className="text-[10px] font-black text-slate-400">ชื่อ<span className="required-star">*</span></label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                            <div><label className="text-[10px] font-black text-slate-400">นามสกุล<span className="required-star">*</span></label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
                                         </div>
-                                        <div><label className="text-[10px] font-black text-slate-400">เบอร์โทรศัพท์</label><input type="text" placeholder="08XXXXXXXX" maxLength="10" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value.replace(/\D/g,'')})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                        <div><label className="text-[10px] font-black text-slate-400">อีเมล</label><input type="email" placeholder="mail@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                        <div><label className="text-[10px] font-black text-slate-400">ตำแหน่ง</label><select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required><option value="">ตำแหน่ง...</option><option value="Sales Executive">Sales Executive</option><option value="Supervisor">Supervisor</option><option value="Office Support">Office Support</option></select></div>
-                                        <div><label className="text-[10px] font-black text-slate-400">สาขา</label><input type="text" placeholder="ระบุสาขา" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
-                                        <button className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg hover:bg-indigo-700 transition-all">+ เพิ่มรายการร่าง</button>
+                                        <div><label className="text-[10px] font-black text-slate-400">เบอร์โทร<span className="required-star">*</span></label><input type="text" placeholder="08XXXXXXXX" maxLength="10" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value.replace(/\D/g,'')})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <div><label className="text-[10px] font-black text-slate-400">อีเมล<span className="required-star">*</span></label><input type="email" placeholder="mail@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <div><label className="text-[10px] font-black text-slate-400">ตำแหน่ง<span className="required-star">*</span></label><select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required><option value="">ตำแหน่ง...</option><option value="Sales Executive">Sales Executive</option><option value="Supervisor">Supervisor</option><option value="Office Support">Office Support</option></select></div>
+                                        <div><label className="text-[10px] font-black text-slate-400">สาขา<span className="required-star">*</span></label><input type="text" placeholder="ระบุสาขา" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-slate-50 p-3 rounded-lg font-bold text-sm border" required /></div>
+                                        <button className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-sm shadow-lg hover:bg-indigo-700 transition-all">+ เพิ่มลงรายการร่าง</button>
                                     </form>
                                 </div>
                             </div>
                         )}
 
                         <div className="flex-1 min-w-0 space-y-4">
+                            {/* Filter Bar */}
                             <div className="bg-white p-4 rounded-2xl shadow-md border border-slate-200 grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                                 <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1 uppercase">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="filter-input" /></div>
                                 <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1 uppercase">ชื่อ-นามสกุล</label><input type="text" placeholder="ค้นหาชื่อ..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="filter-input" /></div>
                                 <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1 uppercase">ตำแหน่ง</label><select value={filters.position} onChange={e => setFilters({...filters, position: e.target.value})} className="filter-input"><option value="">ทั้งหมด...</option><option value="Sales Executive">Sales Executive</option><option value="Supervisor">Supervisor</option><option value="Office Support">Office Support</option></select></div>
                                 <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1 uppercase">สาขา</label><input type="text" placeholder="สาขา..." value={filters.location} onChange={e => setFilters({...filters, location: e.target.value})} className="filter-input" /></div>
-                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1 uppercase">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="filter-input" /></div>
+                                <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 ml-1 uppercase">สัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="filter-input" /></div>
                                 <button onClick={() => setFilters({subDate:'', name:'', position:'', location:'', intDate:''})} className="bg-slate-100 text-slate-600 py-2.5 rounded-lg font-black text-[11px] border">ล้างกรอง</button>
                             </div>
 
+                            {/* Draft List Table */}
                             {currentUserAgency !== 'Admin' && draftList.length > 0 && (
                                 <div className="bg-white rounded-2xl shadow-xl border-2 border-amber-200 overflow-hidden">
                                     <div className="bg-amber-50 p-4 flex justify-between items-center border-b border-amber-200 font-black text-amber-800 text-xs uppercase tracking-tighter">รายการรอตรวจสอบ ({draftList.length})
                                         <div className="flex gap-2">
                                             <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-5 py-2 rounded-lg font-black shadow-md uppercase text-[11px]">1. Check Duplicate All</button>
-                                            {isChecked && <button onClick={saveAllToCloud} className="bg-emerald-600 text-white px-5 py-2 rounded-lg font-black shadow-md uppercase text-[11px]">2. บันทึกเข้า Cloud</button>}
+                                            {isChecked && <button onClick={saveAllToCloud} className="bg-emerald-600 text-white px-5 py-2 rounded-lg font-black shadow-md uppercase text-[11px] animate-bounce">2. บันทึกเข้า Cloud</button>}
                                         </div>
                                     </div>
-                                    <div className="overflow-x-auto"><table className="w-full"><thead><tr><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th className="bg-amber-600 text-white">ผลตรวจสอบ</th></tr></thead><tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.firstName} {item.lastName}</td><td>{item.tel}</td><td>{item.email}</td><td>{item.position}</td><td><span className={`px-4 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : item.status === 'Dup' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'}`}>{item.status}</span></td></tr>))}</tbody></table></div>
+                                    <div className="overflow-x-auto"><table className="w-full"><thead><tr><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th className="bg-amber-600 text-white">ผลตรวจสอบ</th></tr></thead><tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.firstName} {item.lastName}</td><td>{item.tel}</td><td>{item.email}</td><td>{item.position}</td><td><span className={`px-4 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : item.status === 'Dup' || item.status === 'Dup (Gmail)' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'}`}>{item.status}</span></td></tr>))}</tbody></table></div>
                                 </div>
                             )}
 
+                            {/* Main Database Table */}
                             <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
                                 <div className="bg-slate-50 p-4 border-b font-black text-slate-800 flex justify-between items-center text-xs uppercase"><span>ฐานข้อมูลหลัก - หน้า {currentPage} (พบ {allFiltered.length} รายการ)</span></div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
-                                        <thead><tr><th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>ตรวจสอบ</th><th>สัมภาษณ์</th><th>ผล</th><th>เริ่มงาน</th><th>เงินเดือน</th><th>จัดการ</th></tr></thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {paginatedItems.map(item => (
-                                                <tr key={item.id} className="hover:bg-slate-50/50 transition-all">
-                                                    <td className="text-[10px] font-bold text-slate-400">{item.submissionDate}</td>
-                                                    <td className="candidate-name">{item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-') }</td>
-                                                    <td className="text-[11px] font-bold text-slate-400">{item.tel}</td>
-                                                    <td><span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded">{item.position}</span></td>
-                                                    <td><span className={`px-2 py-1 rounded-full text-[10px] font-black ${item.prescreenStatus === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.prescreenStatus}</span></td>
-                                                    <td>{currentUserAgency === 'Admin' ? <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-input" /> : <span className="text-[11px] font-bold text-slate-600">{item.interviewDate || '-'}</span>}</td>
-                                                    <td>{currentUserAgency === 'Admin' ? <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-input"><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select> : <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>}</td>
-                                                    <td className="bg-indigo-50/10 font-black text-indigo-700 text-xs">{item.startDate || '-'}</td>
-                                                    <td className="bg-indigo-50/10 font-black text-indigo-700 text-xs">{item.salary ? `฿${Number(item.salary).toLocaleString()}` : '-'}</td>
-                                                    <td><button onClick={() => { if(confirm("ลบข้อมูล?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-200 hover:text-rose-600 transition-all"><i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i></button></td>
-                                                </tr>
-                                            ))}
+                                        <thead><tr><th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>ตรวจสอบ</th><th className="bg-indigo-600 text-white">Resume</th><th>สัมภาษณ์</th><th>ผล</th><th>เริ่มงาน</th><th>เงินเดือน</th><th>จัดการ</th></tr></thead>
+                                        <tbody className="divide-y divide-slate-100 text-center">
+                                            {paginatedItems.map(item => {
+                                                const isNoDup = item.prescreenStatus === 'No Dup' || item.interviewStatus === 'ผ่าน';
+                                                return (
+                                                    <tr key={item.id} className="hover:bg-slate-50/50 transition-all">
+                                                        <td className="text-[10px] font-bold text-slate-400">{item.submissionDate}</td>
+                                                        <td className="candidate-name">{item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-') }</td>
+                                                        <td className="text-[11px] font-bold text-slate-400">{item.tel}</td>
+                                                        <td><span className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded">{item.position}</span></td>
+                                                        <td><span className={`px-2 py-1 rounded-full text-[10px] font-black inline-block ${item.prescreenStatus === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.prescreenStatus}</span></td>
+                                                        
+                                                        {/* คืนค่า: คอลัมน์ Resume */}
+                                                        <td>
+                                                            <div className="flex justify-center items-center gap-1">
+                                                                {item.resumeLink ? (
+                                                                    <div className="flex gap-1">
+                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 p-1 bg-indigo-50 rounded-lg hover:scale-110 transition-all"><i data-lucide="eye" className="w-4 h-4"></i></a>
+                                                                    </div>
+                                                                ) : (
+                                                                    currentUserAgency !== 'Admin' && isNoDup ? (
+                                                                        <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-[9px] font-black border-2 border-dashed border-indigo-200 px-2 py-1 rounded-lg hover:bg-indigo-50 transition-all">
+                                                                            {isUploading === item.id ? "..." : "+ Resume"}
+                                                                        </button>
+                                                                    ) : <i data-lucide="lock" className="text-slate-200 w-4 h-4 mx-auto"></i>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        <td>{currentUserAgency === 'Admin' ? <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-input" /> : <span className="text-[11px] font-bold text-slate-600">{item.interviewDate || '-'}</span>}</td>
+                                                        <td>{currentUserAgency === 'Admin' ? <select value={item.interviewStatus} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-input"><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option><option value="สละสิทธิ์">สละสิทธิ์</option></select> : <span className={`px-2 py-0.5 rounded-full text-[10px] font-black inline-block whitespace-nowrap ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>{item.interviewStatus}</span>}</td>
+                                                        <td className="bg-indigo-50/10 font-black text-indigo-700 text-xs">{item.startDate || '-'}</td>
+                                                        <td className="bg-indigo-50/10 font-black text-indigo-700 text-xs">{item.salary ? `฿${Number(item.salary).toLocaleString()}` : '-'}</td>
+                                                        <td><button onClick={() => { if(confirm("ลบข้อมูล?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-200 hover:text-rose-600 transition-all active:scale-90"><i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i></button></td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
                                 {totalPages > 1 && (
                                     <div className="bg-slate-50 p-3 flex justify-center items-center gap-2 border-t">
-                                        <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="pagination-btn">Prev</button>
+                                        <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="pagination-btn disabled:opacity-30">Prev</button>
                                         <div className="flex gap-1">
                                             {[...Array(totalPages)].map((_, i) => (
                                                 <button key={i} onClick={() => setCurrentPage(i + 1)} className={`pagination-btn ${currentPage === i + 1 ? 'pagination-active' : ''}`}>{i + 1}</button>
                                             ))}
                                         </div>
-                                        <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="pagination-btn">Next</button>
+                                        <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="pagination-btn disabled:opacity-30">Next</button>
                                     </div>
                                 )}
                             </div>
