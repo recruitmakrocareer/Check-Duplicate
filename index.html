@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recruit Master System | Stable Build</title>
+    <title>Candidate System | Master Build V6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -60,14 +60,11 @@
             const [referenceDb, setReferenceDb] = useState([]);
             const [gmailDb, setGmailDb] = useState([]); 
             
-            // 🚩 ตรึงตำแหน่งงานเริ่มต้น
+            // 🚩 ตำแหน่งงาน (มาครบแน่นอน)
             const [positions, setPositions] = useState(["Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", "Section Manager - Frozen", "Section Manager - Dry Food 1", "Section Manager - Dry Food 2", "Section Manager - F&V", "Section Manager - Non Food 1", "Section Manager - Non Fresh", "Section Manager - Fish", "Section Manager - GA", "Section Manager - GR", "Section Manager - HR", "Supervisor - Office Support"]);
             
-            // 🚩 ฝังข้อมูลสาขาจากไฟล์ Manpower_Status ที่คุณส่งมาให้แล้ว (เพื่อให้มาครบแน่นอน)
-            const [locations, setLocations] = useState([
-                "1-Lardprao", "351-Sinopark Branch", "352-Patthanakarn Branch", "353-Phahonyothin Branch", 
-                "354-Ratchadaphisek", "355-Viphavadi", "356-Ram Inthra", "357-Nawamin", "358-Saphan Mai"
-            ]);
+            // 🚩 รายชื่อสาขา 167 แห่ง (ครบถ้วนและตัดข้อมูลซ้ำแล้ว)
+            const [locations, setLocations] = useState(['1-Lardprao', '2-Chaengwattana', '3-Srinakarin', '4-Bangbon', '5-Chonburi', '6-Chiang Mai 1', '7-Nakhon Ratchasima', '8-Rangsit', '9-Hat Yai', '10-Udonthani', '11-Phitsanulok', '12-Khon Kaen', '13-Surat Thani', '14-Ubol Ratchathani', '15-Rayong', '16-Nakhon Sawan', '17-Charansanitwongse', '18-Sathorn', '19-Nakhon Pathom', '20-Surin', '21-Samsen', '22-Nakhon Si Thammarat', '23-Chiang Rai', '24-Sakon Nakhon', '25-Suphan Buri', '26-Chanthaburi', '27-Phuket', '28-Roi Et', '29-Trang', '30-Sakaeo', '31-Koh Samui', '32-Buri Ram', '33-Sisaket', '34-Lamphun', '35-Krabi', '36-Phetchaburi', '37-Chaiyaphum', '38-Saraburi', '39-Pran Buri', '40-Chachoengsao', '41-Chiang Mai 2', '42-Ram Inthra', '43-Chumphon', '44-Pattaya', '45-Kamphangphet', '46-Kanchanaburi', '47-Lop Buri', '48-Nong Khai', '49-Ratchaburi', '50-Mae Rim', '51-Ayutthaya', '52-Lampang', '53-Hua Hin', '54-Khlong Luang', '55-Loei', '56-Phetchaboon', '57-Bang Phli', '58-Mukdahan', '59-Satun', '60-Trat', '61-Chum Pae', '62-Rawai', '63-Nakorn Panom', '64-Koh Phangan', '65-Bueng Kan', '66-North Pattaya', '67-Mae Sai', '68-Salaya', '69-Pattalung', '70-Sukhothai', '71-Patong', '72-Samutsakhon', '73-Maesod', '74-Pakchong', '75-Thalang', '76-Ranong', '77-Lamai', '78-Kalapapurk', '79-Yasothon', '80-Mahasarakam', '81-Phang', '82-Nakhon Nayok', '83-Nakhon In', '84-Banphae', '85-Tung Song', '86-Srinakarin 2', '87-Phayao', '89-Phitsanulok 2', '96-nan', '100-Phrae', '101-Koh Chang', '102-Nakhon Ratchasima 2', '103-Nan', '104-Ao Nang', '105-Karon', '106-Warinchamrab', '107-Nongbualamphu', '108-Nong Chok', '109-Laem Chabang', '110-Prachuap Khiri Khan', '111-Phetchakasem', '113-Wang Hin', '114-Singburi', '115-Bang Bua Thong', '116-Kalasin', '117-Udomsuk', '118-Ramkhamhaeng (Sammakorn)', '119-Phichit', '120-Pathumthani', '121-Bodindecha', '122-Prachautit', '123-Sukhumvit 71', '124-Navamin 70', '125-Cha-am', '126-On Nut', '127-Suksawas', '128-Kabin Buri', '129-Ladkrabang', '130-Nathong Charoen', '131-Bo Win', '132-Sattahip', '133-Ramkhamhaeng 24', '134-Amata Nakorn', '135-Bangkholaem', '136-Khon Kaen 2', '137-Wongsakorn 2', '138-Meng Jai', '139-Sukhumvit 22', '140-Chan Road', '141-Lam Luk Ka', '142-Phraeksa', '143-Praditmanutham', '144-Rungroj Market (Klong 4)Branch', '145-Pongpeth', '146-Uttaradit', '147-Muangthong', '148-Liap Khlong Song', '149-Omnoi', '150-Sanam Bin Nam', '151-Thep Rak', '152-Samut Songkharm', '153-Wiang Sa', '154-Prachin Buri', '155-Pinklao', '156-Samut Prakan', '157-Nakhon Ratchasima 3', '158-Nakhon Sawan2 (Phrom Nimit)', '159-Udon Thani 2 (Ban Lueam)', '160-Mahachai', '161-Khon Kaen 3 (Ban Non Muang)', '162-Amatanakorn 2', '163-Songkhla 2', '164-Chainat', '165-Sri Ayutthaya Road', '166-Rawai 2', '167-Chiang Mai (Chom Thong)', '168-Ban Bueng', '169-Phang Nga', '170-Amnat Charoen', '171-Jo Ho (Nakhon Ratchasima)', '172-Ban Pai', '175-Happitat (Forestias – Bangna)', '301-Rama 4 Branch', '303-Sirimangkalajarn Branch', '350-Ram Intra KM4 Branch', '351-Sinopark Branch', '352-Patthanakarn Branch']);
 
             const [draftList, setDraftList] = useState([]);
             const [isChecked, setIsChecked] = useState(false);
@@ -90,25 +87,22 @@
                 window.FB.methods.signInAnonymously(window.FB.auth);
                 window.FB.methods.onAuthStateChanged(window.FB.auth, (u) => {
                     setUser(u);
-                    // Load Blacklist
                     fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vTsDZSCTRBCQ3LojqsCmVPea7qo7uB9VyXne9aZSlqxo8yntizND6o7bpRQfS2rFFHthMB-N0YIqTL6/pub?output=csv')
                     .then(r => r.text()).then(res => {
                         const data = Papa.parse(res, { header: true }).data;
                         setReferenceDb(data.filter(r => r['Name-Surname']).map(r => ({ name: (r['Name-Surname']||'').trim(), tel: (r['Tel']||'').trim(), email: (r['Email']||'').trim() })));
                         return fetch(manpowerCSV);
                     }).then(r => r.text()).then(res => {
-                        // 🚩 Logic การดึงข้อมูลสาขาแบบยืดหยุ่น (ลองหา Store_No และ Store_Name)
                         const parsed = Papa.parse(res, { header: true }).data; 
-                        const locList = parsed.map(row => {
-                            const code = row['Store_No'] || row[Object.keys(row)[0]];
-                            const name = row['Store_Name'] || row[Object.keys(row)[1]];
-                            return (code && name && String(code).match(/^\d+$/)) ? `${code}-${name}`.trim() : null;
-                        }).filter(l => l);
-                        
-                        if(locList.length > 0) {
-                            const uniqueLocs = [...new Set(locList)].sort((a,b) => parseInt(a) - parseInt(b));
-                            setLocations(uniqueLocs);
-                        }
+                        const locSet = new Set();
+                        parsed.forEach(row => {
+                            const code = row['Store_No']; const name = row['Store_Name'];
+                            if(code && name && code !== 'Store_No') locSet.add(`${code.trim()}-${name.trim()}`);
+                        });
+                        if(locSet.size > 0) setLocations(Array.from(locSet).sort((a,b) => parseInt(a) - parseInt(b)));
+
+                        const posList = [...new Set(parsed.map(r => r['Position']).filter(p => p && p !== 'Position'))];
+                        if(posList.length > 0) setPositions(prev => [...new Set([...prev, ...posList])].sort());
 
                         return fetch(scriptURL + "?action=getGmail");
                     }).then(r => r.json()).then(emails => { 
@@ -206,7 +200,7 @@
                                     const telClean = formData.tel.replace(/\D/g, '');
                                     if (telClean.length !== 10) return alert("กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก");
                                     setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
-                                    setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '', position: formData.position, location: formData.location });
+                                    setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
                                     setIsChecked(false);
                                 }} className="space-y-3">
                                     <div><label className="text-[9px] font-bold text-slate-400 uppercase">วันที่ส่ง *</label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full border p-2 rounded-lg text-xs bg-slate-50" required /></div>
@@ -234,9 +228,7 @@
                             </div>
                         )}
 
-                        {/* Content Right */}
                         <div className="flex-1 space-y-4 min-w-0">
-                            {/* Filter Bar 1 บรรทัด */}
                             <div className="compact-filter-bar">
                                 <div className="filter-item"><label className="filter-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="filter-input" /></div>
                                 <div className="filter-item"><label className="filter-label">ชื่อ-นามสกุล</label><input type="text" placeholder="ค้นชื่อ..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="filter-input" /></div>
@@ -247,16 +239,16 @@
                                 <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 border p-2 rounded-lg text-[9px] font-black uppercase hover:bg-slate-200">Reset</button>
                             </div>
 
-                            {/* Draft Box - 7 Columns */}
+                            {/* Draft Box - 7 Columns Verified */}
                             {draftList.length > 0 && (
                                 <div className="bg-white rounded-xl border-2 border-amber-200 overflow-hidden shadow-xl mb-4">
-                                    <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase">รอตรวจสอบ ({draftList.length})
+                                    <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase tracking-widest">รอตรวจสอบ ({draftList.length})
                                         <div className="flex gap-2">
-                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md">1. Check Dup</button>
+                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95 transition-all">1. Check Dup</button>
                                             {isChecked && <button onClick={async () => {
                                                 const promises = draftList.map(item => window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...item, agency: currentUserAgency, prescreenStatus: item.status, interviewStatus: 'รอผล', createdAt: Date.now(), resumeLink: '' }));
                                                 await Promise.all(promises); setDraftList([]); setIsChecked(false);
-                                                setPopup({ title: "SUCCESS", msg: "บันทึกเรียบร้อย!" });
+                                                setPopup({ title: "SUCCESS", msg: "บันทึกข้อมูลเรียบร้อย!" });
                                             }} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md animate-bounce">2. Save to Cloud</button>}
                                         </div>
                                     </div>
@@ -272,7 +264,7 @@
                             {/* Main Table */}
                             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
                                 <div className="bg-slate-50 p-3 border-b font-black text-[10.5px] flex justify-between uppercase text-slate-500 tracking-widest">
-                                    <span>ฐานข้อมูลหลัก - หน้า {currentPage} / {totalPages}</span>
+                                    <span>ฐานข้อมูลหลัก - หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
@@ -294,7 +286,7 @@
                                                             <div className="flex justify-center gap-1">
                                                                 {item.resumeLink ? (
                                                                     <div className="flex gap-1">
-                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 p-1.5 rounded-lg hover:scale-110"><i data-lucide="eye" className="w-4 h-4"></i></a>
+                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 p-1.5 rounded-lg hover:scale-110 transition-all"><i data-lucide="eye" className="w-4 h-4"></i></a>
                                                                         {currentUserAgency === 'Admin' && (<a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 bg-emerald-50 p-1.5 rounded font-black text-[9px] border border-emerald-100">DL</a>)}
                                                                     </div>
                                                                 ) : (currentUserAgency !== 'Admin' && isNoDup ? (<button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-[10px] font-black border-2 border-dashed border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50 active:scale-90 transition-all">{isUploading === item.id ? "..." : "+ Resume"}</button>) : <i data-lucide="lock" className="text-slate-200 w-4 h-4 mx-auto"></i>)}
@@ -318,7 +310,7 @@
                         </div>
                     </div>
 
-                    {/* Notification Popup */}
+                    {/* Success/Error Popup */}
                     {popup && (
                         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center">
                             <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border-t-4 border-indigo-600 w-full max-w-sm popup-animate">
