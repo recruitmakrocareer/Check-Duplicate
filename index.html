@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Checker | Final Certified Build V4</title>
+    <title>Candidate Checker | Final Master Verified</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -60,15 +60,11 @@
             const [referenceDb, setReferenceDb] = useState([]);
             const [gmailDb, setGmailDb] = useState([]); 
             
-            // 🚩 ตรึงตำแหน่งงานเริ่มต้น เพื่อไม่ให้ Dropdown หาย
-            const [positions, setPositions] = useState([
-                "Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", 
-                "Section Manager - Frozen", "Section Manager - Dry Food 1", "Section Manager - Dry Food 2", 
-                "Section Manager - F&V", "Section Manager - Non Food 1", "Section Manager - Non Fresh", 
-                "Section Manager - Fish", "Section Manager - GA", "Section Manager - GR", 
-                "Section Manager - HR", "Supervisor - Office Support"
-            ]);
-            const [locations, setLocations] = useState([]); 
+            // 🚩 ตรึงข้อมูลตำแหน่งงาน
+            const [positions, setPositions] = useState(["Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", "Section Manager - Frozen", "Section Manager - Dry Food 1", "Section Manager - Dry Food 2", "Section Manager - F&V", "Section Manager - Non Food 1", "Section Manager - Non Fresh", "Section Manager - Fish", "Section Manager - GA", "Section Manager - GR", "Section Manager - HR", "Supervisor - Office Support"]);
+            
+            // 🚩 เพิ่มข้อมูลสาขาแบบสำรอง (Backup) เพื่อป้องกัน Dropdown ว่าง
+            const [locations, setLocations] = useState(["1-Lardprao", "2-Sathorn", "3-Bangna"]); 
 
             const [draftList, setDraftList] = useState([]);
             const [isChecked, setIsChecked] = useState(false);
@@ -98,19 +94,15 @@
                         setReferenceDb(data.filter(r => r['Name-Surname']).map(r => ({ name: (r['Name-Surname']||'').trim(), tel: (r['Tel']||'').trim(), email: (r['Email']||'').trim() })));
                         return fetch(configCSV);
                     }).then(r => r.text()).then(res => {
-                        const data = Papa.parse(res, { header: true }).data;
-                        // 🚩 ดึงตำแหน่งเพิ่มเติมจาก CSV (ถ้ามี) โดยไม่ลบค่าเดิม
-                        const posListCSV = [...new Set(data.map(r => r.Position).filter(p => p))];
-                        if(posListCSV.length > 0) setPositions(prev => [...new Set([...prev, ...posListCSV])].sort());
-
-                        // 🚩 ดึงสาขา (Col A - Col B)
-                        const locList = data.map(r => {
-                            const keys = Object.keys(r);
-                            const code = r[keys[0]]; // Col A
-                            const name = r[keys[1]]; // Col B
+                        // 🚩 ดึงข้อมูลสาขาจาก CSV (Col A และ Col B)
+                        const parsed = Papa.parse(res, { header: false }).data; 
+                        const locList = parsed.slice(1).map(row => {
+                            const code = row[0]; // Column A
+                            const name = row[1]; // Column B
                             return (code && name) ? `${code}-${name}` : null;
-                        }).filter(l => l && !l.includes('Position-Category'));
-                        setLocations([...new Set(locList)].sort());
+                        }).filter(l => l && !l.includes('Position'));
+                        
+                        if(locList.length > 0) setLocations([...new Set(locList)].sort());
 
                         return fetch(scriptURL + "?action=getGmail");
                     }).then(r => r.json()).then(emails => { 
@@ -175,14 +167,14 @@
             if (isLoading) return <div className="h-screen flex items-center justify-center font-black">SYNCING...</div>;
 
             if (!currentUserAgency) return (
-                <div className="h-screen flex items-center justify-center bg-slate-900">
+                <div className="h-screen flex items-center justify-center bg-slate-900 text-center p-6">
                     <form onSubmit={(e) => {
                         e.preventDefault();
                         const map = { "admin@company.com": "Admin", "manpower@agency.com": "Manpower", "metalent@agency.com": "Me Talent", "prtr@agency.com": "PRTR", "talentvis@agency.com": "Talentvis", "techgrid@agency.com": "Techgrid" };
                         const agency = map[loginEmail.trim().toLowerCase()];
                         if (agency) setCurrentUserAgency(agency); else alert("Login Failed");
-                    }} className="bg-white p-10 rounded-3xl w-80 shadow-2xl">
-                        <h1 className="text-xl font-black mb-6 text-center uppercase">Login</h1>
+                    }} className="bg-white p-10 rounded-3xl w-full max-w-sm shadow-2xl">
+                        <h1 className="text-xl font-black mb-6 uppercase">Login</h1>
                         <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full border p-3 rounded-xl mb-4 text-center font-bold" placeholder="Email" required />
                         <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase">Enter</button>
                     </form>
@@ -195,7 +187,7 @@
                     
                     <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border">
                         <h1 className="font-black uppercase tracking-tighter text-slate-700">{currentUserAgency} SESSION</h1>
-                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-2.5 rounded-xl hover:bg-rose-600 hover:text-white transition-all"><i data-lucide="power"></i></button>
+                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-2.5 rounded-xl"><i data-lucide="power"></i></button>
                     </div>
 
                     <div className="flex flex-col xl:flex-row gap-6">
@@ -208,7 +200,7 @@
                                     const telClean = formData.tel.replace(/\D/g, '');
                                     if (telClean.length !== 10) return alert("กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก");
                                     setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
-                                    setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
+                                    setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '', position: formData.position, location: formData.location });
                                     setIsChecked(false);
                                 }} className="space-y-3">
                                     <div><label className="text-[9px] font-bold text-slate-400 uppercase">วันที่ส่ง *</label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full border p-2 rounded-lg text-xs bg-slate-50" required /></div>
@@ -216,25 +208,30 @@
                                     <div><label className="text-[9px] font-bold text-slate-400 uppercase">นามสกุล *</label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
                                     <div><label className="text-[9px] font-bold text-slate-400 uppercase">เบอร์โทร *</label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
                                     <div><label className="text-[9px] font-bold text-slate-400 uppercase">อีเมล *</label><input type="email" placeholder="example@mail.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
+                                    
+                                    {/* 🚩 แก้ไข Dropdown ตำแหน่งงาน */}
                                     <div><label className="text-[9px] font-bold text-slate-400 uppercase">ตำแหน่งงาน *</label>
                                         <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
                                             <option value="">เลือกตำแหน่ง...</option>
                                             {positions.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
                                     </div>
+                                    
+                                    {/* 🚩 แก้ไข Dropdown สาขา */}
                                     <div><label className="text-[9px] font-bold text-slate-400 uppercase">สาขา *</label>
                                         <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
                                             <option value="">เลือกสาขา...</option>
                                             {locations.map(l => <option key={l} value={l}>{l}</option>)}
                                         </select>
                                     </div>
+                                    
                                     <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-[10px] active:scale-95 shadow-lg">+ เพิ่มลงร่าง</button>
                                 </form>
                             </div>
                         )}
 
-                        {/* Content Right */}
                         <div className="flex-1 space-y-4 min-w-0">
+                            {/* Filter Bar 1 บรรทัด */}
                             <div className="compact-filter-bar">
                                 <div className="filter-item"><label className="filter-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="filter-input" /></div>
                                 <div className="filter-item"><label className="filter-label">ชื่อ-นามสกุล</label><input type="text" placeholder="ค้นชื่อ..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="filter-input" /></div>
@@ -245,29 +242,31 @@
                                 <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 border p-2 rounded-lg text-[9px] font-black uppercase hover:bg-slate-200">Reset</button>
                             </div>
 
+                            {/* Draft Box - โชว์ข้อมูลครบ 7 ช่อง */}
                             {draftList.length > 0 && (
                                 <div className="bg-white rounded-xl border-2 border-amber-200 overflow-hidden shadow-xl mb-4">
                                     <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase">รอตรวจสอบ ({draftList.length})
                                         <div className="flex gap-2">
-                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95">1. Check Dup</button>
+                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md">1. Check Dup</button>
                                             {isChecked && <button onClick={async () => {
                                                 const promises = draftList.map(item => window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...item, agency: currentUserAgency, prescreenStatus: item.status, interviewStatus: 'รอผล', createdAt: Date.now(), resumeLink: '' }));
                                                 await Promise.all(promises); setDraftList([]); setIsChecked(false);
-                                                setPopup({ title: "SUCCESS", msg: "บันทึกข้อมูลเรียบร้อย!" });
+                                                setPopup({ title: "SUCCESS", msg: "บันทึกเรียบร้อย!" });
                                             }} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase animate-bounce">2. Save to Cloud</button>}
                                         </div>
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-[11px]">
                                             <thead><tr><th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-100">ผลตรวจสอบ</th></tr></thead>
-                                            <tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.submissionDate}</td><td className="font-black">{item.firstName} {item.lastName}</td><td>{item.tel}</td><td className="text-slate-500">{item.email}</td><td className="font-bold text-indigo-600">{item.position}</td><td>{item.location}</td><td><span className={`px-3 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td></tr>))}</tbody>
+                                            <tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.submissionDate}</td><td className="font-black">{item.firstName} {item.lastName}</td><td>{item.tel}</td><td>{item.email}</td><td className="font-bold text-indigo-600">{item.position}</td><td>{item.location}</td><td><span className={`px-3 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td></tr>))}</tbody>
                                         </table>
                                     </div>
                                 </div>
                             )}
 
+                            {/* Main Table */}
                             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-                                <div className="bg-slate-50 p-3 border-b font-black text-[10.5px] flex justify-between uppercase text-slate-500">
+                                <div className="bg-slate-50 p-3 border-b font-black text-[10.5px] flex justify-between uppercase text-slate-500 tracking-widest">
                                     <span>ฐานข้อมูลหลัก - หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)</span>
                                 </div>
                                 <div className="overflow-x-auto">
@@ -320,7 +319,7 @@
                                 <div className={`w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-6 bg-emerald-100 text-emerald-600`}><i data-lucide="check-circle" className="w-8 h-8"></i></div>
                                 <h3 className="text-xl font-black mb-2 uppercase tracking-tight">{popup.title}</h3>
                                 <p className="text-slate-500 font-bold mb-8 text-sm leading-relaxed">{popup.msg}</p>
-                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">Close</button>
+                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all">Close</button>
                             </div>
                         </div>
                     )}
