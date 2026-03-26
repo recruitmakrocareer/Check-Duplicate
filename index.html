@@ -347,7 +347,7 @@
                                 // หากนำเว็บไปรันบน Github Pages (โดเมนจริง) ระบบจะใช้ Key และ Model ล่าสุดที่คุณกำหนด
                                 if (window.location.hostname && !window.location.hostname.includes('google') && window.location.hostname !== 'localhost') {
                                     apiKey = "AIzaSyA_ts9NPTLTA0-YlN9dZPVpS9I_iZpW7Nc"; // ใส่ Key ตามที่คุณขอไว้
-                                    modelName = "gemini-1.5-flash-latest"; // ปรับใช้รุ่น Latest ป้องกัน Error 404
+                                    modelName = "gemini-1.5-flash"; // เปลี่ยนชื่อโมเดลเป็นรุ่นมาตรฐาน ลบ -latest ออก
                                 }
                                 
                                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
