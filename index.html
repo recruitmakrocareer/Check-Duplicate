@@ -139,7 +139,8 @@
 
         const App = () => {
             const scriptURL = "https://script.google.com/macros/s/AKfycbyHSv_7wt3jlYJQWVlnE5GF06y3tgf-FLcyz6AQDnNoBtIs0PqfCVw5AM_SYlSNxJHYhg/exec";
-            const dataSheetCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxq53q5Vk4M8Pl198a5N1znINRlUqpbB4E8ZFBVE_GYTWX9qwuHSIljFlImhM110x0d2XeER8A28up/pub?gid=1587803762&single=true&output=csv";
+const OPENAI_API_KEY = "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";
+
             const configCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxq53q5Vk4M8Pl198a5N1znINRlUqpbB4E8ZFBVE_GYTWX9qwuHSIljFlImhM110x0d2XeER8A28up/pub?output=csv";
 
             const [user, setUser] = useState(null);
@@ -331,15 +332,24 @@
 
                                 const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครที่มีเนื้อหาดังนี้:\n\n"${pdfText.substring(0, 10000)}"\n\nเพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้ ตอบกลับมาในรูปแบบ JSON ที่มี key คือ "score" (ตัวเลข) และ "summary" (ข้อความสรุป)`;
 
-                                // ✅ Step 3: เรียก OpenAI ผ่าน Apps Script (ไม่มีปัญหา CORS)
-                                const aiRes = await fetch(scriptURL, {
-                                    method: 'POST',
-                                    body: JSON.stringify({ action: 'analyzeResume', prompt: promptText })
-                                });
-                                const aiJson = await aiRes.json();
+                                // ✅ Step 3: เรียก OpenAI โดยตรงจาก Browser
+const aiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: promptText }],
+        response_format: { type: 'json_object' }
+    })
+});
+const aiJson = await aiRes.json();
+if (!aiRes.ok) throw new Error(aiJson.error?.message || "OpenAI API Error");
+const aiContent = JSON.parse(aiJson.choices[0].message.content);
+aiData = { score: aiContent.score, summary: aiContent.summary };
 
-                                if (aiJson.status === 'error') throw new Error(aiJson.message || "OpenAI API Error");
-                                aiData = { score: aiJson.score, summary: aiJson.summary };
 
                             } catch (aiErr) {
                                 console.error("AI Analysis failed:", aiErr);
