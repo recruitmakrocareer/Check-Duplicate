@@ -12,17 +12,111 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
-        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; font-size: 13px; }
-        th { white-space: nowrap; font-size: 10px !important; padding: 10px 4px !important; background-color: #0f172a; color: white; border: 1px solid #334155; text-align: center; }
-        td { font-size: 11.5px !important; padding: 8px 4px !important; border-bottom: 1px solid #e2e8f0; text-align: center; vertical-align: middle; }
-        .sidebar-container { width: 320px; flex-shrink: 0; }
-        .compact-filter-bar { display: grid; grid-template-columns: repeat(6, 1fr) 70px; gap: 6px; background: white; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 16px; align-items: end; }
-        .filter-item { display: flex; flex-direction: column; gap: 1px; }
-        .filter-label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-left: 2px; }
-        .filter-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; background: #f8fafc; outline: none; }
-        .admin-edit { width: 100%; font-size: 10.5px; padding: 3px; border-radius: 4px; border: 1px solid #e2e8f0; font-weight: bold; background: #fff; }
-        .popup-animate { animation: scaleIn 0.3s ease-out; }
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background-color: #f8fafc; /* Lighter cleaner background */
+            color: #334155;
+        }
+        
+        /* Custom Scrollbar for cleaner look */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .sidebar-container { width: 340px; flex-shrink: 0; }
+        
+        /* Modern Inputs */
+        .modern-input {
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            background: #f8fafc;
+            transition: all 0.2s ease;
+            outline: none;
+            color: #1e293b;
+            font-weight: 500;
+        }
+        .modern-input:focus {
+            background: #ffffff;
+            border-color: #818cf8;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        .modern-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        /* Filter Bar */
+        .compact-filter-bar { 
+            display: grid; 
+            grid-template-columns: repeat(6, 1fr) auto; 
+            gap: 12px; 
+            background: white; 
+            padding: 16px; 
+            border-radius: 16px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01);
+            border: 1px solid #f1f5f9; 
+            margin-bottom: 20px; 
+            align-items: end; 
+        }
+
+        /* Modern Table */
+        table { border-collapse: separate; border-spacing: 0; width: 100%; }
+        th { 
+            font-size: 11px; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em; 
+            color: #64748b; 
+            background-color: #f8fafc; 
+            padding: 14px 12px; 
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+        td { 
+            font-size: 13px; 
+            padding: 12px; 
+            border-bottom: 1px solid #f1f5f9; 
+            vertical-align: middle; 
+            transition: background 0.2s;
+        }
+        tr:hover td { background-color: #f8fafc; }
+        tr:last-child td { border-bottom: none; }
+
+        .admin-edit { 
+            width: 100%; 
+            font-size: 12px; 
+            padding: 6px 8px; 
+            border-radius: 8px; 
+            border: 1px solid #cbd5e1; 
+            font-weight: 600; 
+            background: #fff; 
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .admin-edit:focus { border-color: #818cf8; }
+
+        .popup-animate { animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        /* Badges */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-block;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -51,7 +145,7 @@
         const App = () => {
             const scriptURL = "https://script.google.com/macros/s/AKfycbyHSv_7wt3jlYJQWVlnE5GF06y3tgf-FLcyz6AQDnNoBtIs0PqfCVw5AM_SYlSNxJHYhg/exec";
             
-            // 🚩 ลิงก์สำหรับ Sheet Data ใหม่ (ตรวจสอบ Name, Surname, Email)
+            // ลิงก์สำหรับ Sheet Data ใหม่ (ตรวจสอบ Name, Surname, Email)
             const dataSheetCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxq53q5Vk4M8Pl198a5N1znINRlUqpbB4E8ZFBVE_GYTWX9qwuHSIljFlImhM110x0d2XeER8A28up/pub?gid=1587803762&single=true&output=csv";
             
             // ลิงก์สำหรับ Manpower_Status (สาขาและตำแหน่ง)
@@ -63,7 +157,7 @@
             const [isLoading, setIsLoading] = useState(true);
             const [cloudCandidates, setCloudCandidates] = useState([]);
             const [gmailDb, setGmailDb] = useState([]); 
-            const [externalDataDb, setExternalDataDb] = useState([]); // 🚩 เก็บฐานข้อมูล Data ใหม่
+            const [externalDataDb, setExternalDataDb] = useState([]); // เก็บฐานข้อมูล Data ใหม่
             
             const [positions, setPositions] = useState(["Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", "Section Manager - Frozen", "Section Manager - Dry Food 1", "Section Manager - Dry Food 2", "Section Manager - F&V", "Section Manager - Non Food 1", "Section Manager - Non Fresh", "Section Manager - Fish", "Section Manager - GA", "Section Manager - GR", "Section Manager - HR", "Supervisor - Office Support"]);
             const [locations, setLocations] = useState(['1-Lardprao', '2-Chaengwattana', '3-Srinakarin', '4-Bangbon', '5-Chonburi', '6-Chiang Mai 1', '7-Nakhon Ratchasima', '8-Rangsit', '9-Hat Yai', '10-Udonthani', '11-Phitsanulok', '12-Khon Kaen', '13-Surat Thani', '14-Ubol Ratchathani', '15-Rayong', '16-Nakhon Sawan', '17-Charansanitwongse', '18-Sathorn', '19-Nakhon Pathom', '20-Surin', '21-Samsen', '22-Nakhon Si Thammarat', '23-Chiang Rai', '24-Sakon Nakhon', '25-Suphan Buri', '26-Chanthaburi', '27-Phuket', '28-Roi Et', '29-Trang', '30-Sakaeo', '31-Koh Samui', '32-Buri Ram', '33-Sisaket', '34-Lamphun', '35-Krabi', '36-Phetchaburi', '37-Chaiyaphum', '38-Saraburi', '39-Pran Buri', '40-Chachoengsao', '41-Chiang Mai 2', '42-Ram Inthra', '43-Chumphon', '44-Pattaya', '45-Kamphangphet', '46-Kanchanaburi', '47-Lop Buri', '48-Nong Khai', '49-Ratchaburi', '50-Mae Rim', '51-Ayutthaya', '52-Lampang', '53-Hua Hin', '54-Khlong Luang', '55-Loei', '56-Phetchaboon', '57-Bang Phli', '58-Mukdahan', '59-Satun', '60-Trat', '61-Chum Pae', '62-Rawai', '63-Nakorn Panom', '64-Koh Phangan', '65-Bueng Kan', '66-North Pattaya', '67-Mae Sai', '68-Salaya', '69-Pattalung', '70-Sukhothai', '71-Patong', '72-Samutsakhon', '73-Maesod', '74-Pakchong', '75-Thalang', '76-Ranong', '77-Lamai', '78-Kalapapurk', '79-Yasothon', '80-Mahasarakam', '81-Phang', '82-Nakhon Nayok', '83-Nakhon In', '84-Banphae', '85-Tung Song', '86-Srinakarin 2', '87-Phayao', '89-Phitsanulok 2', '96-nan', '100-Phrae', '101-Koh Chang', '102-Nakhon Ratchasima 2', '103-Nan', '104-Ao Nang', '105-Karon', '106-Warinchamrab', '107-Nongbualamphu', '108-Nong Chok', '109-Laem Chabang', '110-Prachuap Khiri Khan', '111-Phetchakasem', '113-Wang Hin', '114-Singburi', '115-Bang Bua Thong', '116-Kalasin', '117-Udomsuk', '118-Ramkhamhaeng (Sammakorn)', '119-Phichit', '120-Pathumthani', '121-Bodindecha', '122-Prachautit', '123-Sukhumvit 71', '124-Navamin 70', '125-Cha-am', '126-On Nut', '127-Suksawas', '128-Kabin Buri', '129-Ladkrabang', '130-Nathong Charoen', '131-Bo Win', '132-Sattahip', '133-Ramkhamhaeng 24', '134-Amata Nakorn', '135-Bangkholaem', '136-Khon Kaen 2', '137-Wongsakorn 2', '138-Meng Jai', '139-Sukhumvit 22', '140-Chan Road', '141-Lam Luk Ka', '142-Phraeksa', '143-Praditmanutham', '144-Rungroj Market (Klong 4)Branch', '145-Pongpeth', '146-Uttaradit', '147-Muangthong', '148-Liap Khlong Song', '149-Omnoi', '150-Sanam Bin Nam', '151-Thep Rak', '152-Samut Songkharm', '153-Wiang Sa', '154-Prachin Buri', '155-Pinklao', '156-Samut Prakan', '157-Nakhon Ratchasima 3', '158-Nakhon Sawan2 (Phrom Nimit)', '159-Udon Thani 2 (Ban Lueam)', '160-Mahachai', '161-Khon Kaen 3 (Ban Non Muang)', '162-Amatanakorn 2', '163-Songkhla 2', '164-Chainat', '165-Sri Ayutthaya Road', '166-Rawai 2', '167-Chiang Mai (Chom Thong)', '168-Ban Bueng', '169-Phang Nga', '170-Amnat Charoen', '171-Jo Ho (Nakhon Ratchasima)', '172-Ban Pai', '175-Happitat (Forestias – Bangna)', '301-Rama 4 Branch', '303-Sirimangkalajarn Branch', '350-Ram Intra KM4 Branch', '351-Sinopark Branch', '352-Patthanakarn Branch']);
@@ -75,6 +169,7 @@
 
             const [filters, setFilters] = useState({ name: '', subDate: '', status: '', pos: '', intDate: '', intResult: '' });
             const [popup, setPopup] = useState(null);
+            const [confirmDialog, setConfirmDialog] = useState(null);
             const [isUploading, setIsUploading] = useState(null);
             const [targetId, setTargetId] = useState(null);
             const fileInputRef = useRef(null);
@@ -141,14 +236,12 @@
             const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-            // 🚩 แก้ไข Logic การตรวจสอบซ้ำ (เช็ค 3 ขั้นตอน: Cloud, GmailCache, Data Sheet)
             const handleBulkCheck = () => {
                 const updated = draftList.map((item) => {
                     const inputEmail = item.email.toLowerCase().trim();
                     const inputTel = item.tel.replace(/\D/g, '');
                     const inputNameNormalized = normalize(item.firstName + item.lastName);
 
-                    // 1. เช็คฐานข้อมูล Cloud (ทุก User)
                     const isDupCloud = cloudCandidates.some(c => {
                         const dbEmail = (c.email || '').toLowerCase().trim();
                         const dbTel = (c.tel || '').replace(/\D/g, '');
@@ -156,10 +249,7 @@
                         return (inputEmail && dbEmail === inputEmail) || (inputTel && dbTel === inputTel) || (inputNameNormalized === dbNameNormalized);
                     });
 
-                    // 2. เช็ค GmailCache (ข้อมูล 4 หมื่นรายชื่อ)
                     const isDupGmail = gmailDb.some(e => e.toLowerCase().trim() === inputEmail);
-
-                    // 3. เช็คฐานข้อมูล Data Sheet ใหม่ (Name, Surname, Email)
                     const isDupData = externalDataDb.some(d => {
                         return (inputEmail && d.email === inputEmail) || (inputNameNormalized === d.name);
                     });
@@ -188,154 +278,314 @@
                 reader.readAsDataURL(file);
             };
 
-            if (isLoading) return <div className="h-screen flex items-center justify-center font-black">SYNCING...</div>;
+            const renderModals = () => {
+                return (
+                    <>
+                        {/* Success/Error Popup */}
+                        {popup && (
+                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center transition-opacity">
+                                <div className="bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl w-full max-w-sm popup-animate border border-slate-100">
+                                    <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6 shadow-inner ${popup.title === 'ERROR' ? 'bg-rose-50 text-rose-500' : popup.title === 'WARNING' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                                        <i data-lucide={popup.title === 'ERROR' ? "x-circle" : popup.title === 'WARNING' ? "alert-triangle" : "check-circle"} className="w-8 h-8"></i>
+                                    </div>
+                                    <h3 className="text-xl font-black mb-3 text-slate-800 uppercase tracking-tight">{popup.title}</h3>
+                                    <p className="text-slate-500 font-medium mb-8 text-[15px] leading-relaxed">{popup.msg}</p>
+                                    <button onClick={() => setPopup(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-md hover:shadow-lg active:scale-95 transition-all">Close</button>
+                                </div>
+                            </div>
+                        )}
 
-            if (!currentUserAgency) return (
-                <div className="h-screen flex items-center justify-center bg-slate-900 text-center p-6">
-                    <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const map = { "admin@company.com": "Admin", "manpower@agency.com": "Manpower", "metalent@agency.com": "Me Talent", "prtr@agency.com": "PRTR", "talentvis@agency.com": "Talentvis", "techgrid@agency.com": "Techgrid" };
-                        const agency = map[loginEmail.trim().toLowerCase()];
-                        if (agency) setCurrentUserAgency(agency); else alert("Login Failed");
-                    }} className="bg-white p-10 rounded-3xl w-full max-w-sm shadow-2xl">
-                        <h1 className="text-xl font-black mb-6 uppercase">Login</h1>
-                        <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full border p-3 rounded-xl mb-4 text-center font-bold" placeholder="Email" required />
-                        <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold uppercase">Enter</button>
-                    </form>
+                        {/* Confirmation Dialog */}
+                        {confirmDialog && (
+                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center transition-opacity">
+                                <div className="bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl w-full max-w-sm popup-animate border border-slate-100">
+                                    <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6 bg-rose-50 text-rose-500 shadow-inner">
+                                        <i data-lucide="alert-triangle" className="w-8 h-8"></i>
+                                    </div>
+                                    <h3 className="text-xl font-black mb-3 text-slate-800 uppercase tracking-tight">{confirmDialog.title}</h3>
+                                    <p className="text-slate-500 font-medium mb-8 text-[15px] leading-relaxed">{confirmDialog.msg}</p>
+                                    <div className="flex gap-4">
+                                        <button onClick={() => setConfirmDialog(null)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold uppercase tracking-wide transition-all">ยกเลิก</button>
+                                        <button onClick={confirmDialog.onConfirm} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-md hover:shadow-lg active:scale-95 transition-all">ยืนยัน</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                );
+            };
+
+            if (isLoading) return (
+                <div className="h-screen flex flex-col items-center justify-center font-bold text-indigo-500 gap-4">
+                    <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p className="tracking-widest uppercase text-sm font-black text-slate-400">Syncing Workspace...</p>
                 </div>
             );
 
+            if (!currentUserAgency) return (
+                <>
+                    <div className="h-screen flex items-center justify-center text-center p-6 bg-gradient-to-br from-slate-100 to-slate-200">
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            const map = { "admin@company.com": "Admin", "manpower@agency.com": "Manpower", "metalent@agency.com": "Me Talent", "prtr@agency.com": "PRTR", "talentvis@agency.com": "Talentvis", "techgrid@agency.com": "Techgrid" };
+                            const agency = map[loginEmail.trim().toLowerCase()];
+                            if (agency) setCurrentUserAgency(agency); else setPopup({ title: "ERROR", msg: "Login Failed. Invalid email address." });
+                        }} className="bg-white p-10 rounded-[2.5rem] w-full max-w-sm shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] border border-slate-50 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-2 bg-indigo-500"></div>
+                            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <i data-lucide="fingerprint" className="w-8 h-8"></i>
+                            </div>
+                            <h1 className="text-2xl font-black mb-2 text-slate-800">Welcome Back</h1>
+                            <p className="text-slate-400 font-medium text-sm mb-8">Sign in with your agency email</p>
+                            
+                            <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="modern-input text-center mb-6 py-3.5 text-base" placeholder="Enter your email" required />
+                            <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95">Authenticate</button>
+                        </form>
+                    </div>
+                    {renderModals()}
+                </>
+            );
+
             return (
-                <div className="p-4 max-w-full min-h-screen">
+                <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto min-h-screen">
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
-                    <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-                        <h1 className="font-black uppercase tracking-tighter text-slate-700">{currentUserAgency} SESSION</h1>
-                        <button onClick={() => setCurrentUserAgency('')} className="bg-rose-50 text-rose-600 p-2.5 rounded-xl"><i data-lucide="power"></i></button>
+                    
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                                <i data-lucide="briefcase" className="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <h1 className="font-black text-xl uppercase tracking-tight text-slate-800 leading-none">{currentUserAgency}</h1>
+                                <p className="text-slate-400 font-medium text-[11px] mt-1 uppercase tracking-widest">Candidate Checker Session</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setCurrentUserAgency('')} className="bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 p-3 rounded-xl transition-colors duration-200">
+                            <i data-lucide="log-out" className="w-5 h-5"></i>
+                        </button>
                     </div>
 
-                    <div className="flex flex-col xl:flex-row gap-6">
-                        <div className="sidebar-container bg-white p-5 rounded-2xl shadow-md border border-slate-100 h-fit sticky top-4">
-                            <h2 className="font-black mb-4 flex items-center gap-2 uppercase text-[11px] text-indigo-600"><i data-lucide="user-plus" className="w-4 h-4"></i> เพิ่มรายชื่อ</h2>
+                    <div className="flex flex-col xl:flex-row gap-8">
+                        {/* Sidebar Form */}
+                        <div className="sidebar-container bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit xl:sticky top-6">
+                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                <div className="bg-indigo-50 text-indigo-600 p-2 rounded-lg"><i data-lucide="user-plus" className="w-4 h-4"></i></div>
+                                <h2 className="font-black text-sm uppercase text-slate-700 tracking-wide">เพิ่มรายชื่อใหม่</h2>
+                            </div>
+                            
                             <form onSubmit={(e) => {
                                 e.preventDefault();
                                 const telClean = formData.tel.replace(/\D/g, '');
-                                if (telClean.length !== 10) return alert("กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก");
+                                if (telClean.length !== 10) {
+                                    setPopup({ title: "WARNING", msg: "กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก" });
+                                    return;
+                                }
                                 setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
                                 setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
                                 setIsChecked(false);
-                            }} className="space-y-3">
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">วันที่ส่ง *</label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="w-full border p-2 rounded-lg text-xs bg-slate-50" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">ชื่อ *</label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">นามสกุล *</label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">เบอร์โทร *</label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">อีเมล *</label><input type="email" placeholder="example@mail.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required /></div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">ตำแหน่งงาน *</label>
-                                    <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
-                                        <option value="">เลือกตำแหน่ง...</option>
+                            }} className="space-y-4">
+                                <div><label className="modern-label">วันที่ส่ง <span className="text-rose-400">*</span></label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="modern-input" required /></div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div><label className="modern-label">ชื่อ <span className="text-rose-400">*</span></label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="modern-input" required /></div>
+                                    <div><label className="modern-label">นามสกุล <span className="text-rose-400">*</span></label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="modern-input" required /></div>
+                                </div>
+                                <div><label className="modern-label">เบอร์โทรศัพท์ <span className="text-rose-400">*</span></label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="modern-input font-mono" required /></div>
+                                <div><label className="modern-label">อีเมล <span className="text-rose-400">*</span></label><input type="email" placeholder="email@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="modern-input" required /></div>
+                                <div><label className="modern-label">ตำแหน่งงาน <span className="text-rose-400">*</span></label>
+                                    <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="modern-input" required>
+                                        <option value="">-- เลือกตำแหน่ง --</option>
                                         {positions.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                 </div>
-                                <div><label className="text-[9px] font-bold text-slate-400 uppercase">สาขา *</label>
-                                    <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full border p-2 rounded-lg text-xs" required>
-                                        <option value="">เลือกสาขา...</option>
+                                <div><label className="modern-label">สาขา <span className="text-rose-400">*</span></label>
+                                    <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="modern-input" required>
+                                        <option value="">-- เลือกสาขา --</option>
                                         {locations.map(l => <option key={l} value={l}>{l}</option>)}
                                     </select>
                                 </div>
-                                <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-black uppercase text-[10px] active:scale-95 shadow-lg">+ เพิ่มลงร่าง</button>
+                                <div className="pt-2">
+                                    <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold uppercase text-[12px] tracking-wider active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                                        <i data-lucide="plus" className="w-4 h-4"></i> เพิ่มลงรายการร่าง
+                                    </button>
+                                </div>
                             </form>
                         </div>
 
-                        <div className="flex-1 space-y-4 min-w-0">
+                        {/* Main Content Area */}
+                        <div className="flex-1 min-w-0 flex flex-col gap-6">
+                            
+                            {/* Filter Bar */}
                             <div className="compact-filter-bar">
-                                <div className="filter-item"><label className="filter-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="filter-input" /></div>
-                                <div className="filter-item"><label className="filter-label">ชื่อ-นามสกุล</label><input type="text" placeholder="ค้นชื่อ..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="filter-input" /></div>
-                                <div className="filter-item"><label className="filter-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="filter-input"><option value="">ทั้งหมด</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option></select></div>
-                                <div className="filter-item"><label className="filter-label">ตำแหน่ง</label><select value={filters.pos} onChange={e => setFilters({...filters, pos: e.target.value})} className="filter-input"><option value="">ทั้งหมด</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
-                                <div className="filter-item"><label className="filter-label">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="filter-input" /></div>
-                                <div className="filter-item"><label className="filter-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({...filters, intResult: e.target.value})} className="filter-input"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
-                                <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 border p-2 rounded-lg text-[9px] font-black uppercase hover:bg-slate-200">Reset</button>
+                                <div className="filter-item"><label className="modern-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
+                                <div className="filter-item"><label className="modern-label">ค้นหาชื่อ</label><input type="text" placeholder="ชื่อ/นามสกุล..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
+                                <div className="filter-item"><label className="modern-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option></select></div>
+                                <div className="filter-item"><label className="modern-label">ตำแหน่ง</label><select value={filters.pos} onChange={e => setFilters({...filters, pos: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
+                                <div className="filter-item"><label className="modern-label">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
+                                <div className="filter-item"><label className="modern-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({...filters, intResult: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
+                                <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
                             </div>
 
+                            {/* Draft Table */}
                             {draftList.length > 0 && (
-                                <div className="bg-white rounded-xl border-2 border-amber-200 overflow-hidden shadow-xl mb-4">
-                                    <div className="bg-amber-50 p-3 flex justify-between items-center border-b border-amber-200 font-black text-[11px] uppercase tracking-widest text-amber-800">รอตรวจสอบ ({draftList.length})
-                                        <div className="flex gap-2">
-                                            <button onClick={handleBulkCheck} className="bg-amber-500 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95">1. Check Dup (All DB)</button>
+                                <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+                                    <div className="bg-amber-50/50 p-4 flex justify-between items-center border-b border-amber-100">
+                                        <div className="flex items-center gap-2">
+                                            <div className="bg-amber-100 text-amber-600 p-1.5 rounded-lg"><i data-lucide="list-todo" className="w-4 h-4"></i></div>
+                                            <span className="font-black text-sm uppercase tracking-wide text-amber-800">รอตรวจสอบความซ้ำซ้อน ({draftList.length})</span>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <button onClick={handleBulkCheck} className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-xl font-bold text-xs uppercase shadow-sm hover:shadow active:scale-95 transition-all flex items-center gap-2">
+                                                <i data-lucide="scan-search" className="w-4 h-4"></i> 1. Check Duplicates
+                                            </button>
                                             {isChecked && <button onClick={async () => {
                                                 const promises = draftList.map(item => window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...item, agency: currentUserAgency, prescreenStatus: item.status, interviewStatus: 'รอผล', createdAt: Date.now(), resumeLink: '' }));
                                                 await Promise.all(promises); setDraftList([]); setIsChecked(false);
-                                                setPopup({ title: "SUCCESS", msg: "บันทึกเรียบร้อย!" });
-                                            }} className="bg-emerald-600 text-white px-4 py-1.5 rounded-lg font-black text-[10px] uppercase shadow-md animate-bounce">2. Save to Cloud</button>}
+                                                setPopup({ title: "SUCCESS", msg: "บันทึกข้อมูลขึ้นระบบสำเร็จ!" });
+                                            }} className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-xl font-bold text-xs uppercase shadow-sm hover:shadow active:scale-95 transition-all flex items-center gap-2">
+                                                <i data-lucide="cloud-upload" className="w-4 h-4"></i> 2. Save to Cloud
+                                            </button>}
                                         </div>
                                     </div>
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-[11px]">
-                                            <thead><tr><th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-100 text-amber-900">ผลตรวจสอบ</th></tr></thead>
-                                            <tbody>{draftList.map((item) => (<tr key={item.draftId} className="draft-row"><td>{item.submissionDate}</td><td className="font-black text-slate-700">{item.firstName} {item.lastName}</td><td>{item.tel}</td><td className="text-slate-500">{item.email}</td><td className="font-bold text-indigo-600">{item.position}</td><td>{item.location}</td><td><span className={`px-3 py-1 rounded-full text-[10px] font-black ${item.status === 'No Dup' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.status}</span></td></tr>))}</tbody>
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th>
+                                                    <th className="bg-amber-50 text-amber-800 text-center">ผลตรวจสอบ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {draftList.map((item) => (
+                                                    <tr key={item.draftId}>
+                                                        <td className="text-slate-500 text-xs">{item.submissionDate}</td>
+                                                        <td className="font-bold text-slate-800">{item.firstName} {item.lastName}</td>
+                                                        <td className="font-mono text-slate-600 text-xs">{item.tel}</td>
+                                                        <td className="text-slate-500">{item.email}</td>
+                                                        <td className="font-semibold text-indigo-600 text-xs">{item.position}</td>
+                                                        <td className="text-slate-500 text-xs">{item.location}</td>
+                                                        <td className="text-center">
+                                                            <span className={`badge ${item.status === 'No Dup' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : item.status === 'Dup' ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20' : 'bg-slate-100 text-slate-500'}`}>
+                                                                {item.status}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
                                         </table>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-                                <div className="bg-slate-50 p-3 border-b font-black text-[10.5px] flex justify-between uppercase text-slate-500 tracking-widest">
-                                    <span>ฐานข้อมูลหลัก - หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)</span>
+                            {/* Main Database Table */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
+                                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                    <div className="flex items-center gap-2 text-slate-700">
+                                        <i data-lucide="database" className="w-4 h-4 text-indigo-500"></i>
+                                        <h2 className="font-black text-sm uppercase tracking-wide">ฐานข้อมูลหลัก</h2>
+                                    </div>
+                                    <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-slate-500 border border-slate-200">
+                                        หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)
+                                    </span>
                                 </div>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full">
+                                    <table>
                                         <thead>
-                                            <tr><th>วันที่ส่ง</th><th className="text-left">ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>สาขา</th><th>ตรวจสอบ</th><th className="bg-indigo-600 text-white">Resume</th><th>สัมภาษณ์</th><th>ผลสัมภาษณ์</th><th>จัดการ</th></tr>
+                                            <tr>
+                                                <th>วันที่ส่ง</th>
+                                                <th>ชื่อ-นามสกุล</th>
+                                                <th>เบอร์โทร</th>
+                                                <th>ตำแหน่ง</th>
+                                                <th>สาขา</th>
+                                                <th className="text-center">สถานะ</th>
+                                                <th className="text-center">Resume</th>
+                                                <th>นัดสัมภาษณ์</th>
+                                                <th className="text-center">ผลสัมภาษณ์</th>
+                                                <th className="text-center">จัดการ</th>
+                                            </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {paginatedItems.map(item => {
-                                                const isNoDup = item.prescreenStatus === 'No Dup';
-                                                return (
-                                                    <tr key={item.id} className="hover:bg-slate-50/50 transition-all">
-                                                        <td className="text-[10px] text-slate-400 font-bold">{item.submissionDate}</td>
-                                                        <td className="text-left font-black text-slate-700">{item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-') }</td>
-                                                        <td className="font-bold text-slate-600">{item.tel}</td>
-                                                        <td className="text-[10px] font-bold text-indigo-500 uppercase">{item.position}</td>
-                                                        <td className="text-[10px] text-slate-500">{item.location}</td>
-                                                        <td><span className={`px-2 py-0.5 rounded-full text-[10px] font-black inline-block ${isNoDup ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>{item.prescreenStatus}</span></td>
-                                                        <td>
-                                                            <div className="flex justify-center gap-1">
-                                                                {item.resumeLink ? (
-                                                                    <div className="flex gap-1">
-                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 p-1.5 rounded-lg hover:scale-110 transition-all"><i data-lucide="eye" className="w-4 h-4"></i></a>
-                                                                        {currentUserAgency === 'Admin' && (<a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-emerald-600 bg-emerald-50 p-1.5 rounded font-black text-[9px] border border-emerald-100">DL</a>)}
-                                                                    </div>
-                                                                ) : (currentUserAgency !== 'Admin' && isNoDup ? (<button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 text-[10px] font-black border-2 border-dashed border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50 active:scale-90 transition-all">{isUploading === item.id ? "..." : "+ Resume"}</button>) : <i data-lucide="lock" className="text-slate-200 w-4 h-4 mx-auto"></i>)}
-                                                            </div>
-                                                        </td>
-                                                        <td>{currentUserAgency === 'Admin' ? <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-edit" /> : (item.interviewDate || '-')}</td>
-                                                        <td>{currentUserAgency === 'Admin' ? <select value={item.interviewStatus || 'รอผล'} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-edit"><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select> : <span className={`px-2 py-0.5 rounded-full text-[10px] font-black inline-block ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-600 text-white' : 'bg-slate-100'}`}>{item.interviewStatus || 'รอผล'}</span>}</td>
-                                                        <td><button onClick={() => { if(confirm("ลบข้อมูล?")) window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)) }} className="text-rose-200 hover:text-rose-600 active:scale-90 transition-all"><i data-lucide="trash-2" className="w-3.5 h-3.5 mx-auto"></i></button></td>
-                                                    </tr>
-                                                );
-                                            })}
+                                        <tbody>
+                                            {paginatedItems.length === 0 ? (
+                                                <tr><td colSpan="10" className="text-center py-12 text-slate-400 font-medium">ไม่พบข้อมูลในระบบ</td></tr>
+                                            ) : (
+                                                paginatedItems.map(item => {
+                                                    const isNoDup = item.prescreenStatus === 'No Dup';
+                                                    return (
+                                                        <tr key={item.id}>
+                                                            <td className="text-xs text-slate-400 font-medium whitespace-nowrap">{item.submissionDate}</td>
+                                                            <td className="font-bold text-slate-800 whitespace-nowrap">{item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-') }</td>
+                                                            <td className="font-mono text-slate-500 text-xs">{item.tel}</td>
+                                                            <td className="text-xs font-semibold text-indigo-500 max-w-[150px] truncate" title={item.position}>{item.position}</td>
+                                                            <td className="text-xs text-slate-500 max-w-[150px] truncate" title={item.location}>{item.location}</td>
+                                                            <td className="text-center">
+                                                                <span className={`badge ${isNoDup ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20'}`}>
+                                                                    {item.prescreenStatus}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <div className="flex justify-center gap-1.5">
+                                                                    {item.resumeLink ? (
+                                                                        <div className="flex gap-1.5">
+                                                                            <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors" title="View Resume"><i data-lucide="file-text" className="w-4 h-4"></i></a>
+                                                                            {currentUserAgency === 'Admin' && (
+                                                                                <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="Download"><i data-lucide="download" className="w-4 h-4"></i></a>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        currentUserAgency !== 'Admin' && isNoDup ? (
+                                                                            <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 bg-white border border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap">
+                                                                                {isUploading === item.id ? <div className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div> : <i data-lucide="upload" className="w-3 h-3"></i>} 
+                                                                                {isUploading === item.id ? "กำลังอัปโหลด..." : "อัปโหลด"}
+                                                                            </button>
+                                                                        ) : <span className="text-slate-300"><i data-lucide="lock" className="w-4 h-4 mx-auto"></i></span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                {currentUserAgency === 'Admin' ? 
+                                                                    <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-edit text-xs" /> 
+                                                                    : <span className="text-slate-500 text-xs whitespace-nowrap">{item.interviewDate || '-'}</span>
+                                                                }
+                                                            </td>
+                                                            <td className="text-center">
+                                                                {currentUserAgency === 'Admin' ? 
+                                                                    <select value={item.interviewStatus || 'รอผล'} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-edit text-xs">
+                                                                        <option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option>
+                                                                    </select> 
+                                                                    : <span className={`badge ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20' : item.interviewStatus === 'ไม่ผ่าน' ? 'bg-slate-100 text-slate-500 ring-1 ring-slate-400/20' : 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20'}`}>{item.interviewStatus || 'รอผล'}</span>
+                                                                }
+                                                            </td>
+                                                            <td className="text-center">
+                                                                <button onClick={() => { 
+                                                                    setConfirmDialog({
+                                                                        title: "ยืนยันการลบ",
+                                                                        msg: "คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายชื่อนี้? การกระทำนี้ไม่สามารถย้อนกลับได้",
+                                                                        onConfirm: () => {
+                                                                            window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id));
+                                                                            setConfirmDialog(null);
+                                                                        }
+                                                                    });
+                                                                }} className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors active:scale-90">
+                                                                    <i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
-                                <div className="p-3 flex justify-between bg-slate-50 border-t items-center font-bold text-xs">
-                                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="bg-white border px-4 py-1.5 rounded-xl active:scale-95 disabled:opacity-30">PREV</button>
-                                    <span className="text-slate-400 text-[10px]">Page {currentPage} of {totalPages}</span>
-                                    <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="bg-white border px-4 py-1.5 rounded-xl active:scale-95 disabled:opacity-30">NEXT</button>
+                                <div className="p-4 flex justify-between bg-white border-t border-slate-100 items-center">
+                                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 px-5 py-2 rounded-xl text-[11px] font-bold uppercase transition-colors disabled:opacity-40 disabled:hover:bg-white flex items-center gap-1"><i data-lucide="chevron-left" className="w-4 h-4"></i> Prev</button>
+                                    <span className="text-slate-400 text-xs font-medium">Page {currentPage} of {totalPages}</span>
+                                    <button disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => p + 1)} className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 px-5 py-2 rounded-xl text-[11px] font-bold uppercase transition-colors disabled:opacity-40 disabled:hover:bg-white flex items-center gap-1">Next <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
                                 </div>
                             </div>
+
                         </div>
                     </div>
-
-                    {/* Success/Error Popup */}
-                    {popup && (
-                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center">
-                            <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border-t-4 border-indigo-600 w-full max-w-sm popup-animate">
-                                <div className={`w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-6 bg-emerald-100 text-emerald-600`}><i data-lucide="check-circle" className="w-8 h-8"></i></div>
-                                <h3 className="text-xl font-black mb-2 uppercase tracking-tight">{popup.title}</h3>
-                                <p className="text-slate-500 font-bold mb-8 text-sm leading-relaxed">{popup.msg}</p>
-                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">Close</button>
-                            </div>
-                        </div>
-                    )}
+                    {renderModals()}
                 </div>
             );
         };
