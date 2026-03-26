@@ -176,6 +176,10 @@
 
             const [formData, setFormData] = useState({ submissionDate: new Date().toISOString().split('T')[0], firstName: '', lastName: '', tel: '', email: '', position: '', location: '' });
 
+            // เพิ่มสถานะสำหรับระบบแก้ไขข้อมูล (Edit Mode)
+            const [editingId, setEditingId] = useState(null);
+            const [editFormData, setEditFormData] = useState({});
+
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
 
@@ -291,6 +295,28 @@
                 reader.readAsDataURL(file);
             };
 
+            // ฟังก์ชันสำหรับบันทึกการแก้ไขของ Admin
+            const handleSaveEdit = async (id) => {
+                try {
+                    await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', id), {
+                        submissionDate: editFormData.submissionDate || '',
+                        agency: editFormData.agency || '',
+                        firstName: editFormData.firstName || '',
+                        lastName: editFormData.lastName || '',
+                        tel: editFormData.tel || '',
+                        position: editFormData.position || '',
+                        location: editFormData.location || '',
+                        prescreenStatus: editFormData.prescreenStatus || '',
+                        interviewDate: editFormData.interviewDate || '',
+                        interviewStatus: editFormData.interviewStatus || 'รอผล'
+                    });
+                    setEditingId(null);
+                    setPopup({ title: "SUCCESS", msg: "บันทึกการแก้ไขเรียบร้อย!" });
+                } catch (error) {
+                    setPopup({ title: "ERROR", msg: "เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่" });
+                }
+            };
+
             const renderModals = () => {
                 return (
                     <>
@@ -382,50 +408,52 @@
                     </div>
 
                     <div className="flex flex-col xl:flex-row gap-8">
-                        {/* Sidebar Form */}
-                        <div className="sidebar-container bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit xl:sticky top-6">
-                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-                                <div className="bg-indigo-50 text-indigo-600 p-2 rounded-lg"><i data-lucide="user-plus" className="w-4 h-4"></i></div>
-                                <h2 className="font-black text-sm uppercase text-slate-700 tracking-wide">เพิ่มรายชื่อใหม่</h2>
+                        {/* Sidebar Form - แสดงเฉพาะ Agency ที่ไม่ใช่ Admin */}
+                        {currentUserAgency !== 'Admin' && (
+                            <div className="sidebar-container bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit xl:sticky top-6">
+                                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                                    <div className="bg-indigo-50 text-indigo-600 p-2 rounded-lg"><i data-lucide="user-plus" className="w-4 h-4"></i></div>
+                                    <h2 className="font-black text-sm uppercase text-slate-700 tracking-wide">เพิ่มรายชื่อใหม่</h2>
+                                </div>
+                                
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const telClean = formData.tel.replace(/\D/g, '');
+                                    if (telClean.length !== 10) {
+                                        setPopup({ title: "WARNING", msg: "กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก" });
+                                        return;
+                                    }
+                                    setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
+                                    setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
+                                    setIsChecked(false);
+                                }} className="space-y-4">
+                                    <div><label className="modern-label">วันที่ส่ง <span className="text-rose-400">*</span></label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="modern-input" required /></div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div><label className="modern-label">ชื่อ <span className="text-rose-400">*</span></label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="modern-input" required /></div>
+                                        <div><label className="modern-label">นามสกุล <span className="text-rose-400">*</span></label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="modern-input" required /></div>
+                                    </div>
+                                    <div><label className="modern-label">เบอร์โทรศัพท์ <span className="text-rose-400">*</span></label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="modern-input font-mono" required /></div>
+                                    <div><label className="modern-label">อีเมล <span className="text-rose-400">*</span></label><input type="email" placeholder="email@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="modern-input" required /></div>
+                                    <div><label className="modern-label">ตำแหน่งงาน <span className="text-rose-400">*</span></label>
+                                        <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="modern-input" required>
+                                            <option value="">-- เลือกตำแหน่ง --</option>
+                                            {positions.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
+                                    </div>
+                                    <div><label className="modern-label">สาขา <span className="text-rose-400">*</span></label>
+                                        <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="modern-input" required>
+                                            <option value="">-- เลือกสาขา --</option>
+                                            {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="pt-2">
+                                        <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold uppercase text-[12px] tracking-wider active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                                            <i data-lucide="plus" className="w-4 h-4"></i> เพิ่มลงรายการร่าง
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
-                            
-                            <form onSubmit={(e) => {
-                                e.preventDefault();
-                                const telClean = formData.tel.replace(/\D/g, '');
-                                if (telClean.length !== 10) {
-                                    setPopup({ title: "WARNING", msg: "กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก" });
-                                    return;
-                                }
-                                setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
-                                setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
-                                setIsChecked(false);
-                            }} className="space-y-4">
-                                <div><label className="modern-label">วันที่ส่ง <span className="text-rose-400">*</span></label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="modern-input" required /></div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div><label className="modern-label">ชื่อ <span className="text-rose-400">*</span></label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="modern-input" required /></div>
-                                    <div><label className="modern-label">นามสกุล <span className="text-rose-400">*</span></label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="modern-input" required /></div>
-                                </div>
-                                <div><label className="modern-label">เบอร์โทรศัพท์ <span className="text-rose-400">*</span></label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="modern-input font-mono" required /></div>
-                                <div><label className="modern-label">อีเมล <span className="text-rose-400">*</span></label><input type="email" placeholder="email@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="modern-input" required /></div>
-                                <div><label className="modern-label">ตำแหน่งงาน <span className="text-rose-400">*</span></label>
-                                    <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="modern-input" required>
-                                        <option value="">-- เลือกตำแหน่ง --</option>
-                                        {positions.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                </div>
-                                <div><label className="modern-label">สาขา <span className="text-rose-400">*</span></label>
-                                    <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="modern-input" required>
-                                        <option value="">-- เลือกสาขา --</option>
-                                        {locations.map(l => <option key={l} value={l}>{l}</option>)}
-                                    </select>
-                                </div>
-                                <div className="pt-2">
-                                    <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold uppercase text-[12px] tracking-wider active:scale-95 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
-                                        <i data-lucide="plus" className="w-4 h-4"></i> เพิ่มลงรายการร่าง
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+                        )}
 
                         {/* Main Content Area */}
                         <div className="flex-1 min-w-0 flex flex-col gap-6">
@@ -441,8 +469,8 @@
                                 <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
                             </div>
 
-                            {/* Draft Table */}
-                            {draftList.length > 0 && (
+                            {/* Draft Table - สำหรับ Agency เท่านั้น */}
+                            {currentUserAgency !== 'Admin' && draftList.length > 0 && (
                                 <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
                                     <div className="bg-amber-50/50 p-4 flex justify-between items-center border-b border-amber-100">
                                         <div className="flex items-center gap-2">
@@ -508,6 +536,7 @@
                                         <thead>
                                             <tr>
                                                 <th>วันที่ส่ง</th>
+                                                {currentUserAgency === 'Admin' && <th>Agency</th>}
                                                 <th>ชื่อ-นามสกุล</th>
                                                 <th>เบอร์โทร</th>
                                                 <th>ตำแหน่ง</th>
@@ -525,17 +554,70 @@
                                             ) : (
                                                 paginatedItems.map(item => {
                                                     const isNoDup = item.prescreenStatus === 'No Dup';
+                                                    const isEditing = editingId === item.id && currentUserAgency === 'Admin';
+                                                    
                                                     return (
-                                                        <tr key={item.id}>
-                                                            <td className="text-xs text-slate-400 font-medium whitespace-nowrap">{item.submissionDate}</td>
-                                                            <td className="font-bold text-slate-800 whitespace-nowrap">{item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-') }</td>
-                                                            <td className="font-mono text-slate-500 text-xs">{item.tel}</td>
-                                                            <td className="text-xs font-semibold text-indigo-500 max-w-[150px] truncate" title={item.position}>{item.position}</td>
-                                                            <td className="text-xs text-slate-500 max-w-[150px] truncate" title={item.location}>{item.location}</td>
+                                                        <tr key={item.id} className={isEditing ? 'bg-indigo-50/30' : ''}>
+                                                            <td className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                                                                {isEditing ? (
+                                                                    <input type="date" value={editFormData.submissionDate || ''} onChange={(e) => setEditFormData({...editFormData, submissionDate: e.target.value})} className="admin-edit text-xs min-w-[110px]" />
+                                                                ) : item.submissionDate}
+                                                            </td>
+                                                            {currentUserAgency === 'Admin' && (
+                                                                <td className="text-xs font-bold text-indigo-600 whitespace-nowrap">
+                                                                    {isEditing ? (
+                                                                        <select value={editFormData.agency || ''} onChange={(e) => setEditFormData({...editFormData, agency: e.target.value})} className="admin-edit text-xs min-w-[100px]">
+                                                                            <option value="Manpower">Manpower</option>
+                                                                            <option value="Me Talent">Me Talent</option>
+                                                                            <option value="PRTR">PRTR</option>
+                                                                            <option value="Talentvis">Talentvis</option>
+                                                                            <option value="Techgrid">Techgrid</option>
+                                                                            <option value="Admin">Admin</option>
+                                                                        </select>
+                                                                    ) : item.agency}
+                                                                </td>
+                                                            )}
+                                                            <td className="font-bold text-slate-800 whitespace-nowrap">
+                                                                {isEditing ? (
+                                                                    <div className="flex gap-1 min-w-[150px]">
+                                                                        <input type="text" placeholder="ชื่อ" value={editFormData.firstName || ''} onChange={(e) => setEditFormData({...editFormData, firstName: e.target.value})} className="admin-edit text-xs w-1/2" />
+                                                                        <input type="text" placeholder="นามสกุล" value={editFormData.lastName || ''} onChange={(e) => setEditFormData({...editFormData, lastName: e.target.value})} className="admin-edit text-xs w-1/2" />
+                                                                    </div>
+                                                                ) : (item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-'))}
+                                                            </td>
+                                                            <td className="font-mono text-slate-500 text-xs">
+                                                                {isEditing ? (
+                                                                    <input type="text" value={editFormData.tel || ''} onChange={(e) => setEditFormData({...editFormData, tel: e.target.value})} className="admin-edit text-xs min-w-[100px]" />
+                                                                ) : item.tel}
+                                                            </td>
+                                                            <td className="text-xs font-semibold text-indigo-500 max-w-[150px] truncate" title={item.position}>
+                                                                {isEditing ? (
+                                                                    <select value={editFormData.position || ''} onChange={(e) => setEditFormData({...editFormData, position: e.target.value})} className="admin-edit text-xs min-w-[120px]">
+                                                                        <option value="">- เลือกตำแหน่ง -</option>
+                                                                        {positions.map(p => <option key={p} value={p}>{p}</option>)}
+                                                                    </select>
+                                                                ) : item.position}
+                                                            </td>
+                                                            <td className="text-xs text-slate-500 max-w-[150px] truncate" title={item.location}>
+                                                                {isEditing ? (
+                                                                    <select value={editFormData.location || ''} onChange={(e) => setEditFormData({...editFormData, location: e.target.value})} className="admin-edit text-xs min-w-[120px]">
+                                                                        <option value="">- เลือกสาขา -</option>
+                                                                        {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                                                                    </select>
+                                                                ) : item.location}
+                                                            </td>
                                                             <td className="text-center">
-                                                                <span className={`badge ${isNoDup ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20'}`}>
-                                                                    {item.prescreenStatus}
-                                                                </span>
+                                                                {isEditing ? (
+                                                                    <select value={editFormData.prescreenStatus || 'Pending'} onChange={(e) => setEditFormData({...editFormData, prescreenStatus: e.target.value})} className="admin-edit text-xs min-w-[80px]">
+                                                                        <option value="No Dup">No Dup</option>
+                                                                        <option value="Dup">Dup</option>
+                                                                        <option value="Pending">Pending</option>
+                                                                    </select>
+                                                                ) : (
+                                                                    <span className={`badge ${isNoDup ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20'}`}>
+                                                                        {item.prescreenStatus}
+                                                                    </span>
+                                                                )}
                                                             </td>
                                                             <td>
                                                                 <div className="flex justify-center gap-1.5">
@@ -561,32 +643,59 @@
                                                                 </div>
                                                             </td>
                                                             <td>
-                                                                {currentUserAgency === 'Admin' ? 
-                                                                    <input type="date" value={item.interviewDate || ''} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewDate: e.target.value })} className="admin-edit text-xs" /> 
-                                                                    : <span className="text-slate-500 text-xs whitespace-nowrap">{item.interviewDate || '-'}</span>
-                                                                }
+                                                                {isEditing ? (
+                                                                    <input type="date" value={editFormData.interviewDate || ''} onChange={e => setEditFormData({...editFormData, interviewDate: e.target.value})} className="admin-edit text-xs min-w-[110px]" /> 
+                                                                ) : (
+                                                                    <span className="text-slate-500 text-xs whitespace-nowrap">{item.interviewDate || '-'}</span>
+                                                                )}
                                                             </td>
                                                             <td className="text-center">
-                                                                {currentUserAgency === 'Admin' ? 
-                                                                    <select value={item.interviewStatus || 'รอผล'} onChange={e => window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id), { interviewStatus: e.target.value })} className="admin-edit text-xs">
+                                                                {isEditing ? (
+                                                                    <select value={editFormData.interviewStatus || 'รอผล'} onChange={e => setEditFormData({...editFormData, interviewStatus: e.target.value})} className="admin-edit text-xs min-w-[90px]">
                                                                         <option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option>
                                                                     </select> 
-                                                                    : <span className={`badge ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20' : item.interviewStatus === 'ไม่ผ่าน' ? 'bg-slate-100 text-slate-500 ring-1 ring-slate-400/20' : 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20'}`}>{item.interviewStatus || 'รอผล'}</span>
-                                                                }
+                                                                ) : (
+                                                                    <span className={`badge ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20' : item.interviewStatus === 'ไม่ผ่าน' ? 'bg-slate-100 text-slate-500 ring-1 ring-slate-400/20' : 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20'}`}>{item.interviewStatus || 'รอผล'}</span>
+                                                                )}
                                                             </td>
                                                             <td className="text-center">
-                                                                <button onClick={() => { 
-                                                                    setConfirmDialog({
-                                                                        title: "ยืนยันการลบ",
-                                                                        msg: "คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายชื่อนี้? การกระทำนี้ไม่สามารถย้อนกลับได้",
-                                                                        onConfirm: () => {
-                                                                            window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id));
-                                                                            setConfirmDialog(null);
-                                                                        }
-                                                                    });
-                                                                }} className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors active:scale-90">
-                                                                    <i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i>
-                                                                </button>
+                                                                <div className="flex justify-center gap-1.5">
+                                                                    {currentUserAgency === 'Admin' ? (
+                                                                        isEditing ? (
+                                                                            <>
+                                                                                <button onClick={() => handleSaveEdit(item.id)} className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2 rounded-lg transition-colors" title="บันทึก"><i data-lucide="check" className="w-4 h-4"></i></button>
+                                                                                <button onClick={() => setEditingId(null)} className="text-slate-500 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="ยกเลิก"><i data-lucide="x" className="w-4 h-4"></i></button>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <button onClick={() => { setEditingId(item.id); setEditFormData(item); }} className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors" title="แก้ไข"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
+                                                                                <button onClick={() => { 
+                                                                                    setConfirmDialog({
+                                                                                        title: "ยืนยันการลบ",
+                                                                                        msg: "คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายชื่อนี้? การกระทำนี้ไม่สามารถย้อนกลับได้",
+                                                                                        onConfirm: () => {
+                                                                                            window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id));
+                                                                                            setConfirmDialog(null);
+                                                                                        }
+                                                                                    });
+                                                                                }} className="text-rose-500 bg-rose-50 hover:bg-rose-100 p-2 rounded-lg transition-colors" title="ลบ"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                                            </>
+                                                                        )
+                                                                    ) : (
+                                                                        <button onClick={() => { 
+                                                                            setConfirmDialog({
+                                                                                title: "ยืนยันการลบ",
+                                                                                msg: "คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายชื่อนี้? การกระทำนี้ไม่สามารถย้อนกลับได้",
+                                                                                onConfirm: () => {
+                                                                                    window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id));
+                                                                                    setConfirmDialog(null);
+                                                                                }
+                                                                            });
+                                                                        }} className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors active:scale-90" title="ลบ">
+                                                                            <i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i>
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     );
