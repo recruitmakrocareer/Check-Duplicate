@@ -370,9 +370,8 @@
                             let aiData = { score: null, summary: null };
                             
                             try {
-                                // 🔑 ใส่รหัส API Key ของ OpenAI (ChatGPT) ที่นี่ (ขึ้นต้นด้วย sk-proj-)
-                                // กรุณาสร้างคีย์ใหม่จากบัญชีที่มีเงิน $10 แล้วนำมาวางในเครื่องหมายคำพูดด้านล่าง
-                                const openAIApiKey = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".trim(); 
+                                // 🔑 นำ API Key ที่คุณสร้างมาใส่ไว้ให้ตรงจุดแล้วครับ
+                                const openAIApiKey = "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".trim(); 
                                 
                                 if (!openAIApiKey || openAIApiKey.includes('xxxx')) {
                                     throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key ในหน้าโค้ดครับ");
@@ -397,7 +396,8 @@
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${OPENAI_API_KEY}`
+                                        // แก้ไขตัวแปรให้ตรงกันเป็น openAIApiKey
+                                        'Authorization': `Bearer ${openAIApiKey}`
                                     },
                                     body: JSON.stringify({
                                         model: 'gpt-4o-mini',
