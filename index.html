@@ -380,6 +380,45 @@
                 }
             };
 
+            // ฟังก์ชันสำหรับ Export Excel (CSV)
+            const exportToCSV = () => {
+                if (allFiltered.length === 0) {
+                    setPopup({ title: "WARNING", msg: "ไม่มีข้อมูลสำหรับ Export" });
+                    return;
+                }
+
+                // เตรียมข้อมูลสำหรับตาราง Excel
+                const exportData = allFiltered.map(item => ({
+                    "วันที่ส่ง": item.submissionDate || '',
+                    "Agency": item.agency || '',
+                    "ชื่อ": item.firstName || item.name || '',
+                    "นามสกุล": item.lastName || '',
+                    "เบอร์โทร": item.tel ? `'${item.tel}` : '', // ใส่ ' ด้านหน้าเพื่อให้ Excel มองเป็น Text และไม่ตัด 0 ทิ้ง
+                    "อีเมล": item.email || '',
+                    "ตำแหน่งงาน": item.position || '',
+                    "สาขา": item.location || '',
+                    "สถานะตรวจสอบ": item.prescreenStatus || '',
+                    "AI Score": item.aiScore ? `${item.aiScore}%` : '',
+                    "AI Summary": item.aiSummary || '',
+                    "วันสัมภาษณ์": item.interviewDate || '',
+                    "ผลสัมภาษณ์": item.interviewStatus || 'รอผล',
+                    "ลิงก์ Resume": item.resumeLink || ''
+                }));
+
+                const csv = Papa.unparse(exportData);
+                const bom = "\uFEFF"; // เพิ่ม BOM เพื่อให้ Excel แสดงผลภาษาไทยได้ถูกต้อง 100%
+                const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+                
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `Candidate_Export_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
             const renderModals = () => {
                 return (
                     <>
@@ -617,9 +656,16 @@
                                         <i data-lucide="database" className="w-4 h-4 text-indigo-500"></i>
                                         <h2 className="font-black text-sm uppercase tracking-wide">ฐานข้อมูลหลัก</h2>
                                     </div>
-                                    <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-slate-500 border border-slate-200">
-                                        หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)
-                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        {currentUserAgency === 'Admin' && (
+                                            <button onClick={exportToCSV} className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
+                                                <i data-lucide="download" className="w-3.5 h-3.5"></i> Export CSV
+                                            </button>
+                                        )}
+                                        <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-slate-500 border border-slate-200">
+                                            หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table>
