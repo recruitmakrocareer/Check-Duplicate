@@ -157,7 +157,7 @@
             const [isLoading, setIsLoading] = useState(true);
             const [cloudCandidates, setCloudCandidates] = useState([]);
             const [gmailDb, setGmailDb] = useState([]); 
-            const [externalDataDb, setExternalDataDb] = useState([]); // เก็บฐานข้อมูล Data ใหม่
+            const [externalDataDb, setExternalDataDb] = useState([]); 
             
             const [positions, setPositions] = useState(["Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", "Section Manager - Frozen", "Section Manager - Dry Food 1", "Section Manager - Dry Food 2", "Section Manager - F&V", "Section Manager - Non Food 1", "Section Manager - Non Fresh", "Section Manager - Fish", "Section Manager - GA", "Section Manager - GR", "Section Manager - HR", "Supervisor - Office Support"]);
             const [locations, setLocations] = useState(['1-Lardprao', '2-Chaengwattana', '3-Srinakarin', '4-Bangbon', '5-Chonburi', '6-Chiang Mai 1', '7-Nakhon Ratchasima', '8-Rangsit', '9-Hat Yai', '10-Udonthani', '11-Phitsanulok', '12-Khon Kaen', '13-Surat Thani', '14-Ubol Ratchathani', '15-Rayong', '16-Nakhon Sawan', '17-Charansanitwongse', '18-Sathorn', '19-Nakhon Pathom', '20-Surin', '21-Samsen', '22-Nakhon Si Thammarat', '23-Chiang Rai', '24-Sakon Nakhon', '25-Suphan Buri', '26-Chanthaburi', '27-Phuket', '28-Roi Et', '29-Trang', '30-Sakaeo', '31-Koh Samui', '32-Buri Ram', '33-Sisaket', '34-Lamphun', '35-Krabi', '36-Phetchaburi', '37-Chaiyaphum', '38-Saraburi', '39-Pran Buri', '40-Chachoengsao', '41-Chiang Mai 2', '42-Ram Inthra', '43-Chumphon', '44-Pattaya', '45-Kamphangphet', '46-Kanchanaburi', '47-Lop Buri', '48-Nong Khai', '49-Ratchaburi', '50-Mae Rim', '51-Ayutthaya', '52-Lampang', '53-Hua Hin', '54-Khlong Luang', '55-Loei', '56-Phetchaboon', '57-Bang Phli', '58-Mukdahan', '59-Satun', '60-Trat', '61-Chum Pae', '62-Rawai', '63-Nakorn Panom', '64-Koh Phangan', '65-Bueng Kan', '66-North Pattaya', '67-Mae Sai', '68-Salaya', '69-Pattalung', '70-Sukhothai', '71-Patong', '72-Samutsakhon', '73-Maesod', '74-Pakchong', '75-Thalang', '76-Ranong', '77-Lamai', '78-Kalapapurk', '79-Yasothon', '80-Mahasarakam', '81-Phang', '82-Nakhon Nayok', '83-Nakhon In', '84-Banphae', '85-Tung Song', '86-Srinakarin 2', '87-Phayao', '89-Phitsanulok 2', '96-nan', '100-Phrae', '101-Koh Chang', '102-Nakhon Ratchasima 2', '103-Nan', '104-Ao Nang', '105-Karon', '106-Warinchamrab', '107-Nongbualamphu', '108-Nong Chok', '109-Laem Chabang', '110-Prachuap Khiri Khan', '111-Phetchakasem', '113-Wang Hin', '114-Singburi', '115-Bang Bua Thong', '116-Kalasin', '117-Udomsuk', '118-Ramkhamhaeng (Sammakorn)', '119-Phichit', '120-Pathumthani', '121-Bodindecha', '122-Prachautit', '123-Sukhumvit 71', '124-Navamin 70', '125-Cha-am', '126-On Nut', '127-Suksawas', '128-Kabin Buri', '129-Ladkrabang', '130-Nathong Charoen', '131-Bo Win', '132-Sattahip', '133-Ramkhamhaeng 24', '134-Amata Nakorn', '135-Bangkholaem', '136-Khon Kaen 2', '137-Wongsakorn 2', '138-Meng Jai', '139-Sukhumvit 22', '140-Chan Road', '141-Lam Luk Ka', '142-Phraeksa', '143-Praditmanutham', '144-Rungroj Market (Klong 4)Branch', '145-Pongpeth', '146-Uttaradit', '147-Muangthong', '148-Liap Khlong Song', '149-Omnoi', '150-Sanam Bin Nam', '151-Thep Rak', '152-Samut Songkharm', '153-Wiang Sa', '154-Prachin Buri', '155-Pinklao', '156-Samut Prakan', '157-Nakhon Ratchasima 3', '158-Nakhon Sawan2 (Phrom Nimit)', '159-Udon Thani 2 (Ban Lueam)', '160-Mahachai', '161-Khon Kaen 3 (Ban Non Muang)', '162-Amatanakorn 2', '163-Songkhla 2', '164-Chainat', '165-Sri Ayutthaya Road', '166-Rawai 2', '167-Chiang Mai (Chom Thong)', '168-Ban Bueng', '169-Phang Nga', '170-Amnat Charoen', '171-Jo Ho (Nakhon Ratchasima)', '172-Ban Pai', '175-Happitat (Forestias – Bangna)', '301-Rama 4 Branch', '303-Sirimangkalajarn Branch', '350-Ram Intra KM4 Branch', '351-Sinopark Branch', '352-Patthanakarn Branch']);
@@ -176,15 +176,44 @@
 
             const [formData, setFormData] = useState({ submissionDate: new Date().toISOString().split('T')[0], firstName: '', lastName: '', tel: '', email: '', position: '', location: '' });
 
-            // เพิ่มสถานะสำหรับระบบแก้ไขข้อมูล (Edit Mode)
             const [editingId, setEditingId] = useState(null);
             const [editFormData, setEditFormData] = useState({});
-            const [aiModal, setAiModal] = useState(null); // เพิ่ม State สำหรับ AI Modal
+            const [aiModal, setAiModal] = useState(null); 
 
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
 
-            // ตัวแปรส่วนกลางสำหรับจัดการ render ไอคอนทั้งหมดปลอดภัยจาก React loop
+            // Helper function for UI elements to avoid inline logic breaks
+            const getAiScoreClass = (score) => {
+                if (score >= 80) return 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/30';
+                if (score >= 50) return 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/30';
+                return 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/30';
+            };
+
+            const getAiColor = (score) => {
+                if (score >= 80) return '#10b981';
+                if (score >= 50) return '#f59e0b';
+                return '#f43f5e';
+            };
+
+            const getInterviewStatusClass = (status) => {
+                if (status === 'ผ่าน') return 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20';
+                if (status === 'ไม่ผ่าน') return 'bg-slate-100 text-slate-500 ring-1 ring-slate-400/20';
+                return 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20';
+            };
+
+            const getPopupBgColor = (title) => {
+                if (title === 'ERROR' || title === 'AI ERROR') return 'bg-rose-50 text-rose-500';
+                if (title === 'WARNING') return 'bg-amber-50 text-amber-500';
+                return 'bg-emerald-50 text-emerald-500';
+            };
+
+            const getPopupIcon = (title) => {
+                if (title === 'ERROR' || title === 'AI ERROR') return 'x-circle';
+                if (title === 'WARNING') return 'alert-triangle';
+                return 'check-circle';
+            };
+
             useEffect(() => {
                 const timer = setTimeout(() => {
                     if (window.lucide) window.lucide.createIcons();
@@ -198,7 +227,6 @@
                 window.FB.methods.onAuthStateChanged(window.FB.auth, (u) => {
                     setUser(u);
                     
-                    // 1. โหลด Data Sheet ใหม่ (ลำดับที่ 3)
                     fetch(dataSheetCSV).then(r => r.text()).then(res => {
                         const parsed = Papa.parse(res, { header: true }).data;
                         setExternalDataDb(parsed.filter(r => r.Email || r.Name).map(r => ({
@@ -278,7 +306,6 @@
                 const file = e.target.files[0]; if (!file || !targetId) return;
                 setIsUploading(targetId);
                 
-                // ดึงข้อมูลตำแหน่งของ Candidate คนนี้เพื่อส่งให้ AI วิเคราะห์
                 const targetCandidate = cloudCandidates.find(c => c.id === targetId);
                 const position = targetCandidate?.position || 'General';
 
@@ -292,10 +319,9 @@
                         if (res.status === "success") {
                             let aiData = { score: null, summary: null };
                             
-                            // 🚀 เพิ่มระบบ AI (Gemini) วิเคราะห์ Resume อัตโนมัติ
                             try {
-                                // ❗ สำคัญมาก: หากนำโค้ดไปรันบนเว็บภายนอก (เช่น GitHub Pages ของคุณ) ต้องเปลี่ยนค่า "" เป็น API Key จริงที่ได้จาก aistudio.google.com
-                                const apiKey = ""; 
+                                // 🔑 ใส่รหัส API Key ของผู้ใช้
+                                const apiKey = "AIzaSyA_ts9NPTLTA0-YlN9dZPVpS9I_iZpW7Nc"; 
                                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
                                 
                                 const aiPayload = {
@@ -317,11 +343,6 @@
                                         }
                                     }
                                 };
-                                
-                                // ป้องกัน Error เงียบเวลาไม่ได้ใส่ API Key รันบนโฮสต์ข้างนอก
-                                if (!apiKey && window.location.hostname !== 'localhost' && !window.location.hostname.includes('google')) {
-                                    throw new Error("ไม่มีการตั้งค่า API Key");
-                                }
 
                                 const aiRes = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aiPayload) });
                                 
@@ -336,11 +357,9 @@
                                 }
                             } catch (aiErr) {
                                 console.error("AI Analysis failed:", aiErr);
-                                // ดักจับแจ้งเตือน Error ชัดๆ ให้รู้ว่าเพราะอะไร AI ไม่มา
-                                aiData.summary = apiKey === "" ? "⚠️ กรุณาใส่ Gemini API Key ในโค้ดบรรทัด apiKey เพื่อใช้งานระบบวิเคราะห์" : "เกิดข้อผิดพลาดในการวิเคราะห์ AI: " + aiErr.message;
+                                aiData.summary = "เกิดข้อผิดพลาดในการวิเคราะห์ AI: " + aiErr.message;
                             }
 
-                            // บันทึกลง Firebase (หาก AI มี Error ก็บันทึกแค่ summary เข้าไปให้ขึ้นปุ่มแจ้งเตือน)
                             await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { 
                                 resumeLink: res.url,
                                 aiScore: aiData.score,
@@ -352,13 +371,12 @@
                     } finally { 
                         setIsUploading(null); 
                         setTargetId(null); 
-                        if (fileInputRef.current) fileInputRef.current.value = ''; // ป้องกัน error
+                        if (fileInputRef.current) fileInputRef.current.value = '';
                     }
                 };
                 reader.readAsDataURL(file);
             };
 
-            // ฟังก์ชันสำหรับบันทึกการแก้ไขของ Admin
             const handleSaveEdit = async (id) => {
                 try {
                     await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', id), {
@@ -380,20 +398,18 @@
                 }
             };
 
-            // ฟังก์ชันสำหรับ Export Excel (CSV)
             const exportToCSV = () => {
                 if (allFiltered.length === 0) {
                     setPopup({ title: "WARNING", msg: "ไม่มีข้อมูลสำหรับ Export" });
                     return;
                 }
 
-                // เตรียมข้อมูลสำหรับตาราง Excel
                 const exportData = allFiltered.map(item => ({
                     "วันที่ส่ง": item.submissionDate || '',
                     "Agency": item.agency || '',
                     "ชื่อ": item.firstName || item.name || '',
                     "นามสกุล": item.lastName || '',
-                    "เบอร์โทร": item.tel ? `'${item.tel}` : '', // ใส่ ' ด้านหน้าเพื่อให้ Excel มองเป็น Text และไม่ตัด 0 ทิ้ง
+                    "เบอร์โทร": item.tel ? `'${item.tel}` : '', 
                     "อีเมล": item.email || '',
                     "ตำแหน่งงาน": item.position || '',
                     "สาขา": item.location || '',
@@ -406,7 +422,7 @@
                 }));
 
                 const csv = Papa.unparse(exportData);
-                const bom = "\uFEFF"; // เพิ่ม BOM เพื่อให้ Excel แสดงผลภาษาไทยได้ถูกต้อง 100%
+                const bom = "\uFEFF";
                 const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
                 
                 const link = document.createElement("a");
@@ -421,14 +437,14 @@
 
             const renderModals = () => {
                 return (
-                    <>
+                    <React.Fragment>
                         {/* Success/Error Popup */}
                         {popup && (
                             <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center transition-opacity">
                                 <div className="bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl w-full max-w-sm popup-animate border border-slate-100">
-                                    <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6 shadow-inner ${popup.title === 'ERROR' || popup.title === 'AI ERROR' ? 'bg-rose-50 text-rose-500' : popup.title === 'WARNING' ? 'bg-amber-50 text-amber-500' : 'bg-emerald-50 text-emerald-500'}`}>
+                                    <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6 shadow-inner ${getPopupBgColor(popup.title)}`}>
                                         <span key={popup.title} className="flex items-center justify-center">
-                                            <i data-lucide={popup.title === 'ERROR' || popup.title === 'AI ERROR' ? "x-circle" : popup.title === 'WARNING' ? "alert-triangle" : "check-circle"} className="w-8 h-8"></i>
+                                            <i data-lucide={getPopupIcon(popup.title)} className="w-8 h-8"></i>
                                         </span>
                                     </div>
                                     <h3 className="text-xl font-black mb-3 text-slate-800 uppercase tracking-tight">{popup.title}</h3>
@@ -466,11 +482,11 @@
                                     <p className="text-xs font-bold text-indigo-500 mb-6 uppercase tracking-widest">{aiModal.name}</p>
                                     
                                     <div className="bg-slate-50 rounded-2xl p-6 mb-6">
-                                        <div className="text-5xl font-black mb-2 flex items-center justify-center gap-1" style={{ color: aiModal.score >= 80 ? '#10b981' : aiModal.score >= 50 ? '#f59e0b' : '#f43f5e' }}>
+                                        <div className="text-5xl font-black mb-2 flex items-center justify-center gap-1" style={{ color: getAiColor(aiModal.score) }}>
                                             {aiModal.score}<span className="text-xl font-bold opacity-50">%</span>
                                         </div>
                                         <div className="w-full bg-slate-200 rounded-full h-1.5 mb-5 overflow-hidden">
-                                            <div className="h-1.5 rounded-full transition-all duration-1000" style={{ width: `${aiModal.score}%`, backgroundColor: aiModal.score >= 80 ? '#10b981' : aiModal.score >= 50 ? '#f59e0b' : '#f43f5e' }}></div>
+                                            <div className="h-1.5 rounded-full transition-all duration-1000" style={{ width: `${aiModal.score}%`, backgroundColor: getAiColor(aiModal.score) }}></div>
                                         </div>
                                         <p className="text-[14px] font-medium text-slate-700 leading-relaxed text-left">
                                             {aiModal.summary}
@@ -481,7 +497,7 @@
                                 </div>
                             </div>
                         )}
-                    </>
+                    </React.Fragment>
                 );
             };
 
@@ -493,7 +509,7 @@
             );
 
             if (!currentUserAgency) return (
-                <>
+                <React.Fragment>
                     <div className="h-screen flex items-center justify-center text-center p-6 bg-gradient-to-br from-slate-100 to-slate-200">
                         <form onSubmit={(e) => {
                             e.preventDefault();
@@ -513,14 +529,13 @@
                         </form>
                     </div>
                     {renderModals()}
-                </>
+                </React.Fragment>
             );
 
             return (
                 <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto min-h-screen">
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
                     
-                    {/* Header */}
                     <div className="flex justify-between items-center mb-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
@@ -537,7 +552,6 @@
                     </div>
 
                     <div className="flex flex-col xl:flex-row gap-8">
-                        {/* Sidebar Form - แสดงเฉพาะ Agency ที่ไม่ใช่ Admin */}
                         {currentUserAgency !== 'Admin' && (
                             <div className="sidebar-container bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit xl:sticky top-6">
                                 <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
@@ -584,10 +598,7 @@
                             </div>
                         )}
 
-                        {/* Main Content Area */}
                         <div className="flex-1 min-w-0 flex flex-col gap-6">
-                            
-                            {/* Filter Bar */}
                             <div className="compact-filter-bar">
                                 <div className="filter-item"><label className="modern-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
                                 <div className="filter-item"><label className="modern-label">ค้นหาชื่อ</label><input type="text" placeholder="ชื่อ/นามสกุล..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
@@ -598,7 +609,6 @@
                                 <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
                             </div>
 
-                            {/* Draft Table - สำหรับ Agency เท่านั้น */}
                             {currentUserAgency !== 'Admin' && draftList.length > 0 && (
                                 <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
                                     <div className="bg-amber-50/50 p-4 flex justify-between items-center border-b border-amber-100">
@@ -649,7 +659,6 @@
                                 </div>
                             )}
 
-                            {/* Main Database Table */}
                             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
                                 <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                     <div className="flex items-center gap-2 text-slate-700">
@@ -758,7 +767,7 @@
                                                             </td>
                                                             <td className="text-center">
                                                                 {item.aiScore !== undefined && item.aiScore !== null ? (
-                                                                    <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto shadow-sm ${item.aiScore >= 80 ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/30' : item.aiScore >= 50 ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/30' : 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/30'}`}>
+                                                                    <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto shadow-sm ${getAiScoreClass(item.aiScore)}`}>
                                                                         <i data-lucide="sparkles" className="w-3 h-3"></i> {item.aiScore}%
                                                                     </button>
                                                                 ) : item.aiSummary ? (
@@ -772,12 +781,12 @@
                                                             <td>
                                                                 <div className="flex justify-center gap-1.5">
                                                                     {item.resumeLink ? (
-                                                                        <div className="flex gap-1.5">
+                                                                        <React.Fragment>
                                                                             <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors" title="View Resume"><i data-lucide="file-text" className="w-4 h-4"></i></a>
                                                                             {currentUserAgency === 'Admin' && (
                                                                                 <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="Download"><i data-lucide="download" className="w-4 h-4"></i></a>
                                                                             )}
-                                                                        </div>
+                                                                        </React.Fragment>
                                                                     ) : (
                                                                         currentUserAgency !== 'Admin' && isNoDup ? (
                                                                             <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 bg-white border border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap">
@@ -805,19 +814,19 @@
                                                                         <option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option>
                                                                     </select> 
                                                                 ) : (
-                                                                    <span className={`badge ${item.interviewStatus === 'ผ่าน' ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20' : item.interviewStatus === 'ไม่ผ่าน' ? 'bg-slate-100 text-slate-500 ring-1 ring-slate-400/20' : 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20'}`}>{item.interviewStatus || 'รอผล'}</span>
+                                                                    <span className={`badge ${getInterviewStatusClass(item.interviewStatus)}`}>{item.interviewStatus || 'รอผล'}</span>
                                                                 )}
                                                             </td>
                                                             <td className="text-center">
                                                                 <div className="flex justify-center gap-1.5">
                                                                     {currentUserAgency === 'Admin' ? (
                                                                         isEditing ? (
-                                                                            <>
+                                                                            <React.Fragment>
                                                                                 <button onClick={() => handleSaveEdit(item.id)} className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2 rounded-lg transition-colors" title="บันทึก"><i data-lucide="check" className="w-4 h-4"></i></button>
                                                                                 <button onClick={() => setEditingId(null)} className="text-slate-500 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="ยกเลิก"><i data-lucide="x" className="w-4 h-4"></i></button>
-                                                                            </>
+                                                                            </React.Fragment>
                                                                         ) : (
-                                                                            <>
+                                                                            <React.Fragment>
                                                                                 <button onClick={() => { setEditingId(item.id); setEditFormData(item); }} className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors" title="แก้ไข"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
                                                                                 <button onClick={() => { 
                                                                                     setConfirmDialog({
@@ -829,7 +838,7 @@
                                                                                         }
                                                                                     });
                                                                                 }} className="text-rose-500 bg-rose-50 hover:bg-rose-100 p-2 rounded-lg transition-colors" title="ลบ"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
-                                                                            </>
+                                                                            </React.Fragment>
                                                                         )
                                                                     ) : (
                                                                         <button onClick={() => { 
