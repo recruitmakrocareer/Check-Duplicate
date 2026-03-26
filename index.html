@@ -341,15 +341,21 @@
                             let aiData = { score: null, summary: null };
                             
                             try {
-                                const apiKey = "AIzaSyA_ts9NPTLTA0-YlN9dZPVpS9I_iZpW7Nc"; 
-                                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                                let apiKey = ""; 
+                                let modelName = "gemini-2.5-flash-preview-09-2025";
                                 
-                                // เช็คว่าตำแหน่งนี้มีการกำหนดคุณสมบัติพิเศษไว้หรือไม่
+                                // หากนำเว็บไปรันบน Github Pages (โดเมนจริง) ระบบจะใช้ Key และ Model ล่าสุดที่คุณกำหนด
+                                if (window.location.hostname && !window.location.hostname.includes('google') && window.location.hostname !== 'localhost') {
+                                    apiKey = "AIzaSyA_ts9NPTLTA0-YlN9dZPVpS9I_iZpW7Nc"; // ใส่ Key ตามที่คุณขอไว้
+                                    modelName = "gemini-1.5-flash-latest"; // ปรับใช้รุ่น Latest ป้องกัน Error 404
+                                }
+                                
+                                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                                
                                 const specificCriteria = jobRequirements[position] 
                                     ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"` 
                                     : "";
 
-                                // เพิ่มคุณสมบัติพิเศษเข้าไปใน Prompt
                                 const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ที่แนบมานี้เพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้`;
 
                                 const aiPayload = {
@@ -357,7 +363,7 @@
                                         role: "user",
                                         parts: [
                                             { text: promptText },
-                                            { inlineData: { mimeType: file.type, data: base64 } }
+                                            { inlineData: { mimeType: file.type || "application/pdf", data: base64 } }
                                         ]
                                     }],
                                     generationConfig: {
@@ -371,6 +377,10 @@
                                         }
                                     }
                                 };
+
+                                if (!apiKey && modelName !== "gemini-2.5-flash-preview-09-2025") {
+                                    throw new Error("ไม่มีการตั้งค่า API Key");
+                                }
 
                                 const aiRes = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aiPayload) });
                                 
