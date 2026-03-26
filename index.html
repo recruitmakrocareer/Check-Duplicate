@@ -322,7 +322,8 @@
                             try {
                                 // 🔑 ใส่รหัส API Key ของผู้ใช้
                                 const apiKey = "AIzaSyA_ts9NPTLTA0-YlN9dZPVpS9I_iZpW7Nc"; 
-                                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                                // เปลี่ยนจากโมเดล Preview ที่เข้าไม่ได้จากภายนอก เป็นโมเดล Flash ตัวเต็ม
+                                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                                 
                                 const aiPayload = {
                                     contents: [{
