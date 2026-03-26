@@ -179,6 +179,7 @@
             // เพิ่มสถานะสำหรับระบบแก้ไขข้อมูล (Edit Mode)
             const [editingId, setEditingId] = useState(null);
             const [editFormData, setEditFormData] = useState({});
+            const [aiModal, setAiModal] = useState(null); // เพิ่ม State สำหรับ AI Modal
 
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
@@ -276,15 +277,60 @@
             const onFileChange = async (e) => {
                 const file = e.target.files[0]; if (!file || !targetId) return;
                 setIsUploading(targetId);
+                
+                // ดึงข้อมูลตำแหน่งของ Candidate คนนี้เพื่อส่งให้ AI วิเคราะห์
+                const targetCandidate = cloudCandidates.find(c => c.id === targetId);
+                const position = targetCandidate?.position || 'General';
+
                 const reader = new FileReader();
                 reader.onload = async (f) => {
                     const base64 = f.target.result.split(',')[1];
                     try {
                         const response = await fetch(scriptURL, { method: "POST", body: JSON.stringify({ fileData: base64, mimeType: file.type, fileName: file.name }) });
                         const res = await response.json();
+                        
                         if (res.status === "success") {
-                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { resumeLink: res.url });
-                            setPopup({ title: "SUCCESS", msg: `อัปโหลดไฟล์สำเร็จ!` });
+                            let aiData = { score: null, summary: null };
+                            
+                            // 🚀 เพิ่มระบบ AI (Gemini) วิเคราะห์ Resume อัตโนมัติ
+                            try {
+                                const apiKey = ""; // API Key ถูกจัดการโดย Environment อัตโนมัติใน Canvas
+                                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                                const aiPayload = {
+                                    contents: [{
+                                        role: "user",
+                                        parts: [
+                                            { text: `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ที่แนบมานี้เพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากทักษะ ประสบการณ์ และการศึกษา) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้` },
+                                            { inlineData: { mimeType: file.type, data: base64 } }
+                                        ]
+                                    }],
+                                    generationConfig: {
+                                        responseMimeType: "application/json",
+                                        responseSchema: {
+                                            type: "OBJECT",
+                                            properties: {
+                                                score: { type: "NUMBER" },
+                                                summary: { type: "STRING" }
+                                            }
+                                        }
+                                    }
+                                };
+                                
+                                const aiRes = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aiPayload) });
+                                const aiJson = await aiRes.json();
+                                if (aiJson.candidates && aiJson.candidates[0].content.parts[0].text) {
+                                    aiData = JSON.parse(aiJson.candidates[0].content.parts[0].text);
+                                }
+                            } catch (aiErr) {
+                                console.error("AI Analysis skipped or failed:", aiErr);
+                            }
+
+                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { 
+                                resumeLink: res.url,
+                                aiScore: aiData.score,
+                                aiSummary: aiData.summary
+                            });
+                            setPopup({ title: "SUCCESS", msg: `อัปโหลดไฟล์${aiData.score ? 'และวิเคราะห์ด้วย AI ' : ''}สำเร็จ!` });
                         }
                     } finally { 
                         setIsUploading(null); 
@@ -349,6 +395,33 @@
                                         <button onClick={() => setConfirmDialog(null)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold uppercase tracking-wide transition-all">ยกเลิก</button>
                                         <button onClick={confirmDialog.onConfirm} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-md hover:shadow-lg active:scale-95 transition-all">ยืนยัน</button>
                                     </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 🤖 AI Result Modal */}
+                        {aiModal && (
+                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center transition-opacity">
+                                <div className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-md popup-animate border border-slate-100 relative">
+                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg text-white">
+                                        <i data-lucide="bot" className="w-7 h-7"></i>
+                                    </div>
+                                    <h3 className="text-lg font-black mt-4 mb-1 text-slate-800 uppercase tracking-tight">AI Analysis Result</h3>
+                                    <p className="text-xs font-bold text-indigo-500 mb-6 uppercase tracking-widest">{aiModal.name}</p>
+                                    
+                                    <div className="bg-slate-50 rounded-2xl p-6 mb-6">
+                                        <div className="text-5xl font-black mb-2 flex items-center justify-center gap-1" style={{ color: aiModal.score >= 80 ? '#10b981' : aiModal.score >= 50 ? '#f59e0b' : '#f43f5e' }}>
+                                            {aiModal.score}<span className="text-xl font-bold opacity-50">%</span>
+                                        </div>
+                                        <div className="w-full bg-slate-200 rounded-full h-1.5 mb-5 overflow-hidden">
+                                            <div className="h-1.5 rounded-full transition-all duration-1000" style={{ width: `${aiModal.score}%`, backgroundColor: aiModal.score >= 80 ? '#10b981' : aiModal.score >= 50 ? '#f59e0b' : '#f43f5e' }}></div>
+                                        </div>
+                                        <p className="text-[14px] font-medium text-slate-700 leading-relaxed text-left">
+                                            {aiModal.summary}
+                                        </p>
+                                    </div>
+
+                                    <button onClick={() => setAiModal(null)} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-sm active:scale-95 transition-all">Close Panel</button>
                                 </div>
                             </div>
                         )}
@@ -542,6 +615,7 @@
                                                 <th>ตำแหน่ง</th>
                                                 <th>สาขา</th>
                                                 <th className="text-center">สถานะ</th>
+                                                <th className="text-center">AI วิเคราะห์</th>
                                                 <th className="text-center">Resume</th>
                                                 <th>นัดสัมภาษณ์</th>
                                                 <th className="text-center">ผลสัมภาษณ์</th>
@@ -617,6 +691,15 @@
                                                                     <span className={`badge ${isNoDup ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20'}`}>
                                                                         {item.prescreenStatus}
                                                                     </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="text-center">
+                                                                {item.aiScore !== undefined && item.aiScore !== null ? (
+                                                                    <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto shadow-sm ${item.aiScore >= 80 ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/30' : item.aiScore >= 50 ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/30' : 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/30'}`}>
+                                                                        <i data-lucide="sparkles" className="w-3 h-3"></i> {item.aiScore}%
+                                                                    </button>
+                                                                ) : (
+                                                                    <span className="text-slate-300 text-[10px]">-</span>
                                                                 )}
                                                             </td>
                                                             <td>
