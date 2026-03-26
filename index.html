@@ -392,6 +392,7 @@
 
                                     const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครที่มีเนื้อหาดังนี้:\n\n"${pdfText.substring(0, 10000)}"\n\nเพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้ ตอบกลับมาในรูปแบบ JSON ที่มี key คือ "score" (ตัวเลข) และ "summary" (ข้อความสรุป)`;
 
+                                    // ✅ Step 3: ใช้ CORS Proxy พร้อมระบบล้างแคช ป้องกัน Browser บล็อก
                                     const targetUrl = "https://api.openai.com/v1/chat/completions?nocache=" + Date.now();
                                     const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
 
@@ -463,6 +464,7 @@
                         aiSummary: editFormData.aiSummary || '', // สำหรับโหมด Manual
                         aiScore: editFormData.aiScore !== undefined ? editFormData.aiScore : null,
                         interviewDate: editFormData.interviewDate || '',
+                        interviewTime: editFormData.interviewTime || '', // เพิ่มบันทึกเวลาสัมภาษณ์
                         interviewStatus: finalInterviewStatus
                     });
                     setEditingId(null);
@@ -503,6 +505,7 @@
                     "AI Score": item.aiScore ? `${item.aiScore}%` : '',
                     "AI Summary": item.aiSummary || '',
                     "วันสัมภาษณ์": item.interviewDate || '',
+                    "เวลาสัมภาษณ์": item.interviewTime || '', // เพิ่มเวลาสัมภาษณ์ใน Export
                     "ผลสัมภาษณ์": (item.aiSummary === 'ผ่าน' && item.interviewDate) ? (item.interviewStatus || 'รอผล') : '',
                     "ลิงก์ Resume": item.resumeLink || ''
                 }));
@@ -825,14 +828,15 @@
                                                 <th className="text-center">สถานะ</th>
                                                 <th className="text-center">PRESCREEN</th>
                                                 <th className="text-center">Resume</th>
-                                                <th>นัดสัมภาษณ์</th>
+                                                <th>วันนัดสัมภาษณ์</th>
+                                                <th className="text-center">เวลาสัมภาษณ์</th>
                                                 <th className="text-center">ผลสัมภาษณ์</th>
                                                 <th className="text-center">จัดการ</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {paginatedItems.length === 0 ? (
-                                                <tr><td colSpan="12" className="text-center py-12 text-slate-400 font-medium">ไม่พบข้อมูลในระบบ</td></tr>
+                                                <tr><td colSpan="13" className="text-center py-12 text-slate-400 font-medium">ไม่พบข้อมูลในระบบ</td></tr>
                                             ) : (
                                                 paginatedItems.map(item => {
                                                     const isNoDup = item.prescreenStatus === 'No Dup';
@@ -954,6 +958,13 @@
                                                                     <input type="date" value={editFormData.interviewDate || ''} onChange={e => setEditFormData({...editFormData, interviewDate: e.target.value})} className="admin-edit text-xs min-w-[110px]" /> 
                                                                 ) : (
                                                                     <span className="text-slate-500 text-xs whitespace-nowrap">{item.interviewDate || '-'}</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="text-center">
+                                                                {isEditing ? (
+                                                                    <input type="time" value={editFormData.interviewTime || ''} onChange={e => setEditFormData({...editFormData, interviewTime: e.target.value})} className="admin-edit text-xs min-w-[90px]" /> 
+                                                                ) : (
+                                                                    <span className="text-slate-500 text-xs whitespace-nowrap">{item.interviewTime || '-'}</span>
                                                                 )}
                                                             </td>
                                                             <td className="text-center">
