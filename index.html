@@ -11,27 +11,21 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- เพิ่มไลบรารีสำหรับอ่านไฟล์ PDF เพื่อส่งเนื้อหาให้ ChatGPT -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
     </script>
     <style>
         body { 
-            font-family: 'Sarabun', sans-serif; 
-            background-color: #f8fafc; /* Lighter cleaner background */
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f8fafc;
             color: #334155;
         }
-        
-        /* Custom Scrollbar for cleaner look */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
         .sidebar-container { width: 340px; flex-shrink: 0; }
-        
-        /* Modern Inputs */
         .modern-input {
             width: 100%;
             border: 1px solid #e2e8f0;
@@ -58,62 +52,54 @@
             margin-bottom: 4px;
             display: block;
         }
-
-        /* Filter Bar */
         .compact-filter-bar { 
             display: grid; 
-            grid-template-columns: repeat(6, 1fr) auto; 
-            gap: 12px; 
-            background: white; 
-            padding: 16px; 
-            border-radius: 16px; 
+            grid-template-columns: repeat(6, 1fr) auto;
+            gap: 12px;
+            background: white;
+            padding: 16px;
+            border-radius: 16px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.01);
             border: 1px solid #f1f5f9; 
             margin-bottom: 20px; 
             align-items: end; 
         }
-
-        /* Modern Table */
         table { border-collapse: separate; border-spacing: 0; width: 100%; }
         th { 
-            font-size: 11px; 
-            font-weight: 700; 
-            text-transform: uppercase; 
-            letter-spacing: 0.05em; 
-            color: #64748b; 
-            background-color: #f8fafc; 
-            padding: 14px 12px; 
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            background-color: #f8fafc;
+            padding: 14px 12px;
             text-align: left;
             border-bottom: 1px solid #e2e8f0;
             white-space: nowrap;
         }
         td { 
-            font-size: 13px; 
-            padding: 12px; 
-            border-bottom: 1px solid #f1f5f9; 
-            vertical-align: middle; 
+            font-size: 13px;
+            padding: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
             transition: background 0.2s;
         }
         tr:hover td { background-color: #f8fafc; }
         tr:last-child td { border-bottom: none; }
-
         .admin-edit { 
-            width: 100%; 
-            font-size: 12px; 
-            padding: 6px 8px; 
-            border-radius: 8px; 
-            border: 1px solid #cbd5e1; 
-            font-weight: 600; 
-            background: #fff; 
+            width: 100%;
+            font-size: 12px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-weight: 600;
+            background: #fff;
             outline: none;
             transition: border-color 0.2s;
         }
         .admin-edit:focus { border-color: #818cf8; }
-
         .popup-animate { animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        
-        /* Badges */
         .badge {
             padding: 4px 10px;
             border-radius: 9999px;
@@ -141,7 +127,11 @@
             appId: "1:857023562077:web:669da5cfc20cf7707e68b4"
         };
         const app = initializeApp(firebaseConfig);
-        window.FB = { db: getFirestore(app), auth: getAuth(app), methods: { signInAnonymously, onAuthStateChanged, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, writeBatch, setDoc } };
+        window.FB = {
+            db: getFirestore(app),
+            auth: getAuth(app),
+            methods: { signInAnonymously, onAuthStateChanged, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, writeBatch, setDoc }
+        };
     </script>
 
     <script type="text/babel">
@@ -149,11 +139,7 @@
 
         const App = () => {
             const scriptURL = "https://script.google.com/macros/s/AKfycbyHSv_7wt3jlYJQWVlnE5GF06y3tgf-FLcyz6AQDnNoBtIs0PqfCVw5AM_SYlSNxJHYhg/exec";
-            
-            // ลิงก์สำหรับ Sheet Data ใหม่ (ตรวจสอบ Name, Surname, Email)
             const dataSheetCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxq53q5Vk4M8Pl198a5N1znINRlUqpbB4E8ZFBVE_GYTWX9qwuHSIljFlImhM110x0d2XeER8A28up/pub?gid=1587803762&single=true&output=csv";
-            
-            // ลิงก์สำหรับ Manpower_Status (สาขาและตำแหน่ง)
             const configCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxq53q5Vk4M8Pl198a5N1znINRlUqpbB4E8ZFBVE_GYTWX9qwuHSIljFlImhM110x0d2XeER8A28up/pub?output=csv";
 
             const [user, setUser] = useState(null);
@@ -161,31 +147,26 @@
             const [loginEmail, setLoginEmail] = useState('');
             const [isLoading, setIsLoading] = useState(true);
             const [cloudCandidates, setCloudCandidates] = useState([]);
-            const [gmailDb, setGmailDb] = useState([]); 
-            const [externalDataDb, setExternalDataDb] = useState([]); 
-            
+            const [gmailDb, setGmailDb] = useState([]);
+            const [externalDataDb, setExternalDataDb] = useState([]);
             const [positions, setPositions] = useState(["Sales Executive", "Section Manager - Bakery", "Section Manager - Butchery", "Section Manager - Frozen", "Section Manager - Dry Food 1", "Section Manager - Dry Food 2", "Section Manager - F&V", "Section Manager - Non Food 1", "Section Manager - Non Fresh", "Section Manager - Fish", "Section Manager - GA", "Section Manager - GR", "Section Manager - HR", "Supervisor - Office Support"]);
-            const [locations, setLocations] = useState(['1-Lardprao', '2-Chaengwattana', '3-Srinakarin', '4-Bangbon', '5-Chonburi', '6-Chiang Mai 1', '7-Nakhon Ratchasima', '8-Rangsit', '9-Hat Yai', '10-Udonthani', '11-Phitsanulok', '12-Khon Kaen', '13-Surat Thani', '14-Ubol Ratchathani', '15-Rayong', '16-Nakhon Sawan', '17-Charansanitwongse', '18-Sathorn', '19-Nakhon Pathom', '20-Surin', '21-Samsen', '22-Nakhon Si Thammarat', '23-Chiang Rai', '24-Sakon Nakhon', '25-Suphan Buri', '26-Chanthaburi', '27-Phuket', '28-Roi Et', '29-Trang', '30-Sakaeo', '31-Koh Samui', '32-Buri Ram', '33-Sisaket', '34-Lamphun', '35-Krabi', '36-Phetchaburi', '37-Chaiyaphum', '38-Saraburi', '39-Pran Buri', '40-Chachoengsao', '41-Chiang Mai 2', '42-Ram Inthra', '43-Chumphon', '44-Pattaya', '45-Kamphangphet', '46-Kanchanaburi', '47-Lop Buri', '48-Nong Khai', '49-Ratchaburi', '50-Mae Rim', '51-Ayutthaya', '52-Lampang', '53-Hua Hin', '54-Khlong Luang', '55-Loei', '56-Phetchaboon', '57-Bang Phli', '58-Mukdahan', '59-Satun', '60-Trat', '61-Chum Pae', '62-Rawai', '63-Nakorn Panom', '64-Koh Phangan', '65-Bueng Kan', '66-North Pattaya', '67-Mae Sai', '68-Salaya', '69-Pattalung', '70-Sukhothai', '71-Patong', '72-Samutsakhon', '73-Maesod', '74-Pakchong', '75-Thalang', '76-Ranong', '77-Lamai', '78-Kalapapurk', '79-Yasothon', '80-Mahasarakam', '81-Phang', '82-Nakhon Nayok', '83-Nakhon In', '84-Banphae', '85-Tung Song', '86-Srinakarin 2', '87-Phayao', '89-Phitsanulok 2', '96-nan', '100-Phrae', '101-Koh Chang', '102-Nakhon Ratchasima 2', '103-Nan', '104-Ao Nang', '105-Karon', '106-Warinchamrab', '107-Nongbualamphu', '108-Nong Chok', '109-Laem Chabang', '110-Prachuap Khiri Khan', '111-Phetchakasem', '113-Wang Hin', '114-Singburi', '115-Bang Bua Thong', '116-Kalasin', '117-Udomsuk', '118-Ramkhamhaeng (Sammakorn)', '119-Phichit', '120-Pathumthani', '121-Bodindecha', '122-Prachautit', '123-Sukhumvit 71', '124-Navamin 70', '125-Cha-am', '126-On Nut', '127-Suksawas', '128-Kabin Buri', '129-Ladkrabang', '130-Nathong Charoen', '131-Bo Win', '132-Sattahip', '133-Ramkhamhaeng 24', '134-Amata Nakorn', '135-Bangkholaem', '136-Khon Kaen 2', '137-Wongsakorn 2', '138-Meng Jai', '139-Sukhumvit 22', '140-Chan Road', '141-Lam Luk Ka', '142-Phraeksa', '143-Praditmanutham', '144-Rungroj Market (Klong 4)Branch', '145-Pongpeth', '146-Uttaradit', '147-Muangthong', '148-Liap Khlong Song', '149-Omnoi', '150-Sanam Bin Nam', '151-Thep Rak', '152-Samut Songkharm', '153-Wiang Sa', '154-Prachin Buri', '155-Pinklao', '156-Samut Prakan', '157-Nakhon Ratchasima 3', '158-Nakhon Sawan2 (Phrom Nimit)', '159-Udon Thani 2 (Ban Lueam)', '160-Mahachai', '161-Khon Kaen 3 (Ban Non Muang)', '162-Amatanakorn 2', '163-Songkhla 2', '164-Chainat', '165-Sri Ayutthaya Road', '166-Rawai 2', '167-Chiang Mai (Chom Thong)', '168-Ban Bueng', '169-Phang Nga', '170-Amnat Charoen', '171-Jo Ho (Nakhon Ratchasima)', '172-Ban Pai', '175-Happitat (Forestias – Bangna)', '301-Rama 4 Branch', '303-Sirimangkalajarn Branch', '350-Ram Intra KM4 Branch', '351-Sinopark Branch', '352-Patthanakarn Branch']);
+            const [locations, setLocations] = useState(['1-Lardprao', '2-Chaengwattana', '3-Srinakarin', '4-Bangbon', '5-Chonburi', '6-Chiang Mai 1', '7-Nakhon Ratchasima', '8-Rangsit', '9-Hat Yai', '10-Udonthani', '11-Phitsanulok', '12-Khon Kaen', '13-Surat Thani', '14-Ubol Ratchathani', '15-Rayong', '16-Nakhon Sawan', '17-Charansanitwongse', '18-Sathorn', '19-Nakhon Pathom', '20-Surin', '21-Samsen', '22-Nakhon Si Thammarat', '23-Chiang Rai', '24-Sakon Nakhon', '25-Suphan Buri', '26-Chanthaburi', '27-Phuket', '28-Roi Et', '29-Trang', '30-Sakaeo', '31-Koh Samui', '32-Buri Ram', '33-Sisaket', '34-Lamphun', '35-Krabi', '36-Phetchaburi', '37-Chaiyaphum', '38-Saraburi', '39-Pran Buri', '40-Chachoengsao', '41-Chiang Mai 2', '42-Ram Inthra', '43-Chumphon', '44-Pattaya', '45-Kamphangphet', '46-Kanchanaburi', '47-Lop Buri', '48-Nong Khai', '49-Ratchaburi', '50-Mae Rim', '51-Ayutthaya', '52-Lampang', '53-Hua Hin', '54-Khlong Luang', '55-Loei', '56-Phetchaboon', '57-Bang Phli', '58-Mukdahan', '59-Satun', '60-Trat', '61-Chum Pae', '62-Rawai', '63-Nakorn Panom', '64-Koh Phangan', '65-Bueng Kan', '66-North Pattaya', '67-Mae Sai', '68-Salaya', '69-Pattalung', '70-Sukhothai', '71-Patong', '72-Samutsakhon', '73-Maesod', '74-Pakchong', '75-Thalang', '76-Ranong', '77-Lamai', '78-Kalapapurk', '79-Yasothon', '80-Mahasarakam', '81-Phang', '82-Nakhon Nayok', '83-Nakhon In', '84-Banphae', '85-Tung Song', '86-Srinakarin 2', '87-Phayao', '89-Phitsanulok 2', '96-nan', '100-Phrae', '101-Koh Chang', '102-Nakhon Ratchasima 2', '103-Nan', '104-Ao Nang', '105-Karon', '106-Warinchamrab', '107-Nongbualamphu', '108-Nong Chok', '109-Laem Chabang', '110-Prachuap Khiri Khan', '111-Phetchakasem', '113-Wang Hin', '114-Singburi', '115-Bang Bua Thong', '116-Kalasin', '117-Udomsuk', '118-Ramkhamhaeng (Sammakorn)', '119-Phichit', '120-Pathumthani', '121-Bodindecha', '122-Prachautit', '123-Sukhumvit 71', '124-Navamin 70', '125-Cha-am', '126-On Nut', '127-Suksawas', '128-Kabin Buri', '129-Ladkrabang', '130-Nathong Charoen', '131-Bo Win', '132-Sattahip', '133-Ramkhamhaeng 24', '134-Amata Nakorn', '135-Bangkholaem', '136-Khon Kaen 2', '137-Wongsakorn 2', '138-Meng Jai', '139-Sukhumvit 22', '140-Chan Road', '141-Lam Luk Ka', '142-Phraeksa', '143-Praditmanutham', '144-Rungroj Market (Klong 4)Branch', '145-Pongpeth', '146-Uttaradit', '147-Muangthong', '148-Liap Khlong Song', '149-Omnoi', '150-Sanam Bin Nam', '151-Thep Rak', '152-Samut Songkharm', '153-Wiang Sa', '154-Prachin Buri', '155-Pinklao', '156-Samut Prakan', '157-Nakhon Ratchasima 3', '158-Nakhon Sawan2 (Phrom Nimit)', '159-Udon Thani 2 (Ban Lueam)', '160-Mahachai', '161-Khon Kaen 3 (Ban Non Muang)', '162-Amatanakorn 2', '163-Songkhla 2', '164-Chainat', '165-Sri Ayutthaya Road', '166-Rawai 2', '167-Chiang Mai (Chom Thong)', '168-Ban Bueng', '169-Phang Nga', '170-Amnat Charoen', '171-Jo Ho (Nakhon Ratchasima)', '172-Ban Pai', '175-Happitat (Forestias - Bangna)', '301-Rama 4 Branch', '303-Sirimangkalajarn Branch', '350-Ram Intra KM4 Branch', '351-Sinopark Branch', '352-Patthanakarn Branch']);
 
             const [draftList, setDraftList] = useState([]);
             const [isChecked, setIsChecked] = useState(false);
             const [currentPage, setCurrentPage] = useState(1);
             const itemsPerPage = 50;
-
             const [filters, setFilters] = useState({ name: '', subDate: '', status: '', pos: '', intDate: '', intResult: '' });
             const [popup, setPopup] = useState(null);
             const [confirmDialog, setConfirmDialog] = useState(null);
             const [isUploading, setIsUploading] = useState(null);
             const [targetId, setTargetId] = useState(null);
             const fileInputRef = useRef(null);
-
             const [formData, setFormData] = useState({ submissionDate: new Date().toISOString().split('T')[0], firstName: '', lastName: '', tel: '', email: '', position: '', location: '' });
-
             const [editingId, setEditingId] = useState(null);
             const [editFormData, setEditFormData] = useState({});
-            const [aiModal, setAiModal] = useState(null); 
+            const [aiModal, setAiModal] = useState(null);
 
-            // 💡 เพิ่ม State สำหรับจัดการการตั้งค่าคุณสมบัติ AI
             const defaultJobReqs = {
                 "Sales Executive": "มีประสบการณ์งานขายอย่างน้อย 1 ปี, มีทักษะการสื่อสารและเจรจาต่อรองดีเยี่ยม, หากมีประสบการณ์สายค้าปลีกจะพิจารณาเป็นพิเศษ",
                 "Section Manager - Bakery": "มีประสบการณ์บริหารจัดการส่วนเบเกอรี่อย่างน้อย 3 ปี, เข้าใจกระบวนการผลิตเบเกอรี่และควบคุมต้นทุน (Food Cost) ได้ดี",
@@ -199,32 +180,22 @@
 
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
-
-            // Helper function for UI elements to avoid inline logic breaks
             const getAiScoreClass = (score) => {
                 if (score >= 80) return 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/30';
                 if (score >= 50) return 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/30';
                 return 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/30';
             };
-
-            const getAiColor = (score) => {
-                if (score >= 80) return '#10b981';
-                if (score >= 50) return '#f59e0b';
-                return '#f43f5e';
-            };
-
+            const getAiColor = (score) => { if (score >= 80) return '#10b981'; if (score >= 50) return '#f59e0b'; return '#f43f5e'; };
             const getInterviewStatusClass = (status) => {
                 if (status === 'ผ่าน') return 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20';
                 if (status === 'ไม่ผ่าน') return 'bg-slate-100 text-slate-500 ring-1 ring-slate-400/20';
                 return 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20';
             };
-
             const getPopupBgColor = (title) => {
                 if (title === 'ERROR' || title === 'AI ERROR') return 'bg-rose-50 text-rose-500';
                 if (title === 'WARNING') return 'bg-amber-50 text-amber-500';
                 return 'bg-emerald-50 text-emerald-500';
             };
-
             const getPopupIcon = (title) => {
                 if (title === 'ERROR' || title === 'AI ERROR') return 'x-circle';
                 if (title === 'WARNING') return 'alert-triangle';
@@ -232,9 +203,7 @@
             };
 
             useEffect(() => {
-                const timer = setTimeout(() => {
-                    if (window.lucide) window.lucide.createIcons();
-                }, 50);
+                const timer = setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 50);
                 return () => clearTimeout(timer);
             });
 
@@ -243,29 +212,26 @@
                 window.FB.methods.signInAnonymously(window.FB.auth);
                 window.FB.methods.onAuthStateChanged(window.FB.auth, (u) => {
                     setUser(u);
-                    
                     fetch(dataSheetCSV).then(r => r.text()).then(res => {
                         const parsed = Papa.parse(res, { header: true }).data;
                         setExternalDataDb(parsed.filter(r => r.Email || r.Name).map(r => ({
-                            name: normalize((r.Name||'') + (r.Surname||'')),
+                            name: normalize((r.Name || '') + (r.Surname || '')),
                             email: (r.Email || '').toLowerCase().trim()
                         })));
                         return fetch(configCSV);
                     }).then(r => r.text()).then(res => {
-                        const parsed = Papa.parse(res, { header: true }).data; 
+                        const parsed = Papa.parse(res, { header: true }).data;
                         const locSet = new Set();
                         parsed.forEach(row => {
                             const code = row['Store_No']; const name = row['Store_Name'];
-                            if(code && name && code !== 'Store_No') locSet.add(`${code.trim()}-${name.trim()}`);
+                            if (code && name && code !== 'Store_No') locSet.add(`${code.trim()}-${name.trim()}`);
                         });
-                        if(locSet.size > 0) setLocations(Array.from(locSet).sort((a,b) => parseInt(a) - parseInt(b)));
-
+                        if (locSet.size > 0) setLocations(Array.from(locSet).sort((a, b) => parseInt(a) - parseInt(b)));
                         const posList = [...new Set(parsed.map(r => r['Position']).filter(p => p && p !== 'Position'))];
-                        if(posList.length > 0) setPositions(prev => [...new Set([...prev, ...posList])].sort());
-
+                        if (posList.length > 0) setPositions(prev => [...new Set([...prev, ...posList])].sort());
                         return fetch(scriptURL + "?action=getGmail");
-                    }).then(r => r.json()).then(emails => { 
-                        setGmailDb(emails); setIsLoading(false); 
+                    }).then(r => r.json()).then(emails => {
+                        setGmailDb(emails); setIsLoading(false);
                     }).catch(() => setIsLoading(false));
                 });
             }, []);
@@ -273,17 +239,12 @@
             useEffect(() => {
                 if (!user || !currentUserAgency) return;
                 const q = window.FB.methods.query(window.FB.methods.collection(window.FB.db, 'candidates'));
-                const unsubCandidates = window.FB.methods.onSnapshot(q, (sn) => { 
-                    setCloudCandidates(sn.docs.map(d => ({ id: d.id, ...d.data() }))); 
+                const unsubCandidates = window.FB.methods.onSnapshot(q, (sn) => {
+                    setCloudCandidates(sn.docs.map(d => ({ id: d.id, ...d.data() })));
                 });
-
-                // 💡 โหลดการตั้งค่าคุณสมบัติ AI จาก Firestore (ถ้ามี)
                 const unsubSettings = window.FB.methods.onSnapshot(window.FB.methods.doc(window.FB.db, 'settings', 'ai_requirements'), (docSnap) => {
-                    if (docSnap.exists()) {
-                        setJobRequirements({ ...defaultJobReqs, ...docSnap.data() });
-                    }
+                    if (docSnap.exists()) setJobRequirements({ ...defaultJobReqs, ...docSnap.data() });
                 });
-
                 return () => { unsubCandidates(); unsubSettings(); };
             }, [user, currentUserAgency]);
 
@@ -304,17 +265,12 @@
             const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-            // ฟังก์ชันสำหรับดึงข้อความออกจาก PDF เพื่อนำไปให้ ChatGPT วิเคราะห์
             const extractTextFromPDF = async (base64Data) => {
                 try {
                     const binaryString = window.atob(base64Data);
-                    const len = binaryString.length;
-                    const bytes = new Uint8Array(len);
-                    for (let i = 0; i < len; i++) {
-                        bytes[i] = binaryString.charCodeAt(i);
-                    }
-                    const loadingTask = window.pdfjsLib.getDocument({data: bytes});
-                    const pdf = await loadingTask.promise;
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+                    const pdf = await window.pdfjsLib.getDocument({ data: bytes }).promise;
                     let fullText = "";
                     for (let i = 1; i <= pdf.numPages; i++) {
                         const page = await pdf.getPage(i);
@@ -333,21 +289,15 @@
                     const inputEmail = item.email.toLowerCase().trim();
                     const inputTel = item.tel.replace(/\D/g, '');
                     const inputNameNormalized = normalize(item.firstName + item.lastName);
-
                     const isDupCloud = cloudCandidates.some(c => {
                         const dbEmail = (c.email || '').toLowerCase().trim();
                         const dbTel = (c.tel || '').replace(/\D/g, '');
-                        const dbNameNormalized = normalize((c.firstName||'') + (c.lastName||'') + (c.name||''));
+                        const dbNameNormalized = normalize((c.firstName || '') + (c.lastName || '') + (c.name || ''));
                         return (inputEmail && dbEmail === inputEmail) || (inputTel && dbTel === inputTel) || (inputNameNormalized === dbNameNormalized);
                     });
-
                     const isDupGmail = gmailDb.some(e => e.toLowerCase().trim() === inputEmail);
-                    const isDupData = externalDataDb.some(d => {
-                        return (inputEmail && d.email === inputEmail) || (inputNameNormalized === d.name);
-                    });
-
-                    let status = (isDupCloud || isDupGmail || isDupData) ? 'Dup' : 'No Dup';
-                    return { ...item, status };
+                    const isDupData = externalDataDb.some(d => (inputEmail && d.email === inputEmail) || (inputNameNormalized === d.name));
+                    return { ...item, status: (isDupCloud || isDupGmail || isDupData) ? 'Dup' : 'No Dup' };
                 });
                 setDraftList(updated); setIsChecked(true);
             };
@@ -355,81 +305,61 @@
             const onFileChange = async (e) => {
                 const file = e.target.files[0]; if (!file || !targetId) return;
                 setIsUploading(targetId);
-                
                 const targetCandidate = cloudCandidates.find(c => c.id === targetId);
                 const position = targetCandidate?.position || 'General';
-
                 const reader = new FileReader();
                 reader.onload = async (f) => {
                     const base64 = f.target.result.split(',')[1];
                     try {
-                        const response = await fetch(scriptURL, { method: "POST", body: JSON.stringify({ fileData: base64, mimeType: file.type, fileName: file.name }) });
-                        const res = await response.json();
-                        
-                        if (res.status === "success") {
-                            let aiData = { score: null, summary: null };
-                            
-                            try {
-                                // 🔑 ใส่รหัส API Key ของ OpenAI (ChatGPT) ที่นี่ (ขึ้นต้นด้วย sk-)
-                                const openAIApiKey = "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"; 
-                                
-                                if (!openAIApiKey || openAIApiKey.includes('xxxx')) {
-                                    throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key ในหน้าโค้ดครับ");
-                                }
+                        // Step 1: Upload file to Google Drive
+                        const uploadRes = await fetch(scriptURL, {
+                            method: "POST",
+                            body: JSON.stringify({ fileData: base64, mimeType: file.type, fileName: file.name })
+                        });
+                        const uploadJson = await uploadRes.json();
 
-                                // 1. ถอดข้อความจากไฟล์ PDF ด้วย Javascript ฝั่งหน้าเว็บ
+                        if (uploadJson.status === "success") {
+                            let aiData = { score: null, summary: null };
+                            try {
+                                // Step 2: Extract text from PDF
                                 const pdfText = await extractTextFromPDF(base64);
                                 if (!pdfText) throw new Error("ไม่สามารถดึงข้อความจากไฟล์ PDF ได้ โปรดตรวจสอบไฟล์");
 
-                                const specificCriteria = jobRequirements[position] 
-                                    ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"` 
+                                const specificCriteria = jobRequirements[position]
+                                    ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"`
                                     : "";
 
-                                // 2. สั่งการ ChatGPT ให้ประเมินผล
                                 const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครที่มีเนื้อหาดังนี้:\n\n"${pdfText.substring(0, 10000)}"\n\nเพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้ ตอบกลับมาในรูปแบบ JSON ที่มี key คือ "score" (ตัวเลข) และ "summary" (ข้อความสรุป)`;
 
-                                // 3. ใช้ CORS Proxy เพื่อบายพาสการบล็อกของ Browser
-                                const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent("https://api.openai.com/v1/chat/completions");
-                                
-                                const aiRes = await fetch(proxyUrl, {
+                                // ✅ Step 3: เรียก OpenAI ผ่าน Apps Script (ไม่มีปัญหา CORS)
+                                const aiRes = await fetch(scriptURL, {
                                     method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${openAIApiKey}`
-                                    },
-                                    body: JSON.stringify({
-                                        model: "gpt-4o-mini", // โมเดลทำงานรวดเร็วและคุ้มค่า
-                                        messages: [{ role: "user", content: promptText }],
-                                        response_format: { type: "json_object" }
-                                    })
+                                    body: JSON.stringify({ action: 'analyzeResume', prompt: promptText })
                                 });
-                                
-                                if (!aiRes.ok) {
-                                    const errDetails = await aiRes.json();
-                                    throw new Error(errDetails.error?.message || "OpenAI API Error");
-                                }
-
                                 const aiJson = await aiRes.json();
-                                if (aiJson.choices && aiJson.choices[0].message.content) {
-                                    const result = JSON.parse(aiJson.choices[0].message.content);
-                                    aiData = { score: result.score, summary: result.summary };
-                                }
+
+                                if (aiJson.status === 'error') throw new Error(aiJson.message || "OpenAI API Error");
+                                aiData = { score: aiJson.score, summary: aiJson.summary };
+
                             } catch (aiErr) {
                                 console.error("AI Analysis failed:", aiErr);
                                 aiData.summary = "AI ขัดข้อง: " + aiErr.message;
                             }
 
-                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { 
-                                resumeLink: res.url,
+                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), {
+                                resumeLink: uploadJson.url,
                                 aiScore: aiData.score,
                                 aiSummary: aiData.summary
                             });
-                            
                             setPopup({ title: "SUCCESS", msg: `อัปโหลดไฟล์${aiData.score ? 'และวิเคราะห์ด้วย AI ' : ''}สำเร็จ!` });
+                        } else {
+                            throw new Error(uploadJson.message || "Upload failed");
                         }
-                    } finally { 
-                        setIsUploading(null); 
-                        setTargetId(null); 
+                    } catch (err) {
+                        setPopup({ title: "ERROR", msg: "เกิดข้อผิดพลาด: " + err.message });
+                    } finally {
+                        setIsUploading(null);
+                        setTargetId(null);
                         if (fileInputRef.current) fileInputRef.current.value = '';
                     }
                 };
@@ -457,165 +387,129 @@
                 }
             };
 
-            // 💡 ฟังก์ชันบันทึกการตั้งค่าคุณสมบัติ AI ขึ้นฐานข้อมูล
             const saveAiSettings = async () => {
                 try {
                     await window.FB.methods.setDoc(window.FB.methods.doc(window.FB.db, 'settings', 'ai_requirements'), editAiReq);
                     setIsAiSettingsOpen(false);
                     setPopup({ title: "SUCCESS", msg: "บันทึกเงื่อนไขการประเมินของ AI เรียบร้อยแล้ว!" });
                 } catch (error) {
-                    console.error(error);
                     setPopup({ title: "ERROR", msg: "ไม่สามารถบันทึกการตั้งค่าได้ กรุณาตรวจสอบสิทธิ์" });
                 }
             };
 
             const exportToCSV = () => {
-                if (allFiltered.length === 0) {
-                    setPopup({ title: "WARNING", msg: "ไม่มีข้อมูลสำหรับ Export" });
-                    return;
-                }
-
+                if (allFiltered.length === 0) { setPopup({ title: "WARNING", msg: "ไม่มีข้อมูลสำหรับ Export" }); return; }
                 const exportData = allFiltered.map(item => ({
-                    "วันที่ส่ง": item.submissionDate || '',
-                    "Agency": item.agency || '',
-                    "ชื่อ": item.firstName || item.name || '',
-                    "นามสกุล": item.lastName || '',
-                    "เบอร์โทร": item.tel ? `'${item.tel}` : '', 
-                    "อีเมล": item.email || '',
-                    "ตำแหน่งงาน": item.position || '',
-                    "สาขา": item.location || '',
+                    "วันที่ส่ง": item.submissionDate || '', "Agency": item.agency || '',
+                    "ชื่อ": item.firstName || item.name || '', "นามสกุล": item.lastName || '',
+                    "เบอร์โทร": item.tel ? `'${item.tel}` : '', "อีเมล": item.email || '',
+                    "ตำแหน่งงาน": item.position || '', "สาขา": item.location || '',
                     "สถานะตรวจสอบ": item.prescreenStatus || '',
-                    "AI Score": item.aiScore ? `${item.aiScore}%` : '',
-                    "AI Summary": item.aiSummary || '',
-                    "วันสัมภาษณ์": item.interviewDate || '',
-                    "ผลสัมภาษณ์": item.interviewStatus || 'รอผล',
+                    "AI Score": item.aiScore ? `${item.aiScore}%` : '', "AI Summary": item.aiSummary || '',
+                    "วันสัมภาษณ์": item.interviewDate || '', "ผลสัมภาษณ์": item.interviewStatus || 'รอผล',
                     "ลิงก์ Resume": item.resumeLink || ''
                 }));
-
-                const csv = Papa.unparse(exportData);
-                const bom = "\uFEFF";
-                const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
-                
+                const blob = new Blob(["\uFEFF" + Papa.unparse(exportData)], { type: "text/csv;charset=utf-8;" });
                 const link = document.createElement("a");
-                const url = URL.createObjectURL(blob);
-                link.setAttribute("href", url);
+                link.setAttribute("href", URL.createObjectURL(blob));
                 link.setAttribute("download", `Candidate_Export_${new Date().toISOString().split('T')[0]}.csv`);
                 link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
             };
 
-            const renderModals = () => {
-                return (
-                    <React.Fragment>
-                        {/* Success/Error Popup */}
-                        {popup && (
-                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center transition-opacity">
-                                <div className="bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl w-full max-w-sm popup-animate border border-slate-100">
-                                    <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6 shadow-inner ${getPopupBgColor(popup.title)}`}>
-                                        <span key={popup.title} className="flex items-center justify-center">
-                                            <i data-lucide={getPopupIcon(popup.title)} className="w-8 h-8"></i>
-                                        </span>
-                                    </div>
-                                    <h3 className="text-xl font-black mb-3 text-slate-800 uppercase tracking-tight">{popup.title}</h3>
-                                    <p className="text-slate-500 font-medium mb-8 text-[15px] leading-relaxed">{popup.msg}</p>
-                                    <button onClick={() => setPopup(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-md hover:shadow-lg active:scale-95 transition-all">Close</button>
+            const renderModals = () => (
+                <React.Fragment>
+                    {popup && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center">
+                            <div className="bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl w-full max-w-sm popup-animate border border-slate-100">
+                                <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6 shadow-inner ${getPopupBgColor(popup.title)}`}>
+                                    <i data-lucide={getPopupIcon(popup.title)} className="w-8 h-8"></i>
+                                </div>
+                                <h3 className="text-xl font-black mb-3 text-slate-800 uppercase tracking-tight">{popup.title}</h3>
+                                <p className="text-slate-500 font-medium mb-8 text-[15px] leading-relaxed">{popup.msg}</p>
+                                <button onClick={() => setPopup(null)} className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-md hover:shadow-lg active:scale-95 transition-all">Close</button>
+                            </div>
+                        </div>
+                    )}
+                    {confirmDialog && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center">
+                            <div className="bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl w-full max-w-sm popup-animate border border-slate-100">
+                                <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6 bg-rose-50 text-rose-500 shadow-inner">
+                                    <i data-lucide="alert-triangle" className="w-8 h-8"></i>
+                                </div>
+                                <h3 className="text-xl font-black mb-3 text-slate-800 uppercase tracking-tight">{confirmDialog.title}</h3>
+                                <p className="text-slate-500 font-medium mb-8 text-[15px] leading-relaxed">{confirmDialog.msg}</p>
+                                <div className="flex gap-4">
+                                    <button onClick={() => setConfirmDialog(null)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold uppercase tracking-wide transition-all">ยกเลิก</button>
+                                    <button onClick={confirmDialog.onConfirm} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-md hover:shadow-lg active:scale-95 transition-all">ยืนยัน</button>
                                 </div>
                             </div>
-                        )}
-
-                        {/* Confirmation Dialog */}
-                        {confirmDialog && (
-                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center transition-opacity">
-                                <div className="bg-white p-8 sm:p-10 rounded-[2rem] shadow-2xl w-full max-w-sm popup-animate border border-slate-100">
-                                    <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-6 bg-rose-50 text-rose-500 shadow-inner">
-                                        <i data-lucide="alert-triangle" className="w-8 h-8"></i>
-                                    </div>
-                                    <h3 className="text-xl font-black mb-3 text-slate-800 uppercase tracking-tight">{confirmDialog.title}</h3>
-                                    <p className="text-slate-500 font-medium mb-8 text-[15px] leading-relaxed">{confirmDialog.msg}</p>
-                                    <div className="flex gap-4">
-                                        <button onClick={() => setConfirmDialog(null)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold uppercase tracking-wide transition-all">ยกเลิก</button>
-                                        <button onClick={confirmDialog.onConfirm} className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-md hover:shadow-lg active:scale-95 transition-all">ยืนยัน</button>
-                                    </div>
+                        </div>
+                    )}
+                    {aiModal && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center">
+                            <div className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-md popup-animate border border-slate-100 relative">
+                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg text-white">
+                                    <i data-lucide="bot" className="w-7 h-7"></i>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* 🤖 AI Result Modal */}
-                        {aiModal && (
-                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-6 text-center transition-opacity">
-                                <div className="bg-white p-8 rounded-[2rem] shadow-2xl w-full max-w-md popup-animate border border-slate-100 relative">
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg text-white">
-                                        <i data-lucide="bot" className="w-7 h-7"></i>
+                                <h3 className="text-lg font-black mt-4 mb-1 text-slate-800 uppercase tracking-tight">AI Analysis Result</h3>
+                                <p className="text-xs font-bold text-indigo-500 mb-6 uppercase tracking-widest">{aiModal.name}</p>
+                                <div className="bg-slate-50 rounded-2xl p-6 mb-6">
+                                    <div className="text-5xl font-black mb-2 flex items-center justify-center gap-1" style={{ color: getAiColor(aiModal.score) }}>
+                                        {aiModal.score}<span className="text-xl font-bold opacity-50">%</span>
                                     </div>
-                                    <h3 className="text-lg font-black mt-4 mb-1 text-slate-800 uppercase tracking-tight">AI Analysis Result</h3>
-                                    <p className="text-xs font-bold text-indigo-500 mb-6 uppercase tracking-widest">{aiModal.name}</p>
-                                    
-                                    <div className="bg-slate-50 rounded-2xl p-6 mb-6">
-                                        <div className="text-5xl font-black mb-2 flex items-center justify-center gap-1" style={{ color: getAiColor(aiModal.score) }}>
-                                            {aiModal.score}<span className="text-xl font-bold opacity-50">%</span>
+                                    <div className="w-full bg-slate-200 rounded-full h-1.5 mb-5 overflow-hidden">
+                                        <div className="h-1.5 rounded-full transition-all duration-1000" style={{ width: `${aiModal.score}%`, backgroundColor: getAiColor(aiModal.score) }}></div>
+                                    </div>
+                                    <p className="text-[14px] font-medium text-slate-700 leading-relaxed text-left">{aiModal.summary}</p>
+                                </div>
+                                <button onClick={() => setAiModal(null)} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-sm active:scale-95 transition-all">Close Panel</button>
+                            </div>
+                        </div>
+                    )}
+                    {isAiSettingsOpen && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-4">
+                            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl popup-animate border border-slate-100 flex flex-col max-h-[90vh]">
+                                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-[2rem] shrink-0">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center shadow-inner">
+                                            <i data-lucide="settings-2" className="w-6 h-6"></i>
                                         </div>
-                                        <div className="w-full bg-slate-200 rounded-full h-1.5 mb-5 overflow-hidden">
-                                            <div className="h-1.5 rounded-full transition-all duration-1000" style={{ width: `${aiModal.score}%`, backgroundColor: getAiColor(aiModal.score) }}></div>
+                                        <div>
+                                            <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">ตั้งค่าเงื่อนไข AI (Prescreen)</h3>
+                                            <p className="text-xs font-medium text-slate-500">กำหนดคุณสมบัติของแต่ละตำแหน่ง เพื่อให้ AI สแกนและให้คะแนนได้แม่นยำขึ้น</p>
                                         </div>
-                                        <p className="text-[14px] font-medium text-slate-700 leading-relaxed text-left">
-                                            {aiModal.summary}
-                                        </p>
                                     </div>
-
-                                    <button onClick={() => setAiModal(null)} className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold uppercase tracking-wide shadow-sm active:scale-95 transition-all">Close Panel</button>
+                                    <button onClick={() => setIsAiSettingsOpen(false)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 p-2 rounded-xl transition-colors"><i data-lucide="x" className="w-6 h-6"></i></button>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* ⚙️ AI Settings Modal (Admin Only) */}
-                        {isAiSettingsOpen && (
-                            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-4 transition-opacity">
-                                <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl popup-animate border border-slate-100 flex flex-col max-h-[90vh]">
-                                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-[2rem] shrink-0">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center shadow-inner">
-                                                <i data-lucide="settings-2" className="w-6 h-6"></i>
+                                <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
+                                    <div className="space-y-6">
+                                        {positions.map(pos => (
+                                            <div key={pos} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                                <label className="modern-label text-indigo-600 mb-2 flex items-center gap-2">
+                                                    <i data-lucide="briefcase" className="w-4 h-4"></i> {pos}
+                                                </label>
+                                                <textarea
+                                                    className="modern-input min-h-[80px] resize-y text-xs leading-relaxed"
+                                                    placeholder={`ระบุคุณสมบัติ ประสบการณ์ หรือทักษะที่ต้องการสำหรับ ${pos}...`}
+                                                    value={editAiReq[pos] || ''}
+                                                    onChange={(e) => setEditAiReq({ ...editAiReq, [pos]: e.target.value })}
+                                                ></textarea>
                                             </div>
-                                            <div>
-                                                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">ตั้งค่าเงื่อนไข AI (Prescreen)</h3>
-                                                <p className="text-xs font-medium text-slate-500">กำหนดคุณสมบัติของแต่ละตำแหน่ง เพื่อให้ AI สแกนและให้คะแนนได้แม่นยำขึ้น</p>
-                                            </div>
-                                        </div>
-                                        <button onClick={() => setIsAiSettingsOpen(false)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 p-2 rounded-xl transition-colors"><i data-lucide="x" className="w-6 h-6"></i></button>
-                                    </div>
-                                    
-                                    <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
-                                        <div className="space-y-6">
-                                            {positions.map(pos => (
-                                                <div key={pos} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                                    <label className="modern-label text-indigo-600 mb-2 flex items-center gap-2">
-                                                        <i data-lucide="briefcase" className="w-4 h-4"></i> {pos}
-                                                    </label>
-                                                    <textarea 
-                                                        className="modern-input min-h-[80px] resize-y text-xs leading-relaxed" 
-                                                        placeholder={`ระบุคุณสมบัติ ประสบการณ์ หรือทักษะที่ต้องการสำหรับ ${pos}... (หากเว้นว่าง AI จะใช้เกณฑ์มาตรฐาน)`}
-                                                        value={editAiReq[pos] || ''}
-                                                        onChange={(e) => setEditAiReq({...editAiReq, [pos]: e.target.value})}
-                                                    ></textarea>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-white rounded-b-[2rem] shrink-0">
-                                        <button onClick={() => setIsAiSettingsOpen(false)} className="px-6 py-3 rounded-xl font-bold uppercase tracking-wide text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all">ยกเลิก</button>
-                                        <button onClick={saveAiSettings} className="px-8 py-3 rounded-xl font-bold uppercase tracking-wide text-white bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
-                                            <i data-lucide="save" className="w-4 h-4"></i> บันทึกการตั้งค่า
-                                        </button>
+                                        ))}
                                     </div>
                                 </div>
+                                <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-white rounded-b-[2rem] shrink-0">
+                                    <button onClick={() => setIsAiSettingsOpen(false)} className="px-6 py-3 rounded-xl font-bold uppercase tracking-wide text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all">ยกเลิก</button>
+                                    <button onClick={saveAiSettings} className="px-8 py-3 rounded-xl font-bold uppercase tracking-wide text-white bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center gap-2">
+                                        <i data-lucide="save" className="w-4 h-4"></i> บันทึกการตั้งค่า
+                                    </button>
+                                </div>
                             </div>
-                        )}
-                    </React.Fragment>
-                );
-            };
+                        </div>
+                    )}
+                </React.Fragment>
+            );
 
             if (isLoading) return (
                 <div className="h-screen flex flex-col items-center justify-center font-bold text-indigo-500 gap-4">
@@ -639,7 +533,6 @@
                             </div>
                             <h1 className="text-2xl font-black mb-2 text-slate-800">Welcome Back</h1>
                             <p className="text-slate-400 font-medium text-sm mb-8">Sign in with your agency email</p>
-                            
                             <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="modern-input text-center mb-6 py-3.5 text-base" placeholder="Enter your email" required />
                             <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95">Authenticate</button>
                         </form>
@@ -651,7 +544,7 @@
             return (
                 <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto min-h-screen">
                     <input type="file" ref={fileInputRef} onChange={onFileChange} accept="application/pdf" className="hidden" />
-                    
+
                     <div className="flex justify-between items-center mb-8 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
@@ -674,33 +567,29 @@
                                     <div className="bg-indigo-50 text-indigo-600 p-2 rounded-lg"><i data-lucide="user-plus" className="w-4 h-4"></i></div>
                                     <h2 className="font-black text-sm uppercase text-slate-700 tracking-wide">เพิ่มรายชื่อใหม่</h2>
                                 </div>
-                                
                                 <form onSubmit={(e) => {
                                     e.preventDefault();
                                     const telClean = formData.tel.replace(/\D/g, '');
-                                    if (telClean.length !== 10) {
-                                        setPopup({ title: "WARNING", msg: "กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก" });
-                                        return;
-                                    }
+                                    if (telClean.length !== 10) { setPopup({ title: "WARNING", msg: "กรุณาระบุเบอร์โทรศัพท์ให้ครบ 10 หลัก" }); return; }
                                     setDraftList([...draftList, { ...formData, tel: telClean, draftId: Date.now(), status: 'Pending' }]);
                                     setFormData({ ...formData, firstName: '', lastName: '', tel: '', email: '' });
                                     setIsChecked(false);
                                 }} className="space-y-4">
-                                    <div><label className="modern-label">วันที่ส่ง <span className="text-rose-400">*</span></label><input type="date" value={formData.submissionDate} onChange={e => setFormData({...formData, submissionDate: e.target.value})} className="modern-input" required /></div>
+                                    <div><label className="modern-label">วันที่ส่ง <span className="text-rose-400">*</span></label><input type="date" value={formData.submissionDate} onChange={e => setFormData({ ...formData, submissionDate: e.target.value })} className="modern-input" required /></div>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div><label className="modern-label">ชื่อ <span className="text-rose-400">*</span></label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} className="modern-input" required /></div>
-                                        <div><label className="modern-label">นามสกุล <span className="text-rose-400">*</span></label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} className="modern-input" required /></div>
+                                        <div><label className="modern-label">ชื่อ <span className="text-rose-400">*</span></label><input type="text" placeholder="ชื่อ" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} className="modern-input" required /></div>
+                                        <div><label className="modern-label">นามสกุล <span className="text-rose-400">*</span></label><input type="text" placeholder="นามสกุล" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} className="modern-input" required /></div>
                                     </div>
-                                    <div><label className="modern-label">เบอร์โทรศัพท์ <span className="text-rose-400">*</span></label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({...formData, tel: e.target.value})} className="modern-input font-mono" required /></div>
-                                    <div><label className="modern-label">อีเมล <span className="text-rose-400">*</span></label><input type="email" placeholder="email@example.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="modern-input" required /></div>
+                                    <div><label className="modern-label">เบอร์โทรศัพท์ <span className="text-rose-400">*</span></label><input type="text" maxLength="10" placeholder="08xxxxxxxx" value={formData.tel} onChange={e => setFormData({ ...formData, tel: e.target.value })} className="modern-input font-mono" required /></div>
+                                    <div><label className="modern-label">อีเมล <span className="text-rose-400">*</span></label><input type="email" placeholder="email@example.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="modern-input" required /></div>
                                     <div><label className="modern-label">ตำแหน่งงาน <span className="text-rose-400">*</span></label>
-                                        <select value={formData.position} onChange={e => setFormData({...formData, position: e.target.value})} className="modern-input" required>
+                                        <select value={formData.position} onChange={e => setFormData({ ...formData, position: e.target.value })} className="modern-input" required>
                                             <option value="">-- เลือกตำแหน่ง --</option>
                                             {positions.map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
                                     </div>
                                     <div><label className="modern-label">สาขา <span className="text-rose-400">*</span></label>
-                                        <select value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="modern-input" required>
+                                        <select value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className="modern-input" required>
                                             <option value="">-- เลือกสาขา --</option>
                                             {locations.map(l => <option key={l} value={l}>{l}</option>)}
                                         </select>
@@ -716,13 +605,13 @@
 
                         <div className="flex-1 min-w-0 flex flex-col gap-6">
                             <div className="compact-filter-bar">
-                                <div className="filter-item"><label className="modern-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
-                                <div className="filter-item"><label className="modern-label">ค้นหาชื่อ</label><input type="text" placeholder="ชื่อ/นามสกุล..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
-                                <div className="filter-item"><label className="modern-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option></select></div>
-                                <div className="filter-item"><label className="modern-label">ตำแหน่ง</label><select value={filters.pos} onChange={e => setFilters({...filters, pos: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
-                                <div className="filter-item"><label className="modern-label">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
-                                <div className="filter-item"><label className="modern-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({...filters, intResult: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
-                                <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
+                                <div><label className="modern-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({ ...filters, subDate: e.target.value })} className="modern-input py-2 px-3 text-xs" /></div>
+                                <div><label className="modern-label">ค้นหาชื่อ</label><input type="text" placeholder="ชื่อ/นามสกุล..." value={filters.name} onChange={e => setFilters({ ...filters, name: e.target.value })} className="modern-input py-2 px-3 text-xs" /></div>
+                                <div><label className="modern-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value })} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option></select></div>
+                                <div><label className="modern-label">ตำแหน่ง</label><select value={filters.pos} onChange={e => setFilters({ ...filters, pos: e.target.value })} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
+                                <div><label className="modern-label">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({ ...filters, intDate: e.target.value })} className="modern-input py-2 px-3 text-xs" /></div>
+                                <div><label className="modern-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({ ...filters, intResult: e.target.value })} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
+                                <button onClick={() => setFilters({ name: '', subDate: '', status: '', pos: '', intDate: '', intResult: '' })} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
                             </div>
 
                             {currentUserAgency !== 'Admin' && draftList.length > 0 && (
@@ -736,23 +625,20 @@
                                             <button onClick={handleBulkCheck} className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-xl font-bold text-xs uppercase shadow-sm hover:shadow active:scale-95 transition-all flex items-center gap-2">
                                                 <i data-lucide="scan-search" className="w-4 h-4"></i> 1. Check Duplicates
                                             </button>
-                                            {isChecked && <button onClick={async () => {
-                                                const promises = draftList.map(item => window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...item, agency: currentUserAgency, prescreenStatus: item.status, interviewStatus: 'รอผล', createdAt: Date.now(), resumeLink: '' }));
-                                                await Promise.all(promises); setDraftList([]); setIsChecked(false);
-                                                setPopup({ title: "SUCCESS", msg: "บันทึกข้อมูลขึ้นระบบสำเร็จ!" });
-                                            }} className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-xl font-bold text-xs uppercase shadow-sm hover:shadow active:scale-95 transition-all flex items-center gap-2">
-                                                <i data-lucide="cloud-upload" className="w-4 h-4"></i> 2. Save to Cloud
-                                            </button>}
+                                            {isChecked && (
+                                                <button onClick={async () => {
+                                                    const promises = draftList.map(item => window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), { ...item, agency: currentUserAgency, prescreenStatus: item.status, interviewStatus: 'รอผล', createdAt: Date.now(), resumeLink: '' }));
+                                                    await Promise.all(promises); setDraftList([]); setIsChecked(false);
+                                                    setPopup({ title: "SUCCESS", msg: "บันทึกข้อมูลขึ้นระบบสำเร็จ!" });
+                                                }} className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-xl font-bold text-xs uppercase shadow-sm hover:shadow active:scale-95 transition-all flex items-center gap-2">
+                                                    <i data-lucide="cloud-upload" className="w-4 h-4"></i> 2. Save to Cloud
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="overflow-x-auto">
                                         <table>
-                                            <thead>
-                                                <tr>
-                                                    <th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th>
-                                                    <th className="bg-amber-50 text-amber-800 text-center">ผลตรวจสอบ</th>
-                                                </tr>
-                                            </thead>
+                                            <thead><tr><th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th><th className="bg-amber-50 text-amber-800 text-center">ผลตรวจสอบ</th></tr></thead>
                                             <tbody>
                                                 {draftList.map((item) => (
                                                     <tr key={item.draftId}>
@@ -763,9 +649,7 @@
                                                         <td className="font-semibold text-indigo-600 text-xs">{item.position}</td>
                                                         <td className="text-slate-500 text-xs">{item.location}</td>
                                                         <td className="text-center">
-                                                            <span className={`badge ${item.status === 'No Dup' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : item.status === 'Dup' ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20' : 'bg-slate-100 text-slate-500'}`}>
-                                                                {item.status}
-                                                            </span>
+                                                            <span className={`badge ${item.status === 'No Dup' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : item.status === 'Dup' ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20' : 'bg-slate-100 text-slate-500'}`}>{item.status}</span>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -784,7 +668,7 @@
                                     <div className="flex items-center gap-3">
                                         {currentUserAgency === 'Admin' && (
                                             <React.Fragment>
-                                                <button onClick={() => { setEditAiReq({...jobRequirements}); setIsAiSettingsOpen(true); }} className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
+                                                <button onClick={() => { setEditAiReq({ ...jobRequirements }); setIsAiSettingsOpen(true); }} className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
                                                     <i data-lucide="settings" className="w-3.5 h-3.5"></i> ตั้งค่า AI
                                                 </button>
                                                 <button onClick={exportToCSV} className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
@@ -803,10 +687,7 @@
                                             <tr>
                                                 <th>วันที่ส่ง</th>
                                                 {currentUserAgency === 'Admin' && <th>Agency</th>}
-                                                <th>ชื่อ-นามสกุล</th>
-                                                <th>เบอร์โทร</th>
-                                                <th>ตำแหน่ง</th>
-                                                <th>สาขา</th>
+                                                <th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ตำแหน่ง</th><th>สาขา</th>
                                                 <th className="text-center">สถานะ</th>
                                                 <th className="text-center">{currentUserAgency === 'Admin' ? 'AI วิเคราะห์' : 'Prescreen'}</th>
                                                 <th className="text-center">Resume</th>
@@ -818,169 +699,125 @@
                                         <tbody>
                                             {paginatedItems.length === 0 ? (
                                                 <tr><td colSpan="12" className="text-center py-12 text-slate-400 font-medium">ไม่พบข้อมูลในระบบ</td></tr>
-                                            ) : (
-                                                paginatedItems.map(item => {
-                                                    const isNoDup = item.prescreenStatus === 'No Dup';
-                                                    const isEditing = editingId === item.id && currentUserAgency === 'Admin';
-                                                    
-                                                    return (
-                                                        <tr key={item.id} className={isEditing ? 'bg-indigo-50/30' : ''}>
-                                                            <td className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                                            ) : paginatedItems.map(item => {
+                                                const isNoDup = item.prescreenStatus === 'No Dup';
+                                                const isEditing = editingId === item.id && currentUserAgency === 'Admin';
+                                                return (
+                                                    <tr key={item.id} className={isEditing ? 'bg-indigo-50/30' : ''}>
+                                                        <td className="text-xs text-slate-400 font-medium whitespace-nowrap">
+                                                            {isEditing ? <input type="date" value={editFormData.submissionDate || ''} onChange={(e) => setEditFormData({ ...editFormData, submissionDate: e.target.value })} className="admin-edit text-xs min-w-[110px]" /> : item.submissionDate}
+                                                        </td>
+                                                        {currentUserAgency === 'Admin' && (
+                                                            <td className="text-xs font-bold text-indigo-600 whitespace-nowrap">
                                                                 {isEditing ? (
-                                                                    <input type="date" value={editFormData.submissionDate || ''} onChange={(e) => setEditFormData({...editFormData, submissionDate: e.target.value})} className="admin-edit text-xs min-w-[110px]" />
-                                                                ) : item.submissionDate}
+                                                                    <select value={editFormData.agency || ''} onChange={(e) => setEditFormData({ ...editFormData, agency: e.target.value })} className="admin-edit text-xs min-w-[100px]">
+                                                                        <option value="Manpower">Manpower</option><option value="Me Talent">Me Talent</option>
+                                                                        <option value="PRTR">PRTR</option><option value="Talentvis">Talentvis</option>
+                                                                        <option value="Techgrid">Techgrid</option><option value="Admin">Admin</option>
+                                                                    </select>
+                                                                ) : item.agency}
                                                             </td>
-                                                            {currentUserAgency === 'Admin' && (
-                                                                <td className="text-xs font-bold text-indigo-600 whitespace-nowrap">
-                                                                    {isEditing ? (
-                                                                        <select value={editFormData.agency || ''} onChange={(e) => setEditFormData({...editFormData, agency: e.target.value})} className="admin-edit text-xs min-w-[100px]">
-                                                                            <option value="Manpower">Manpower</option>
-                                                                            <option value="Me Talent">Me Talent</option>
-                                                                            <option value="PRTR">PRTR</option>
-                                                                            <option value="Talentvis">Talentvis</option>
-                                                                            <option value="Techgrid">Techgrid</option>
-                                                                            <option value="Admin">Admin</option>
-                                                                        </select>
-                                                                    ) : item.agency}
-                                                                </td>
+                                                        )}
+                                                        <td className="font-bold text-slate-800 whitespace-nowrap">
+                                                            {isEditing ? (
+                                                                <div className="flex gap-1 min-w-[150px]">
+                                                                    <input type="text" placeholder="ชื่อ" value={editFormData.firstName || ''} onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })} className="admin-edit text-xs w-1/2" />
+                                                                    <input type="text" placeholder="นามสกุล" value={editFormData.lastName || ''} onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })} className="admin-edit text-xs w-1/2" />
+                                                                </div>
+                                                            ) : (item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-'))}
+                                                        </td>
+                                                        <td className="font-mono text-slate-500 text-xs">
+                                                            {isEditing ? <input type="text" value={editFormData.tel || ''} onChange={(e) => setEditFormData({ ...editFormData, tel: e.target.value })} className="admin-edit text-xs min-w-[100px]" /> : item.tel}
+                                                        </td>
+                                                        <td className="text-xs font-semibold text-indigo-500 max-w-[150px] truncate" title={item.position}>
+                                                            {isEditing ? (
+                                                                <select value={editFormData.position || ''} onChange={(e) => setEditFormData({ ...editFormData, position: e.target.value })} className="admin-edit text-xs min-w-[120px]">
+                                                                    <option value="">- เลือกตำแหน่ง -</option>
+                                                                    {positions.map(p => <option key={p} value={p}>{p}</option>)}
+                                                                </select>
+                                                            ) : item.position}
+                                                        </td>
+                                                        <td className="text-xs text-slate-500 max-w-[150px] truncate" title={item.location}>
+                                                            {isEditing ? (
+                                                                <select value={editFormData.location || ''} onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })} className="admin-edit text-xs min-w-[120px]">
+                                                                    <option value="">- เลือกสาขา -</option>
+                                                                    {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                                                                </select>
+                                                            ) : item.location}
+                                                        </td>
+                                                        <td className="text-center">
+                                                            {isEditing ? (
+                                                                <select value={editFormData.prescreenStatus || 'Pending'} onChange={(e) => setEditFormData({ ...editFormData, prescreenStatus: e.target.value })} className="admin-edit text-xs min-w-[80px]">
+                                                                    <option value="No Dup">No Dup</option><option value="Dup">Dup</option><option value="Pending">Pending</option>
+                                                                </select>
+                                                            ) : (
+                                                                <span className={`badge ${isNoDup ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20'}`}>{item.prescreenStatus}</span>
                                                             )}
-                                                            <td className="font-bold text-slate-800 whitespace-nowrap">
-                                                                {isEditing ? (
-                                                                    <div className="flex gap-1 min-w-[150px]">
-                                                                        <input type="text" placeholder="ชื่อ" value={editFormData.firstName || ''} onChange={(e) => setEditFormData({...editFormData, firstName: e.target.value})} className="admin-edit text-xs w-1/2" />
-                                                                        <input type="text" placeholder="นามสกุล" value={editFormData.lastName || ''} onChange={(e) => setEditFormData({...editFormData, lastName: e.target.value})} className="admin-edit text-xs w-1/2" />
-                                                                    </div>
-                                                                ) : (item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-'))}
-                                                            </td>
-                                                            <td className="font-mono text-slate-500 text-xs">
-                                                                {isEditing ? (
-                                                                    <input type="text" value={editFormData.tel || ''} onChange={(e) => setEditFormData({...editFormData, tel: e.target.value})} className="admin-edit text-xs min-w-[100px]" />
-                                                                ) : item.tel}
-                                                            </td>
-                                                            <td className="text-xs font-semibold text-indigo-500 max-w-[150px] truncate" title={item.position}>
-                                                                {isEditing ? (
-                                                                    <select value={editFormData.position || ''} onChange={(e) => setEditFormData({...editFormData, position: e.target.value})} className="admin-edit text-xs min-w-[120px]">
-                                                                        <option value="">- เลือกตำแหน่ง -</option>
-                                                                        {positions.map(p => <option key={p} value={p}>{p}</option>)}
-                                                                    </select>
-                                                                ) : item.position}
-                                                            </td>
-                                                            <td className="text-xs text-slate-500 max-w-[150px] truncate" title={item.location}>
-                                                                {isEditing ? (
-                                                                    <select value={editFormData.location || ''} onChange={(e) => setEditFormData({...editFormData, location: e.target.value})} className="admin-edit text-xs min-w-[120px]">
-                                                                        <option value="">- เลือกสาขา -</option>
-                                                                        {locations.map(l => <option key={l} value={l}>{l}</option>)}
-                                                                    </select>
-                                                                ) : item.location}
-                                                            </td>
-                                                            <td className="text-center">
-                                                                {isEditing ? (
-                                                                    <select value={editFormData.prescreenStatus || 'Pending'} onChange={(e) => setEditFormData({...editFormData, prescreenStatus: e.target.value})} className="admin-edit text-xs min-w-[80px]">
-                                                                        <option value="No Dup">No Dup</option>
-                                                                        <option value="Dup">Dup</option>
-                                                                        <option value="Pending">Pending</option>
-                                                                    </select>
-                                                                ) : (
-                                                                    <span className={`badge ${isNoDup ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20'}`}>
-                                                                        {item.prescreenStatus}
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                            <td className="text-center">
-                                                                {item.aiScore !== undefined && item.aiScore !== null ? (
-                                                                    <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto shadow-sm ${getAiScoreClass(item.aiScore)}`}>
-                                                                        <i data-lucide="sparkles" className="w-3 h-3"></i> {item.aiScore}%
+                                                        </td>
+                                                        <td className="text-center">
+                                                            {item.aiScore !== undefined && item.aiScore !== null ? (
+                                                                <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto shadow-sm ${getAiScoreClass(item.aiScore)}`}>
+                                                                    <i data-lucide="sparkles" className="w-3 h-3"></i> {item.aiScore}%
+                                                                </button>
+                                                            ) : item.aiSummary ? (
+                                                                <button onClick={() => setPopup({ title: "AI ERROR", msg: item.aiSummary })} className="badge cursor-pointer bg-slate-50 text-rose-500 ring-1 ring-rose-500/30 hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto">
+                                                                    <i data-lucide="alert-circle" className="w-3 h-3"></i> Failed
+                                                                </button>
+                                                            ) : <span className="text-slate-300 text-[10px]">-</span>}
+                                                        </td>
+                                                        <td>
+                                                            <div className="flex justify-center gap-1.5">
+                                                                {item.resumeLink ? (
+                                                                    <React.Fragment>
+                                                                        <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors" title="View Resume"><i data-lucide="file-text" className="w-4 h-4"></i></a>
+                                                                        {currentUserAgency === 'Admin' && (
+                                                                            <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="Download"><i data-lucide="download" className="w-4 h-4"></i></a>
+                                                                        )}
+                                                                    </React.Fragment>
+                                                                ) : currentUserAgency !== 'Admin' && isNoDup ? (
+                                                                    <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 bg-white border border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap">
+                                                                        {isUploading === item.id ? <div className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div> : <i data-lucide="upload" className="w-3 h-3"></i>}
+                                                                        {isUploading === item.id ? "กำลังอัปโหลด..." : "อัปโหลด"}
                                                                     </button>
-                                                                ) : item.aiSummary ? (
-                                                                    <button onClick={() => setPopup({ title: "AI ERROR", msg: item.aiSummary })} className="badge cursor-pointer bg-slate-50 text-rose-500 ring-1 ring-rose-500/30 hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto">
-                                                                        <i data-lucide="alert-circle" className="w-3 h-3"></i> Failed
-                                                                    </button>
-                                                                ) : (
-                                                                    <span className="text-slate-300 text-[10px]">-</span>
-                                                                )}
-                                                            </td>
-                                                            <td>
-                                                                <div className="flex justify-center gap-1.5">
-                                                                    {item.resumeLink ? (
+                                                                ) : <span className="text-slate-300"><i data-lucide="lock" className="w-4 h-4 mx-auto"></i></span>}
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            {isEditing ? (
+                                                                <input type="date" value={editFormData.interviewDate || ''} onChange={e => setEditFormData({ ...editFormData, interviewDate: e.target.value })} className="admin-edit text-xs min-w-[110px]" />
+                                                            ) : <span className="text-slate-500 text-xs whitespace-nowrap">{item.interviewDate || '-'}</span>}
+                                                        </td>
+                                                        <td className="text-center">
+                                                            {isEditing ? (
+                                                                <select value={editFormData.interviewStatus || 'รอผล'} onChange={e => setEditFormData({ ...editFormData, interviewStatus: e.target.value })} className="admin-edit text-xs min-w-[90px]">
+                                                                    <option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option>
+                                                                </select>
+                                                            ) : <span className={`badge ${getInterviewStatusClass(item.interviewStatus)}`}>{item.interviewStatus || 'รอผล'}</span>}
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <div className="flex justify-center gap-1.5">
+                                                                {currentUserAgency === 'Admin' ? (
+                                                                    isEditing ? (
                                                                         <React.Fragment>
-                                                                            <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors" title="View Resume"><i data-lucide="file-text" className="w-4 h-4"></i></a>
-                                                                            {currentUserAgency === 'Admin' && (
-                                                                                <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="Download"><i data-lucide="download" className="w-4 h-4"></i></a>
-                                                                            )}
+                                                                            <button onClick={() => handleSaveEdit(item.id)} className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2 rounded-lg transition-colors" title="บันทึก"><i data-lucide="check" className="w-4 h-4"></i></button>
+                                                                            <button onClick={() => setEditingId(null)} className="text-slate-500 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="ยกเลิก"><i data-lucide="x" className="w-4 h-4"></i></button>
                                                                         </React.Fragment>
                                                                     ) : (
-                                                                        currentUserAgency !== 'Admin' && isNoDup ? (
-                                                                            <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 bg-white border border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap">
-                                                                                {isUploading === item.id ? (
-                                                                                    <div className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                                                                                ) : (
-                                                                                    <span className="flex items-center"><i data-lucide="upload" className="w-3 h-3"></i></span>
-                                                                                )} 
-                                                                                {isUploading === item.id ? "กำลังอัปโหลด..." : "อัปโหลด"}
-                                                                            </button>
-                                                                        ) : <span className="text-slate-300"><i data-lucide="lock" className="w-4 h-4 mx-auto"></i></span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                {isEditing ? (
-                                                                    <input type="date" value={editFormData.interviewDate || ''} onChange={e => setEditFormData({...editFormData, interviewDate: e.target.value})} className="admin-edit text-xs min-w-[110px]" /> 
+                                                                        <React.Fragment>
+                                                                            <button onClick={() => { setEditingId(item.id); setEditFormData(item); }} className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors" title="แก้ไข"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
+                                                                            <button onClick={() => setConfirmDialog({ title: "ยืนยันการลบ", msg: "คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายชื่อนี้? การกระทำนี้ไม่สามารถย้อนกลับได้", onConfirm: () => { window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)); setConfirmDialog(null); } })} className="text-rose-500 bg-rose-50 hover:bg-rose-100 p-2 rounded-lg transition-colors" title="ลบ"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                                        </React.Fragment>
+                                                                    )
                                                                 ) : (
-                                                                    <span className="text-slate-500 text-xs whitespace-nowrap">{item.interviewDate || '-'}</span>
+                                                                    <button onClick={() => setConfirmDialog({ title: "ยืนยันการลบ", msg: "คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายชื่อนี้? การกระทำนี้ไม่สามารถย้อนกลับได้", onConfirm: () => { window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id)); setConfirmDialog(null); } })} className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors active:scale-90" title="ลบ">
+                                                                        <i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i>
+                                                                    </button>
                                                                 )}
-                                                            </td>
-                                                            <td className="text-center">
-                                                                {isEditing ? (
-                                                                    <select value={editFormData.interviewStatus || 'รอผล'} onChange={e => setEditFormData({...editFormData, interviewStatus: e.target.value})} className="admin-edit text-xs min-w-[90px]">
-                                                                        <option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option>
-                                                                    </select> 
-                                                                ) : (
-                                                                    <span className={`badge ${getInterviewStatusClass(item.interviewStatus)}`}>{item.interviewStatus || 'รอผล'}</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="text-center">
-                                                                <div className="flex justify-center gap-1.5">
-                                                                    {currentUserAgency === 'Admin' ? (
-                                                                        isEditing ? (
-                                                                            <React.Fragment>
-                                                                                <button onClick={() => handleSaveEdit(item.id)} className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2 rounded-lg transition-colors" title="บันทึก"><i data-lucide="check" className="w-4 h-4"></i></button>
-                                                                                <button onClick={() => setEditingId(null)} className="text-slate-500 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="ยกเลิก"><i data-lucide="x" className="w-4 h-4"></i></button>
-                                                                            </React.Fragment>
-                                                                        ) : (
-                                                                            <React.Fragment>
-                                                                                <button onClick={() => { setEditingId(item.id); setEditFormData(item); }} className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors" title="แก้ไข"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
-                                                                                <button onClick={() => { 
-                                                                                    setConfirmDialog({
-                                                                                        title: "ยืนยันการลบ",
-                                                                                        msg: "คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายชื่อนี้? การกระทำนี้ไม่สามารถย้อนกลับได้",
-                                                                                        onConfirm: () => {
-                                                                                            window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id));
-                                                                                            setConfirmDialog(null);
-                                                                                        }
-                                                                                    });
-                                                                                }} className="text-rose-500 bg-rose-50 hover:bg-rose-100 p-2 rounded-lg transition-colors" title="ลบ"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
-                                                                            </React.Fragment>
-                                                                        )
-                                                                    ) : (
-                                                                        <button onClick={() => { 
-                                                                            setConfirmDialog({
-                                                                                title: "ยืนยันการลบ",
-                                                                                msg: "คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลรายชื่อนี้? การกระทำนี้ไม่สามารถย้อนกลับได้",
-                                                                                onConfirm: () => {
-                                                                                    window.FB.methods.deleteDoc(window.FB.methods.doc(window.FB.db, 'candidates', item.id));
-                                                                                    setConfirmDialog(null);
-                                                                                }
-                                                                            });
-                                                                        }} className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-lg transition-colors active:scale-90" title="ลบ">
-                                                                            <i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i>
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })
-                                            )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -990,13 +827,13 @@
                                     <button disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => p + 1)} className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 px-5 py-2 rounded-xl text-[11px] font-bold uppercase transition-colors disabled:opacity-40 disabled:hover:bg-white flex items-center gap-1">Next <i data-lucide="chevron-right" className="w-4 h-4"></i></button>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                     {renderModals()}
                 </div>
             );
         };
+
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
