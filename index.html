@@ -11,6 +11,11 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- เพิ่มไลบรารีสำหรับอ่านไฟล์ PDF เพื่อส่งเนื้อหาให้ ChatGPT -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    </script>
     <style>
         body { 
             font-family: 'Sarabun', sans-serif; 
@@ -293,13 +298,37 @@
                     const matchIntDate = !filters.intDate || item.interviewDate === filters.intDate;
                     const matchIntResult = !filters.intResult || item.interviewStatus === filters.intResult;
                     return matchName && matchSubDate && matchStatus && matchPos && matchIntDate && matchIntResult;
-                }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-            }, [cloudCandidates, currentUserAgency, filters]);
+            }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        }, [cloudCandidates, currentUserAgency, filters]);
 
-            const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
-            const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+        const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
+        const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-            const handleBulkCheck = () => {
+        // ฟังก์ชันสำหรับดึงข้อความออกจาก PDF เพื่อนำไปให้ ChatGPT วิเคราะห์
+        const extractTextFromPDF = async (base64Data) => {
+            try {
+                const binaryString = window.atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                const loadingTask = window.pdfjsLib.getDocument({data: bytes});
+                const pdf = await loadingTask.promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    fullText += textContent.items.map(item => item.str).join(" ") + "\n";
+                }
+                return fullText;
+            } catch (error) {
+                console.error("PDF Extraction Error:", error);
+                return null;
+            }
+        };
+
+        const handleBulkCheck = () => {
                 const updated = draftList.map((item) => {
                     const inputEmail = item.email.toLowerCase().trim();
                     const inputTel = item.tel.replace(/\D/g, '');
@@ -341,76 +370,50 @@
                             let aiData = { score: null, summary: null };
                             
                             try {
-                                let apiKey = ""; 
-                                // ระบบโมเดลสำรอง (Fallback)
-                                let modelsToTry = ["gemini-2.5-flash-preview-09-2025"];
+                                // 🔑 ใส่รหัส API Key ของ OpenAI (ChatGPT) ที่นี่ (ขึ้นต้นด้วย sk-)
+                                const openAIApiKey = "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"; 
                                 
-                                if (window.location.hostname && !window.location.hostname.includes('google') && window.location.hostname !== 'localhost') {
-                                    apiKey = "AIzaSyA_ts9NPTLTA0-YlN9dZPVpS9I_iZpW7Nc"; 
-                                    // รายชื่อรุ่นที่ให้ลองตามลำดับ (หากตัวแรก 404 ให้ลองตัวถัดไป)
-                                    modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"]; 
+                                if (!openAIApiKey || openAIApiKey.includes('xxxx')) {
+                                    throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key");
                                 }
-                                
+
+                                // 1. ถอดข้อความจากไฟล์ PDF 
+                                const pdfText = await extractTextFromPDF(base64);
+                                if (!pdfText) throw new Error("ไม่สามารถดึงข้อความจากไฟล์ PDF ได้");
+
                                 const specificCriteria = jobRequirements[position] 
                                     ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"` 
                                     : "";
 
-                                const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ที่แนบมานี้เพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้`;
+                                // 2. สั่งการ ChatGPT ให้ประเมินผล
+                                const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครที่มีเนื้อหาดังนี้:\n\n"${pdfText.substring(0, 10000)}"\n\nเพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้ ตอบกลับมาในรูปแบบ JSON ที่มี key คือ "score" (ตัวเลข) และ "summary" (ข้อความสรุป)`;
 
-                                const aiPayload = {
-                                    contents: [{
-                                        role: "user",
-                                        parts: [
-                                            { text: promptText },
-                                            { inlineData: { mimeType: file.type || "application/pdf", data: base64 } }
-                                        ]
-                                    }],
-                                    generationConfig: {
-                                        responseMimeType: "application/json",
-                                        responseSchema: {
-                                            type: "OBJECT",
-                                            properties: {
-                                                score: { type: "NUMBER" },
-                                                summary: { type: "STRING" }
-                                            }
-                                        }
-                                    }
-                                };
-
-                                if (!apiKey && modelsToTry[0] !== "gemini-2.5-flash-preview-09-2025") {
-                                    throw new Error("ไม่มีการตั้งค่า API Key");
-                                }
-
-                                let aiRes = null;
-                                let success = false;
-                                let lastError = "";
-
-                                // วนลูปทดลองใช้โมเดลในคลังทีละตัวเพื่อแก้ปัญหา 404 Not Found
-                                for (let modelName of modelsToTry) {
-                                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-                                    
-                                    aiRes = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aiPayload) });
-                                    
-                                    if (aiRes.ok) {
-                                        success = true;
-                                        break;
-                                    } else {
-                                        lastError = await aiRes.text();
-                                        console.warn(`[AI Fallback] Model ${modelName} failed:`, lastError);
-                                    }
-                                }
-
-                                if (!success) {
-                                    throw new Error(`API Error: ${lastError}`);
+                                const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${openAIApiKey}`
+                                    },
+                                    body: JSON.stringify({
+                                        model: "gpt-4o-mini", // ใช้โมเดลนี้เพราะทำงานไวและฉลาดมาก
+                                        messages: [{ role: "user", content: promptText }],
+                                        response_format: { type: "json_object" }
+                                    })
+                                });
+                                
+                                if (!aiRes.ok) {
+                                    const errDetails = await aiRes.json();
+                                    throw new Error(errDetails.error?.message || "OpenAI API Error");
                                 }
 
                                 const aiJson = await aiRes.json();
-                                if (aiJson.candidates && aiJson.candidates[0].content.parts[0].text) {
-                                    aiData = JSON.parse(aiJson.candidates[0].content.parts[0].text);
+                                if (aiJson.choices && aiJson.choices[0].message.content) {
+                                    const result = JSON.parse(aiJson.choices[0].message.content);
+                                    aiData = { score: result.score, summary: result.summary };
                                 }
                             } catch (aiErr) {
                                 console.error("AI Analysis failed:", aiErr);
-                                aiData.summary = "เกิดข้อผิดพลาดในการวิเคราะห์ AI: " + aiErr.message;
+                                aiData.summary = "AI ขัดข้อง: " + aiErr.message;
                             }
 
                             await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { 
