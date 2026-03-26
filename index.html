@@ -304,7 +304,7 @@
             const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-            // ฟังก์ชันสำหรับดึงข้อความออกจาก PDF เพื่อนำไปให้ ChatGPT วิเคราะห์
+            // ฟังก์ชันสำหรับดึงข้อความออกจาก PDF เพื่อนำไปให้ ChatGPT วิเคราะห์ (คงโค้ดไว้เผื่อเปิดใช้ AI ในอนาคต)
             const extractTextFromPDF = async (base64Data) => {
                 try {
                     const binaryString = window.atob(base64Data);
@@ -367,59 +367,61 @@
                         const res = await response.json();
                         
                         if (res.status === "success") {
-                            let aiData = { score: null, summary: null };
+                            // 💡 ตั้งค่าเริ่มต้นเป็น "รอผล" สำหรับโหมด Manual
+                            let aiData = { score: null, summary: 'รอผล' }; 
                             
-                            try {
-                                // 🔑 นำ API Key ที่คุณสร้างมาใส่ไว้ให้ตรงจุดแล้วครับ
-                                const openAIApiKey = "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".trim(); 
-                                
-                                if (!openAIApiKey || openAIApiKey.includes('xxxx')) {
-                                    throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key ในหน้าโค้ดครับ");
+                            // ⚙️ สวิตช์ปิด-เปิดระบบ AI (true = เปิดใช้งาน, false = ปิดและใช้โหมด Manual)
+                            const ENABLE_AI = false;
+                            
+                            if (ENABLE_AI) {
+                                try {
+                                    // โค้ดส่วนนี้จะทำงานเมื่อเปิดสวิตช์ ENABLE_AI เป็น true ในอนาคต
+                                    const openAIApiKey = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".trim(); 
+                                    
+                                    if (!openAIApiKey || openAIApiKey.includes('xxxx')) {
+                                        throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key ในหน้าโค้ดครับ");
+                                    }
+
+                                    const pdfText = await extractTextFromPDF(base64);
+                                    if (!pdfText) throw new Error("ไม่สามารถดึงข้อความจากไฟล์ PDF ได้ โปรดตรวจสอบไฟล์");
+
+                                    const specificCriteria = jobRequirements[position] 
+                                        ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"` 
+                                        : "";
+
+                                    const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครที่มีเนื้อหาดังนี้:\n\n"${pdfText.substring(0, 10000)}"\n\nเพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้ ตอบกลับมาในรูปแบบ JSON ที่มี key คือ "score" (ตัวเลข) และ "summary" (ข้อความสรุป)`;
+
+                                    const targetUrl = "https://api.openai.com/v1/chat/completions?nocache=" + Date.now();
+                                    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+
+                                    const aiRes = await fetch(proxyUrl, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${openAIApiKey}`
+                                        },
+                                        body: JSON.stringify({
+                                            model: 'gpt-4o-mini',
+                                            messages: [{ role: 'user', content: promptText }],
+                                            response_format: { type: 'json_object' }
+                                        })
+                                    });
+                                    
+                                    const aiJson = await aiRes.json();
+                                    
+                                    if (!aiRes.ok) {
+                                        if (aiRes.status === 401) throw new Error("API Key ของ OpenAI ไม่ถูกต้อง หรือยังไม่ได้เปิดสิทธิ์ (401)");
+                                        if (aiRes.status === 429) throw new Error("เครดิตเงินใน OpenAI หมด หรือจำกัดโควต้า (429)");
+                                        throw new Error(aiJson.error?.message || "OpenAI API Error");
+                                    }
+                                    
+                                    const aiContent = JSON.parse(aiJson.choices[0].message.content);
+                                    aiData = { score: aiContent.score, summary: aiContent.summary };
+
+                                } catch (aiErr) {
+                                    console.error("AI Analysis failed:", aiErr);
+                                    aiData.summary = "AI ขัดข้อง: " + aiErr.message;
                                 }
-
-                                // 1. ถอดข้อความจากไฟล์ PDF ด้วย Javascript ฝั่งหน้าเว็บ
-                                const pdfText = await extractTextFromPDF(base64);
-                                if (!pdfText) throw new Error("ไม่สามารถดึงข้อความจากไฟล์ PDF ได้ โปรดตรวจสอบไฟล์");
-
-                                const specificCriteria = jobRequirements[position] 
-                                    ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"` 
-                                    : "";
-
-                                // 2. สั่งการ ChatGPT ให้ประเมินผล
-                                const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครที่มีเนื้อหาดังนี้:\n\n"${pdfText.substring(0, 10000)}"\n\nเพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้ ตอบกลับมาในรูปแบบ JSON ที่มี key คือ "score" (ตัวเลข) และ "summary" (ข้อความสรุป)`;
-
-                                // ✅ Step 3: ใช้ CORS Proxy พร้อมระบบล้างแคช ป้องกัน Browser บล็อก
-                                const targetUrl = "https://api.openai.com/v1/chat/completions?nocache=" + Date.now();
-                                const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
-
-                                const aiRes = await fetch(proxyUrl, {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        // แก้ไขตัวแปรให้ตรงกันเป็น openAIApiKey
-                                        'Authorization': `Bearer ${openAIApiKey}`
-                                    },
-                                    body: JSON.stringify({
-                                        model: 'gpt-4o-mini',
-                                        messages: [{ role: 'user', content: promptText }],
-                                        response_format: { type: 'json_object' }
-                                    })
-                                });
-                                
-                                const aiJson = await aiRes.json();
-                                
-                                if (!aiRes.ok) {
-                                    if (aiRes.status === 401) throw new Error("API Key ของ OpenAI ไม่ถูกต้อง หรือยังไม่ได้เปิดสิทธิ์ (401)");
-                                    if (aiRes.status === 429) throw new Error("เครดิตเงินใน OpenAI หมด หรือจำกัดโควต้า (429)");
-                                    throw new Error(aiJson.error?.message || "OpenAI API Error");
-                                }
-                                
-                                const aiContent = JSON.parse(aiJson.choices[0].message.content);
-                                aiData = { score: aiContent.score, summary: aiContent.summary };
-
-                            } catch (aiErr) {
-                                console.error("AI Analysis failed:", aiErr);
-                                aiData.summary = "AI ขัดข้อง: " + aiErr.message;
                             }
 
                             await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { 
@@ -428,7 +430,7 @@
                                 aiSummary: aiData.summary
                             });
                             
-                            setPopup({ title: "SUCCESS", msg: `อัปโหลดไฟล์${aiData.score ? 'และวิเคราะห์ด้วย AI ' : ''}สำเร็จ!` });
+                            setPopup({ title: "SUCCESS", msg: `อัปโหลดไฟล์สำเร็จ!` });
                         }
                     } finally { 
                         setIsUploading(null); 
@@ -450,6 +452,8 @@
                         position: editFormData.position || '',
                         location: editFormData.location || '',
                         prescreenStatus: editFormData.prescreenStatus || '',
+                        aiSummary: editFormData.aiSummary || '', // สำหรับโหมด Manual
+                        aiScore: editFormData.aiScore !== undefined ? editFormData.aiScore : null,
                         interviewDate: editFormData.interviewDate || '',
                         interviewStatus: editFormData.interviewStatus || 'รอผล'
                     });
@@ -811,7 +815,7 @@
                                                 <th>ตำแหน่ง</th>
                                                 <th>สาขา</th>
                                                 <th className="text-center">สถานะ</th>
-                                                <th className="text-center">{currentUserAgency === 'Admin' ? 'AI วิเคราะห์' : 'Prescreen'}</th>
+                                                <th className="text-center">PRESCREEN</th>
                                                 <th className="text-center">Resume</th>
                                                 <th>นัดสัมภาษณ์</th>
                                                 <th className="text-center">ผลสัมภาษณ์</th>
@@ -890,10 +894,22 @@
                                                                 )}
                                                             </td>
                                                             <td className="text-center">
-                                                                {item.aiScore !== undefined && item.aiScore !== null ? (
+                                                                {isEditing ? (
+                                                                    <select value={editFormData.aiSummary || 'รอผล'} onChange={(e) => setEditFormData({...editFormData, aiSummary: e.target.value, aiScore: null})} className="admin-edit text-xs min-w-[80px]">
+                                                                        <option value="รอผล">รอผล</option>
+                                                                        <option value="ผ่าน">ผ่าน</option>
+                                                                        <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+                                                                    </select>
+                                                                ) : item.aiScore !== undefined && item.aiScore !== null ? (
                                                                     <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto shadow-sm ${getAiScoreClass(item.aiScore)}`}>
                                                                         <i data-lucide="sparkles" className="w-3 h-3"></i> {item.aiScore}%
                                                                     </button>
+                                                                ) : item.aiSummary === 'รอผล' ? (
+                                                                    <span className="badge bg-slate-100 text-slate-500 ring-1 ring-slate-400/20">รอผล</span>
+                                                                ) : item.aiSummary === 'ผ่าน' ? (
+                                                                    <span className="badge bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20">ผ่าน</span>
+                                                                ) : item.aiSummary === 'ไม่ผ่าน' ? (
+                                                                    <span className="badge bg-rose-50 text-rose-600 ring-1 ring-rose-500/20">ไม่ผ่าน</span>
                                                                 ) : item.aiSummary ? (
                                                                     <button onClick={() => setPopup({ title: "AI ERROR", msg: item.aiSummary })} className="badge cursor-pointer bg-slate-50 text-rose-500 ring-1 ring-rose-500/30 hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto">
                                                                         <i data-lucide="alert-circle" className="w-3 h-3"></i> Failed
