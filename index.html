@@ -298,37 +298,37 @@
                     const matchIntDate = !filters.intDate || item.interviewDate === filters.intDate;
                     const matchIntResult = !filters.intResult || item.interviewStatus === filters.intResult;
                     return matchName && matchSubDate && matchStatus && matchPos && matchIntDate && matchIntResult;
-            }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        }, [cloudCandidates, currentUserAgency, filters]);
+                }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            }, [cloudCandidates, currentUserAgency, filters]);
 
-        const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
-        const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+            const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
+            const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-        // ฟังก์ชันสำหรับดึงข้อความออกจาก PDF เพื่อนำไปให้ ChatGPT วิเคราะห์
-        const extractTextFromPDF = async (base64Data) => {
-            try {
-                const binaryString = window.atob(base64Data);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
+            // ฟังก์ชันสำหรับดึงข้อความออกจาก PDF เพื่อนำไปให้ ChatGPT วิเคราะห์
+            const extractTextFromPDF = async (base64Data) => {
+                try {
+                    const binaryString = window.atob(base64Data);
+                    const len = binaryString.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    const loadingTask = window.pdfjsLib.getDocument({data: bytes});
+                    const pdf = await loadingTask.promise;
+                    let fullText = "";
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const textContent = await page.getTextContent();
+                        fullText += textContent.items.map(item => item.str).join(" ") + "\n";
+                    }
+                    return fullText;
+                } catch (error) {
+                    console.error("PDF Extraction Error:", error);
+                    return null;
                 }
-                const loadingTask = window.pdfjsLib.getDocument({data: bytes});
-                const pdf = await loadingTask.promise;
-                let fullText = "";
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
-                    fullText += textContent.items.map(item => item.str).join(" ") + "\n";
-                }
-                return fullText;
-            } catch (error) {
-                console.error("PDF Extraction Error:", error);
-                return null;
-            }
-        };
+            };
 
-        const handleBulkCheck = () => {
+            const handleBulkCheck = () => {
                 const updated = draftList.map((item) => {
                     const inputEmail = item.email.toLowerCase().trim();
                     const inputTel = item.tel.replace(/\D/g, '');
@@ -371,15 +371,15 @@
                             
                             try {
                                 // 🔑 ใส่รหัส API Key ของ OpenAI (ChatGPT) ที่นี่ (ขึ้นต้นด้วย sk-)
-                                const openAIApiKey = "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"; 
+                                const openAIApiKey = "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"; 
                                 
                                 if (!openAIApiKey || openAIApiKey.includes('xxxx')) {
-                                    throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key");
+                                    throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key ในหน้าโค้ดครับ");
                                 }
 
-                                // 1. ถอดข้อความจากไฟล์ PDF 
+                                // 1. ถอดข้อความจากไฟล์ PDF ด้วย Javascript ฝั่งหน้าเว็บ
                                 const pdfText = await extractTextFromPDF(base64);
-                                if (!pdfText) throw new Error("ไม่สามารถดึงข้อความจากไฟล์ PDF ได้");
+                                if (!pdfText) throw new Error("ไม่สามารถดึงข้อความจากไฟล์ PDF ได้ โปรดตรวจสอบไฟล์");
 
                                 const specificCriteria = jobRequirements[position] 
                                     ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"` 
@@ -388,14 +388,17 @@
                                 // 2. สั่งการ ChatGPT ให้ประเมินผล
                                 const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครที่มีเนื้อหาดังนี้:\n\n"${pdfText.substring(0, 10000)}"\n\nเพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้ ตอบกลับมาในรูปแบบ JSON ที่มี key คือ "score" (ตัวเลข) และ "summary" (ข้อความสรุป)`;
 
-                                const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+                                // 3. ใช้ CORS Proxy เพื่อบายพาสการบล็อกของ Browser
+                                const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent("https://api.openai.com/v1/chat/completions");
+                                
+                                const aiRes = await fetch(proxyUrl, {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',
                                         'Authorization': `Bearer ${openAIApiKey}`
                                     },
                                     body: JSON.stringify({
-                                        model: "gpt-4o-mini", // ใช้โมเดลนี้เพราะทำงานไวและฉลาดมาก
+                                        model: "gpt-4o-mini", // โมเดลทำงานรวดเร็วและคุ้มค่า
                                         messages: [{ role: "user", content: promptText }],
                                         response_format: { type: "json_object" }
                                     })
