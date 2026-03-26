@@ -342,15 +342,14 @@
                             
                             try {
                                 let apiKey = ""; 
-                                let modelName = "gemini-2.5-flash-preview-09-2025";
+                                // ระบบโมเดลสำรอง (Fallback)
+                                let modelsToTry = ["gemini-2.5-flash-preview-09-2025"];
                                 
-                                // หากนำเว็บไปรันบน Github Pages (โดเมนจริง) ระบบจะใช้ Key และ Model ล่าสุดที่คุณกำหนด
                                 if (window.location.hostname && !window.location.hostname.includes('google') && window.location.hostname !== 'localhost') {
-                                    apiKey = "AIzaSyA_ts9NPTLTA0-YlN9dZPVpS9I_iZpW7Nc"; // ใส่ Key ตามที่คุณขอไว้
-                                    modelName = "gemini-1.5-flash"; // เปลี่ยนชื่อโมเดลเป็นรุ่นมาตรฐาน ลบ -latest ออก
+                                    apiKey = "AIzaSyA_ts9NPTLTA0-YlN9dZPVpS9I_iZpW7Nc"; 
+                                    // รายชื่อรุ่นที่ให้ลองตามลำดับ (หากตัวแรก 404 ให้ลองตัวถัดไป)
+                                    modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"]; 
                                 }
-                                
-                                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
                                 
                                 const specificCriteria = jobRequirements[position] 
                                     ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"` 
@@ -378,15 +377,31 @@
                                     }
                                 };
 
-                                if (!apiKey && modelName !== "gemini-2.5-flash-preview-09-2025") {
+                                if (!apiKey && modelsToTry[0] !== "gemini-2.5-flash-preview-09-2025") {
                                     throw new Error("ไม่มีการตั้งค่า API Key");
                                 }
 
-                                const aiRes = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aiPayload) });
-                                
-                                if (!aiRes.ok) {
-                                    const errDetails = await aiRes.text();
-                                    throw new Error(`API Error ${aiRes.status}: ${errDetails}`);
+                                let aiRes = null;
+                                let success = false;
+                                let lastError = "";
+
+                                // วนลูปทดลองใช้โมเดลในคลังทีละตัวเพื่อแก้ปัญหา 404 Not Found
+                                for (let modelName of modelsToTry) {
+                                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                                    
+                                    aiRes = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(aiPayload) });
+                                    
+                                    if (aiRes.ok) {
+                                        success = true;
+                                        break;
+                                    } else {
+                                        lastError = await aiRes.text();
+                                        console.warn(`[AI Fallback] Model ${modelName} failed:`, lastError);
+                                    }
+                                }
+
+                                if (!success) {
+                                    throw new Error(`API Error: ${lastError}`);
                                 }
 
                                 const aiJson = await aiRes.json();
