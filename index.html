@@ -62,7 +62,7 @@
         /* Filter Bar */
         .compact-filter-bar { 
             display: grid; 
-            grid-template-columns: repeat(6, 1fr) auto; 
+            grid-template-columns: repeat(7, 1fr) auto; 
             gap: 12px; 
             background: white; 
             padding: 16px; 
@@ -172,7 +172,7 @@
             const [currentPage, setCurrentPage] = useState(1);
             const itemsPerPage = 50;
 
-            const [filters, setFilters] = useState({ name: '', subDate: '', status: '', pos: '', intDate: '', intResult: '' });
+            const [filters, setFilters] = useState({ name: '', subDate: '', status: '', pos: '', preScreen: '', intDate: '', intResult: '', agency: '' });
             const [popup, setPopup] = useState(null);
             const [confirmDialog, setConfirmDialog] = useState(null);
             const [isUploading, setIsUploading] = useState(null);
@@ -296,9 +296,11 @@
                     const matchSubDate = !filters.subDate || item.submissionDate === filters.subDate;
                     const matchStatus = !filters.status || item.prescreenStatus === filters.status;
                     const matchPos = !filters.pos || item.position === filters.pos;
+                    const matchPreScreen = !filters.preScreen || item.aiSummary === filters.preScreen;
                     const matchIntDate = !filters.intDate || item.interviewDate === filters.intDate;
                     const matchIntResult = !filters.intResult || item.interviewStatus === filters.intResult;
-                    return matchName && matchSubDate && matchStatus && matchPos && matchIntDate && matchIntResult;
+                    const matchAgency = !filters.agency || item.agency === filters.agency;
+                    return matchName && matchSubDate && matchStatus && matchPos && matchPreScreen && matchIntDate && matchIntResult && matchAgency;
                 }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
             }, [cloudCandidates, currentUserAgency, filters]);
 
@@ -733,14 +735,22 @@
                         )}
 
                         <div className="flex-1 min-w-0 flex flex-col gap-6">
-                            <div className="compact-filter-bar">
+                            <div className="compact-filter-bar" style={{ gridTemplateColumns: currentUserAgency === 'Admin' ? 'repeat(8, 1fr) auto' : 'repeat(7, 1fr) auto' }}>
                                 <div className="filter-item"><label className="modern-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
+                                
+                                {currentUserAgency === 'Admin' && (
+                                    <div className="filter-item"><label className="modern-label">Agency</label><select value={filters.agency} onChange={e => setFilters({...filters, agency: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="Manpower">Manpower</option><option value="Me Talent">Me Talent</option><option value="PRTR">PRTR</option><option value="Talentvis">Talentvis</option><option value="Techgrid">Techgrid</option><option value="Admin">Admin</option></select></div>
+                                )}
+                                
                                 <div className="filter-item"><label className="modern-label">ค้นหาชื่อ</label><input type="text" placeholder="ชื่อ/นามสกุล..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
                                 <div className="filter-item"><label className="modern-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option></select></div>
                                 <div className="filter-item"><label className="modern-label">ตำแหน่ง</label><select value={filters.pos} onChange={e => setFilters({...filters, pos: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
+                                
+                                <div className="filter-item"><label className="modern-label">PRESCREEN</label><select value={filters.preScreen} onChange={e => setFilters({...filters, preScreen: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
+                                
                                 <div className="filter-item"><label className="modern-label">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
                                 <div className="filter-item"><label className="modern-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({...filters, intResult: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
-                                <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', intDate:'', intResult:''})} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
+                                <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', preScreen:'', intDate:'', intResult:'', agency:''})} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
                             </div>
 
                             {currentUserAgency !== 'Admin' && draftList.length > 0 && (
