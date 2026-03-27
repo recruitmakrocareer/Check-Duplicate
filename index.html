@@ -525,6 +525,18 @@
                 document.body.removeChild(link);
             };
 
+            // 💡 ฟังก์ชันใหม่: โหลดไฟล์ Template สำหรับ Import
+            const downloadTemplate = () => {
+                const headers = ['วันที่ส่ง', 'Agency', 'ชื่อ', 'นามสกุล', 'เบอร์โทร', 'อีเมล', 'ตำแหน่งงาน', 'สาขา'];
+                const sampleData = ['2026-03-27', 'Manpower', 'สมชาย', 'ใจดี', '0812345678', 'somchai@email.com', 'Sales Executive', '1-Lardprao'];
+                const csvContent = "\uFEFF" + headers.join(',') + '\n' + sampleData.join(',');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "Candidate_Import_Template.csv";
+                link.click();
+            };
+
             // 💡 ฟังก์ชันใหม่: สำหรับ Import CSV (Admin Only)
             const handleImportCSV = (e) => {
                 const file = e.target.files[0];
@@ -874,6 +886,11 @@
                                     <div className="flex items-center gap-3">
                                         {currentUserAgency === 'Admin' && (
                                             <React.Fragment>
+                                                {/* 💡 ปุ่มโหลด Template */}
+                                                <button onClick={downloadTemplate} className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95 border border-slate-200">
+                                                    <i data-lucide="file-spreadsheet" className="w-3.5 h-3.5"></i> โหลด Template
+                                                </button>
+
                                                 {/* 💡 ส่วนที่เพิ่มใหม่: ปุ่ม Import CSV */}
                                                 <input type="file" id="import-csv" accept=".csv" className="hidden" onChange={handleImportCSV} />
                                                 <label htmlFor="import-csv" className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer m-0">
