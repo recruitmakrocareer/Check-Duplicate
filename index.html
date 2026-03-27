@@ -11,7 +11,6 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <!-- เพิ่มไลบรารีสำหรับอ่านไฟล์ PDF เพื่อส่งเนื้อหาให้ ChatGPT -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
@@ -526,6 +525,69 @@
                 document.body.removeChild(link);
             };
 
+            // 💡 ฟังก์ชันใหม่: สำหรับ Import CSV (Admin Only)
+            const handleImportCSV = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                setPopup({ title: "WARNING", msg: "กำลังอ่านข้อมูลจากไฟล์ กรุณารอสักครู่..." });
+
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: async (results) => {
+                        try {
+                            const data = results.data;
+                            if (data.length === 0) {
+                                setPopup({ title: "ERROR", msg: "ไม่พบข้อมูลในไฟล์ CSV" });
+                                return;
+                            }
+
+                            // ตรวจสอบว่าหัวคอลัมน์ถูกต้องหรือไม่
+                            const expectedHeaders = ['วันที่ส่ง', 'Agency', 'ชื่อ', 'นามสกุล', 'เบอร์โทร', 'อีเมล', 'ตำแหน่งงาน', 'สาขา'];
+                            const fileHeaders = Object.keys(data[0]);
+                            const isValid = expectedHeaders.every(h => fileHeaders.includes(h));
+
+                            if (!isValid) {
+                                setPopup({ title: "ERROR", msg: "รูปแบบคอลัมน์ไม่ถูกต้อง กรุณาใช้ Template ที่กำหนด" });
+                                e.target.value = '';
+                                return;
+                            }
+
+                            // ดึงข้อมูลและสร้างลง Firebase
+                            const promises = data.map(row => {
+                                const cleanTel = (row['เบอร์โทร'] || '').replace(/\D/g, ''); // คลีนเบอร์โทรให้เหลือแต่ตัวเลข
+                                return window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), {
+                                    submissionDate: row['วันที่ส่ง'] || new Date().toISOString().split('T')[0],
+                                    agency: row['Agency'] || 'Unknown',
+                                    firstName: row['ชื่อ'] || '',
+                                    lastName: row['นามสกุล'] || '',
+                                    tel: cleanTel,
+                                    email: (row['อีเมล'] || '').toLowerCase().trim(),
+                                    position: row['ตำแหน่งงาน'] || '',
+                                    location: row['สาขา'] || '',
+                                    prescreenStatus: 'Pending', // ตั้งค่าเริ่มต้นให้รอตรวจสอบความซ้ำซ้อน
+                                    interviewStatus: '',
+                                    resumeLink: '',
+                                    aiSummary: '',
+                                    createdAt: Date.now()
+                                });
+                            });
+
+                            await Promise.all(promises);
+                            setPopup({ title: "SUCCESS", msg: `นำเข้าข้อมูลสำเร็จจำนวน ${data.length} รายการ` });
+                            e.target.value = ''; // เคลียร์ไฟล์
+                        } catch (error) {
+                            console.error(error);
+                            setPopup({ title: "ERROR", msg: "เกิดข้อผิดพลาดในการบันทึกข้อมูลลงฐานข้อมูล" });
+                        }
+                    },
+                    error: (error) => {
+                        setPopup({ title: "ERROR", msg: "อ่านไฟล์ CSV ไม่สำเร็จ ตรวจสอบรูปแบบไฟล์" });
+                    }
+                });
+            };
+
             const renderModals = () => {
                 return (
                     <React.Fragment>
@@ -812,6 +874,12 @@
                                     <div className="flex items-center gap-3">
                                         {currentUserAgency === 'Admin' && (
                                             <React.Fragment>
+                                                {/* 💡 ส่วนที่เพิ่มใหม่: ปุ่ม Import CSV */}
+                                                <input type="file" id="import-csv" accept=".csv" className="hidden" onChange={handleImportCSV} />
+                                                <label htmlFor="import-csv" className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer m-0">
+                                                    <i data-lucide="upload-cloud" className="w-3.5 h-3.5"></i> Import CSV
+                                                </label>
+                                                
                                                 <button onClick={() => { setEditAiReq({...jobRequirements}); setIsAiSettingsOpen(true); }} className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
                                                     <i data-lucide="settings" className="w-3.5 h-3.5"></i> ตั้งค่า AI
                                                 </button>
