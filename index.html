@@ -76,19 +76,19 @@
         table { border-collapse: separate; border-spacing: 0; width: 100%; }
         th { 
             font-size: 11px; 
-            font-weight: 700; 
+            font-weight: 800; 
             text-transform: uppercase; 
             letter-spacing: 0.05em; 
-            color: #64748b; 
-            background-color: #f8fafc; 
-            padding: 14px 12px; 
+            color: #475569; 
+            background-color: #f1f5f9; 
+            padding: 14px 16px; 
             text-align: left;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 2px solid #e2e8f0;
             white-space: nowrap;
         }
         td { 
             font-size: 13px; 
-            padding: 12px; 
+            padding: 14px 16px; 
             border-bottom: 1px solid #f1f5f9; 
             vertical-align: middle; 
             transition: background 0.2s;
@@ -99,7 +99,7 @@
         .admin-edit { 
             width: 100%; 
             font-size: 12px; 
-            padding: 6px 8px; 
+            padding: 8px 10px; 
             border-radius: 8px; 
             border: 1px solid #cbd5e1; 
             font-weight: 600; 
@@ -107,7 +107,7 @@
             outline: none;
             transition: border-color 0.2s;
         }
-        .admin-edit:focus { border-color: #818cf8; }
+        .admin-edit:focus { border-color: #818cf8; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1); }
 
         .popup-animate { animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -184,7 +184,7 @@
             const [editFormData, setEditFormData] = useState({});
             const [aiModal, setAiModal] = useState(null); 
 
-            // 💡 เพิ่ม State สำหรับจัดการการตั้งค่าคุณสมบัติ AI
+            // 💡 State สำหรับจัดการการตั้งค่าคุณสมบัติ AI
             const defaultJobReqs = {
                 "Sales Executive": "มีประสบการณ์งานขายอย่างน้อย 1 ปี, มีทักษะการสื่อสารและเจรจาต่อรองดีเยี่ยม, หากมีประสบการณ์สายค้าปลีกจะพิจารณาเป็นพิเศษ",
                 "Section Manager - Bakery": "มีประสบการณ์บริหารจัดการส่วนเบเกอรี่อย่างน้อย 3 ปี, เข้าใจกระบวนการผลิตเบเกอรี่และควบคุมต้นทุน (Food Cost) ได้ดี",
@@ -199,7 +199,6 @@
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
 
-            // Helper function for UI elements to avoid inline logic breaks
             const getAiScoreClass = (score) => {
                 if (score >= 80) return 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/30';
                 if (score >= 50) return 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/30';
@@ -216,7 +215,7 @@
                 if (status === 'ผ่าน') return 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20';
                 if (status === 'ไม่ผ่าน') return 'bg-slate-100 text-slate-500 ring-1 ring-slate-400/20';
                 if (status === 'รอผล') return 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20';
-                return 'bg-slate-50 text-slate-400';
+                return 'bg-slate-50 text-slate-400 border border-slate-200';
             };
 
             const getPopupBgColor = (title) => {
@@ -277,7 +276,6 @@
                     setCloudCandidates(sn.docs.map(d => ({ id: d.id, ...d.data() }))); 
                 });
 
-                // 💡 โหลดการตั้งค่าคุณสมบัติ AI จาก Firestore (ถ้ามี)
                 const unsubSettings = window.FB.methods.onSnapshot(window.FB.methods.doc(window.FB.db, 'settings', 'ai_requirements'), (docSnap) => {
                     if (docSnap.exists()) {
                         setJobRequirements({ ...defaultJobReqs, ...docSnap.data() });
@@ -306,7 +304,6 @@
             const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-            // ฟังก์ชันสำหรับดึงข้อความออกจาก PDF เพื่อนำไปให้ ChatGPT วิเคราะห์ (คงโค้ดไว้เผื่อเปิดใช้ AI ในอนาคต)
             const extractTextFromPDF = async (base64Data) => {
                 try {
                     const binaryString = window.atob(base64Data);
@@ -369,23 +366,21 @@
                         const res = await response.json();
                         
                         if (res.status === "success") {
-                            // 💡 ตั้งค่าเริ่มต้นเป็น "รอผล" สำหรับโหมด Manual
                             let aiData = { score: null, summary: 'รอผล' }; 
                             
-                            // ⚙️ สวิตช์ปิด-เปิดระบบ AI (true = เปิดใช้งาน, false = ปิดและใช้โหมด Manual)
+                            // ⚙️ สวิตช์ปิด-เปิดระบบ AI
                             const ENABLE_AI = false;
                             
                             if (ENABLE_AI) {
                                 try {
-                                    // โค้ดส่วนนี้จะทำงานเมื่อเปิดสวิตช์ ENABLE_AI เป็น true ในอนาคต
                                     const openAIApiKey = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".trim(); 
                                     
                                     if (!openAIApiKey || openAIApiKey.includes('xxxx')) {
-                                        throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key ในหน้าโค้ดครับ");
+                                        throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key");
                                     }
 
                                     const pdfText = await extractTextFromPDF(base64);
-                                    if (!pdfText) throw new Error("ไม่สามารถดึงข้อความจากไฟล์ PDF ได้ โปรดตรวจสอบไฟล์");
+                                    if (!pdfText) throw new Error("ไม่สามารถดึงข้อความจากไฟล์ PDF ได้");
 
                                     const specificCriteria = jobRequirements[position] 
                                         ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"` 
@@ -393,7 +388,6 @@
 
                                     const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครที่มีเนื้อหาดังนี้:\n\n"${pdfText.substring(0, 10000)}"\n\nเพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้ ตอบกลับมาในรูปแบบ JSON ที่มี key คือ "score" (ตัวเลข) และ "summary" (ข้อความสรุป)`;
 
-                                    // ✅ Step 3: ใช้ CORS Proxy พร้อมระบบล้างแคช ป้องกัน Browser บล็อก
                                     const targetUrl = "https://api.openai.com/v1/chat/completions?nocache=" + Date.now();
                                     const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
 
@@ -413,8 +407,6 @@
                                     const aiJson = await aiRes.json();
                                     
                                     if (!aiRes.ok) {
-                                        if (aiRes.status === 401) throw new Error("API Key ของ OpenAI ไม่ถูกต้อง หรือยังไม่ได้เปิดสิทธิ์ (401)");
-                                        if (aiRes.status === 429) throw new Error("เครดิตเงินใน OpenAI หมด หรือจำกัดโควต้า (429)");
                                         throw new Error(aiJson.error?.message || "OpenAI API Error");
                                     }
                                     
@@ -462,10 +454,10 @@
                         position: editFormData.position || '',
                         location: editFormData.location || '',
                         prescreenStatus: editFormData.prescreenStatus || '',
-                        aiSummary: editFormData.aiSummary || '', // สำหรับโหมด Manual
+                        aiSummary: editFormData.aiSummary || '',
                         aiScore: editFormData.aiScore !== undefined ? editFormData.aiScore : null,
                         interviewDate: editFormData.interviewDate || '',
-                        interviewTime: editFormData.interviewTime || '', // เพิ่มบันทึกเวลาสัมภาษณ์
+                        interviewTime: editFormData.interviewTime || '',
                         interviewStatus: finalInterviewStatus
                     });
                     setEditingId(null);
@@ -475,7 +467,6 @@
                 }
             };
 
-            // 💡 ฟังก์ชันบันทึกการตั้งค่าคุณสมบัติ AI ขึ้นฐานข้อมูล
             const saveAiSettings = async () => {
                 try {
                     await window.FB.methods.setDoc(window.FB.methods.doc(window.FB.db, 'settings', 'ai_requirements'), editAiReq);
@@ -506,7 +497,7 @@
                     "AI Score": item.aiScore ? `${item.aiScore}%` : '',
                     "AI Summary": item.aiSummary || '',
                     "วันสัมภาษณ์": item.interviewDate || '',
-                    "เวลาสัมภาษณ์": item.interviewTime || '', // เพิ่มเวลาสัมภาษณ์ใน Export
+                    "เวลาสัมภาษณ์": item.interviewTime || '',
                     "ผลสัมภาษณ์": (item.aiSummary === 'ผ่าน' && item.interviewDate) ? (item.interviewStatus || 'รอผล') : '',
                     "ลิงก์ Resume": item.resumeLink || ''
                 }));
@@ -525,7 +516,6 @@
                 document.body.removeChild(link);
             };
 
-            // 💡 ฟังก์ชันใหม่: โหลดไฟล์ Template สำหรับ Import
             const downloadTemplate = () => {
                 const headers = ['วันที่ส่ง', 'Agency', 'ชื่อ', 'นามสกุล', 'เบอร์โทร', 'อีเมล', 'ตำแหน่งงาน', 'สาขา'];
                 const sampleData = ['2026-03-27', 'Manpower', 'สมชาย', 'ใจดี', '0812345678', 'somchai@email.com', 'Sales Executive', '1-Lardprao'];
@@ -537,7 +527,6 @@
                 link.click();
             };
 
-            // 💡 ฟังก์ชันใหม่: สำหรับ Import CSV (Admin Only)
             const handleImportCSV = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -555,7 +544,6 @@
                                 return;
                             }
 
-                            // ตรวจสอบว่าหัวคอลัมน์ถูกต้องหรือไม่
                             const expectedHeaders = ['วันที่ส่ง', 'Agency', 'ชื่อ', 'นามสกุล', 'เบอร์โทร', 'อีเมล', 'ตำแหน่งงาน', 'สาขา'];
                             const fileHeaders = Object.keys(data[0]);
                             const isValid = expectedHeaders.every(h => fileHeaders.includes(h));
@@ -566,9 +554,8 @@
                                 return;
                             }
 
-                            // ดึงข้อมูลและสร้างลง Firebase
                             const promises = data.map(row => {
-                                const cleanTel = (row['เบอร์โทร'] || '').replace(/\D/g, ''); // คลีนเบอร์โทรให้เหลือแต่ตัวเลข
+                                const cleanTel = (row['เบอร์โทร'] || '').replace(/\D/g, ''); 
                                 return window.FB.methods.addDoc(window.FB.methods.collection(window.FB.db, 'candidates'), {
                                     submissionDate: row['วันที่ส่ง'] || new Date().toISOString().split('T')[0],
                                     agency: row['Agency'] || 'Unknown',
@@ -578,7 +565,7 @@
                                     email: (row['อีเมล'] || '').toLowerCase().trim(),
                                     position: row['ตำแหน่งงาน'] || '',
                                     location: row['สาขา'] || '',
-                                    prescreenStatus: 'Wait Prescreen', // ตั้งค่าเริ่มต้นให้รอตรวจสอบความซ้ำซ้อน
+                                    prescreenStatus: 'Wait Prescreen', 
                                     interviewStatus: '',
                                     resumeLink: '',
                                     aiSummary: '',
@@ -588,7 +575,7 @@
 
                             await Promise.all(promises);
                             setPopup({ title: "SUCCESS", msg: `นำเข้าข้อมูลสำเร็จจำนวน ${data.length} รายการ` });
-                            e.target.value = ''; // เคลียร์ไฟล์
+                            e.target.value = '';
                         } catch (error) {
                             console.error(error);
                             setPopup({ title: "ERROR", msg: "เกิดข้อผิดพลาดในการบันทึกข้อมูลลงฐานข้อมูล" });
@@ -663,7 +650,7 @@
                             </div>
                         )}
 
-                        {/* ⚙️ AI Settings Modal (Admin Only) */}
+                        {/* ⚙️ AI Settings Modal */}
                         {isAiSettingsOpen && (
                             <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-4 transition-opacity">
                                 <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl popup-animate border border-slate-100 flex flex-col max-h-[90vh]">
@@ -817,7 +804,7 @@
                                 )}
                                 
                                 <div className="filter-item"><label className="modern-label">ค้นหาชื่อ</label><input type="text" placeholder="ชื่อ/นามสกุล..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
-                                <div className="filter-item"><label className="modern-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option></select></div>
+                                <div className="filter-item"><label className="modern-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="Wait Prescreen">Wait Prescreen</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option></select></div>
                                 <div className="filter-item"><label className="modern-label">ตำแหน่ง</label><select value={filters.pos} onChange={e => setFilters({...filters, pos: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
                                 
                                 <div className="filter-item"><label className="modern-label">PRESCREEN</label><select value={filters.preScreen} onChange={e => setFilters({...filters, preScreen: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
@@ -851,21 +838,28 @@
                                         <table>
                                             <thead>
                                                 <tr>
-                                                    <th>วันที่ส่ง</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>อีเมล</th><th>ตำแหน่ง</th><th>สาขา</th>
-                                                    <th className="bg-amber-50 text-amber-800 text-center">ผลตรวจสอบ</th>
+                                                    <th className="w-[30%]">ข้อมูลผู้สมัคร</th>
+                                                    <th className="w-[30%]">ตำแหน่ง และ สาขา</th>
+                                                    <th className="w-[40%] text-center">ผลการตรวจสอบ</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {draftList.map((item) => (
                                                     <tr key={item.draftId}>
-                                                        <td className="text-slate-500 text-xs">{item.submissionDate}</td>
-                                                        <td className="font-bold text-slate-800">{item.firstName} {item.lastName}</td>
-                                                        <td className="font-mono text-slate-600 text-xs">{item.tel}</td>
-                                                        <td className="text-slate-500">{item.email}</td>
-                                                        <td className="font-semibold text-indigo-600 text-xs">{item.position}</td>
-                                                        <td className="text-slate-500 text-xs">{item.location}</td>
+                                                        <td>
+                                                            <div className="font-bold text-slate-800 text-sm mb-1">{item.firstName} {item.lastName}</div>
+                                                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                                                                <span className="flex items-center"><i data-lucide="phone" className="w-3 h-3 mr-1"></i> {item.tel}</span>
+                                                                <span className="flex items-center"><i data-lucide="mail" className="w-3 h-3 mr-1"></i> {item.email}</span>
+                                                                <span className="flex items-center"><i data-lucide="calendar" className="w-3 h-3 mr-1"></i> {item.submissionDate}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <div className="font-semibold text-indigo-600 text-xs mb-1">{item.position}</div>
+                                                            <div className="text-slate-500 text-[11px] flex items-center"><i data-lucide="map-pin" className="w-3 h-3 mr-1"></i> {item.location}</div>
+                                                        </td>
                                                         <td className="text-center">
-                                                            <span className={`badge ${item.status === 'No Dup' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : item.status === 'Dup' ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20' : 'bg-slate-100 text-slate-500'}`}>
+                                                            <span className={`badge ${item.status === 'No Dup' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : item.status === 'Dup' ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
                                                                 {item.status}
                                                             </span>
                                                         </td>
@@ -886,12 +880,12 @@
                                     <div className="flex items-center gap-3">
                                         {currentUserAgency === 'Admin' && (
                                             <React.Fragment>
-                                                {/* 💡 ปุ่มโหลด Template */}
+                                                {/* ปุ่มโหลด Template */}
                                                 <button onClick={downloadTemplate} className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95 border border-slate-200">
                                                     <i data-lucide="file-spreadsheet" className="w-3.5 h-3.5"></i> โหลด Template
                                                 </button>
 
-                                                {/* 💡 ส่วนที่เพิ่มใหม่: ปุ่ม Import CSV */}
+                                                {/* ปุ่ม Import CSV */}
                                                 <input type="file" id="import-csv" accept=".csv" className="hidden" onChange={handleImportCSV} />
                                                 <label htmlFor="import-csv" className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer m-0">
                                                     <i data-lucide="upload-cloud" className="w-3.5 h-3.5"></i> Import CSV
@@ -906,7 +900,7 @@
                                             </React.Fragment>
                                         )}
                                         <span className="bg-white px-3 py-1 rounded-full text-[11px] font-bold text-slate-500 border border-slate-200">
-                                            หน้า {currentPage} / {totalPages} (พบ {allFiltered.length} รายการ)
+                                            หน้า {currentPage} / {totalPages}
                                         </span>
                                     </div>
                                 </div>
@@ -914,177 +908,176 @@
                                     <table>
                                         <thead>
                                             <tr>
-                                                <th>วันที่ส่ง</th>
-                                                {currentUserAgency === 'Admin' && <th>Agency</th>}
-                                                <th>ชื่อ-นามสกุล</th>
-                                                <th>เบอร์โทร</th>
-                                                <th>ตำแหน่ง</th>
-                                                <th>สาขา</th>
-                                                <th className="text-center">สถานะ</th>
-                                                <th className="text-center">PRESCREEN</th>
-                                                <th className="text-center">Resume</th>
-                                                <th>วันนัดสัมภาษณ์</th>
-                                                <th className="text-center">เวลาสัมภาษณ์</th>
-                                                <th className="text-center">ผลสัมภาษณ์</th>
-                                                <th className="text-center">จัดการ</th>
+                                                <th className="w-[30%]">ข้อมูลผู้สมัคร (Candidate)</th>
+                                                <th className="w-[25%]">ตำแหน่ง และ สาขา</th>
+                                                <th className="w-[20%] text-center">ตรวจสอบ (Prescreen)</th>
+                                                <th className="w-[15%] text-center">นัดหมายสัมภาษณ์</th>
+                                                <th className="w-[10%] text-center">จัดการ</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {paginatedItems.length === 0 ? (
-                                                <tr><td colSpan="13" className="text-center py-12 text-slate-400 font-medium">ไม่พบข้อมูลในระบบ</td></tr>
+                                                <tr><td colSpan="5" className="text-center py-12 text-slate-400 font-medium">ไม่พบข้อมูลในระบบ</td></tr>
                                             ) : (
                                                 paginatedItems.map(item => {
                                                     const isEditing = editingId === item.id && currentUserAgency === 'Admin';
                                                     
                                                     return (
                                                         <tr key={item.id} className={isEditing ? 'bg-indigo-50/30' : ''}>
-                                                            <td className="text-xs text-slate-400 font-medium whitespace-nowrap">
-                                                                {isEditing ? (
-                                                                    <input type="date" value={editFormData.submissionDate || ''} onChange={(e) => setEditFormData({...editFormData, submissionDate: e.target.value})} className="admin-edit text-xs min-w-[110px]" />
-                                                                ) : item.submissionDate}
-                                                            </td>
-                                                            {currentUserAgency === 'Admin' && (
-                                                                <td className="text-xs font-bold text-indigo-600 whitespace-nowrap">
-                                                                    {isEditing ? (
-                                                                        <select value={editFormData.agency || ''} onChange={(e) => setEditFormData({...editFormData, agency: e.target.value})} className="admin-edit text-xs min-w-[100px]">
-                                                                            <option value="Manpower">Manpower</option>
-                                                                            <option value="Me Talent">Me Talent</option>
-                                                                            <option value="PRTR">PRTR</option>
-                                                                            <option value="Talentvis">Talentvis</option>
-                                                                            <option value="Techgrid">Techgrid</option>
-                                                                            <option value="Admin">Admin</option>
-                                                                        </select>
-                                                                    ) : item.agency}
-                                                                </td>
-                                                            )}
-                                                            <td className="font-bold text-slate-800 whitespace-nowrap">
-                                                                {isEditing ? (
-                                                                    <div className="flex gap-1 min-w-[150px]">
-                                                                        <input type="text" placeholder="ชื่อ" value={editFormData.firstName || ''} onChange={(e) => setEditFormData({...editFormData, firstName: e.target.value})} className="admin-edit text-xs w-1/2" />
-                                                                        <input type="text" placeholder="นามสกุล" value={editFormData.lastName || ''} onChange={(e) => setEditFormData({...editFormData, lastName: e.target.value})} className="admin-edit text-xs w-1/2" />
-                                                                    </div>
-                                                                ) : (item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-'))}
-                                                            </td>
-                                                            <td className="font-mono text-slate-500 text-xs">
-                                                                {isEditing ? (
-                                                                    <input type="text" value={editFormData.tel || ''} onChange={(e) => setEditFormData({...editFormData, tel: e.target.value})} className="admin-edit text-xs min-w-[100px]" />
-                                                                ) : item.tel}
-                                                            </td>
-                                                            <td className="text-xs font-semibold text-indigo-500 max-w-[150px] truncate" title={item.position}>
-                                                                {isEditing ? (
-                                                                    <select value={editFormData.position || ''} onChange={(e) => setEditFormData({...editFormData, position: e.target.value})} className="admin-edit text-xs min-w-[120px]">
-                                                                        <option value="">- เลือกตำแหน่ง -</option>
-                                                                        {positions.map(p => <option key={p} value={p}>{p}</option>)}
-                                                                    </select>
-                                                                ) : item.position}
-                                                            </td>
-                                                            <td className="text-xs text-slate-500 max-w-[150px] truncate" title={item.location}>
-                                                                {isEditing ? (
-                                                                    <select value={editFormData.location || ''} onChange={(e) => setEditFormData({...editFormData, location: e.target.value})} className="admin-edit text-xs min-w-[120px]">
-                                                                        <option value="">- เลือกสาขา -</option>
-                                                                        {locations.map(l => <option key={l} value={l}>{l}</option>)}
-                                                                    </select>
-                                                                ) : item.location}
-                                                            </td>
-                                                            <td className="text-center">
-                                                                {isEditing ? (
-                                                                    <select value={editFormData.prescreenStatus || 'Wait Prescreen'} onChange={(e) => setEditFormData({...editFormData, prescreenStatus: e.target.value})} className="admin-edit text-xs min-w-[100px]">
-                                                                        <option value="No Dup">No Dup</option>
-                                                                        <option value="Dup">Dup</option>
-                                                                        <option value="Wait Prescreen">Wait Prescreen</option>
-                                                                    </select>
-                                                                ) : (
-                                                                    <span className={`badge ${item.prescreenStatus === 'No Dup' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : item.prescreenStatus === 'Dup' ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20' : 'bg-slate-100 text-slate-500'}`}>
-                                                                        {item.prescreenStatus}
-                                                                    </span>
-                                                                )}
-                                                            </td>
-                                                            <td className="text-center">
-                                                                {isEditing ? (
-                                                                    <select value={editFormData.aiSummary || 'รอผล'} onChange={(e) => setEditFormData({...editFormData, aiSummary: e.target.value, aiScore: null})} className="admin-edit text-xs min-w-[80px]">
-                                                                        <option value="รอผล">รอผล</option>
-                                                                        <option value="ผ่าน">ผ่าน</option>
-                                                                        <option value="ไม่ผ่าน">ไม่ผ่าน</option>
-                                                                    </select>
-                                                                ) : item.aiScore !== undefined && item.aiScore !== null ? (
-                                                                    <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto shadow-sm ${getAiScoreClass(item.aiScore)}`}>
-                                                                        <i data-lucide="sparkles" className="w-3 h-3"></i> {item.aiScore}%
-                                                                    </button>
-                                                                ) : item.aiSummary === 'รอผล' ? (
-                                                                    <span className="badge bg-slate-100 text-slate-500 ring-1 ring-slate-400/20">รอผล</span>
-                                                                ) : item.aiSummary === 'ผ่าน' ? (
-                                                                    <span className="badge bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20">ผ่าน</span>
-                                                                ) : item.aiSummary === 'ไม่ผ่าน' ? (
-                                                                    <span className="badge bg-rose-50 text-rose-600 ring-1 ring-rose-500/20">ไม่ผ่าน</span>
-                                                                ) : item.aiSummary ? (
-                                                                    <button onClick={() => setPopup({ title: "AI ERROR", msg: item.aiSummary })} className="badge cursor-pointer bg-slate-50 text-rose-500 ring-1 ring-rose-500/30 hover:scale-105 transition-transform flex items-center justify-center gap-1 mx-auto">
-                                                                        <i data-lucide="alert-circle" className="w-3 h-3"></i> Failed
-                                                                    </button>
-                                                                ) : (
-                                                                    <span className="text-slate-300 text-[10px]">-</span>
-                                                                )}
-                                                            </td>
+                                                            
+                                                            {/* COL 1: ข้อมูลผู้สมัคร */}
                                                             <td>
-                                                                <div className="flex justify-center gap-1.5">
-                                                                    {item.resumeLink ? (
-                                                                        <React.Fragment>
-                                                                            <a href={item.resumeLink} target="_blank" className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors" title="View Resume"><i data-lucide="file-text" className="w-4 h-4"></i></a>
+                                                                {isEditing ? (
+                                                                    <div className="flex flex-col gap-1.5">
+                                                                        <div className="flex gap-1">
+                                                                            <input type="text" placeholder="ชื่อ" value={editFormData.firstName || ''} onChange={(e) => setEditFormData({...editFormData, firstName: e.target.value})} className="admin-edit text-[11px] w-1/2" />
+                                                                            <input type="text" placeholder="นามสกุล" value={editFormData.lastName || ''} onChange={(e) => setEditFormData({...editFormData, lastName: e.target.value})} className="admin-edit text-[11px] w-1/2" />
+                                                                        </div>
+                                                                        <div className="flex gap-1">
+                                                                            <input type="text" placeholder="เบอร์โทร" value={editFormData.tel || ''} onChange={(e) => setEditFormData({...editFormData, tel: e.target.value})} className="admin-edit text-[11px] w-1/3" />
+                                                                            <input type="date" value={editFormData.submissionDate || ''} onChange={(e) => setEditFormData({...editFormData, submissionDate: e.target.value})} className="admin-edit text-[11px] w-1/3" />
                                                                             {currentUserAgency === 'Admin' && (
-                                                                                <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="Download"><i data-lucide="download" className="w-4 h-4"></i></a>
+                                                                                <select value={editFormData.agency || ''} onChange={(e) => setEditFormData({...editFormData, agency: e.target.value})} className="admin-edit text-[11px] w-1/3">
+                                                                                    <option value="Manpower">Manpower</option><option value="Me Talent">Me Talent</option><option value="PRTR">PRTR</option><option value="Talentvis">Talentvis</option><option value="Techgrid">Techgrid</option><option value="Admin">Admin</option>
+                                                                                </select>
                                                                             )}
-                                                                        </React.Fragment>
-                                                                    ) : (
-                                                                        currentUserAgency !== 'Admin' && item.prescreenStatus === 'No Dup' ? (
-                                                                            <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 bg-white border border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap">
-                                                                                {isUploading === item.id ? (
-                                                                                    <div className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                                                                                ) : (
-                                                                                    <span className="flex items-center"><i data-lucide="upload" className="w-3 h-3"></i></span>
-                                                                                )} 
-                                                                                {isUploading === item.id ? "กำลังอัปโหลด..." : "อัปโหลด"}
-                                                                            </button>
-                                                                        ) : <span className="text-slate-300"><i data-lucide="lock" className="w-4 h-4 mx-auto"></i></span>
-                                                                    )}
-                                                                </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <React.Fragment>
+                                                                        <div className="font-bold text-slate-800 text-sm mb-1">{item.firstName ? `${item.firstName} ${item.lastName}` : (item.name || '-')}</div>
+                                                                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                                                                            <span className="flex items-center"><i data-lucide="phone" className="w-3 h-3 mr-1"></i> {item.tel || '-'}</span>
+                                                                            {currentUserAgency === 'Admin' && <span className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-600 font-bold shadow-sm">{item.agency}</span>}
+                                                                            <span className="flex items-center"><i data-lucide="calendar" className="w-3 h-3 mr-1"></i> {item.submissionDate}</span>
+                                                                        </div>
+                                                                    </React.Fragment>
+                                                                )}
                                                             </td>
+
+                                                            {/* COL 2: ตำแหน่งและสาขา */}
                                                             <td>
                                                                 {isEditing ? (
-                                                                    <input type="date" value={editFormData.interviewDate || ''} onChange={e => setEditFormData({...editFormData, interviewDate: e.target.value})} className="admin-edit text-xs min-w-[110px]" /> 
+                                                                    <div className="flex flex-col gap-1.5">
+                                                                        <select value={editFormData.position || ''} onChange={(e) => setEditFormData({...editFormData, position: e.target.value})} className="admin-edit text-[11px]">
+                                                                            <option value="">- เลือกตำแหน่ง -</option>
+                                                                            {positions.map(p => <option key={p} value={p}>{p}</option>)}
+                                                                        </select>
+                                                                        <select value={editFormData.location || ''} onChange={(e) => setEditFormData({...editFormData, location: e.target.value})} className="admin-edit text-[11px]">
+                                                                            <option value="">- เลือกสาขา -</option>
+                                                                            {locations.map(l => <option key={l} value={l}>{l}</option>)}
+                                                                        </select>
+                                                                    </div>
                                                                 ) : (
-                                                                    <span className="text-slate-500 text-xs whitespace-nowrap">{item.interviewDate || '-'}</span>
+                                                                    <React.Fragment>
+                                                                        <div className="font-semibold text-indigo-600 text-xs mb-1 truncate max-w-[200px]" title={item.position}>{item.position}</div>
+                                                                        <div className="text-slate-500 text-[11px] flex items-center truncate max-w-[200px]" title={item.location}><i data-lucide="map-pin" className="w-3 h-3 mr-1"></i> {item.location}</div>
+                                                                    </React.Fragment>
                                                                 )}
                                                             </td>
+
+                                                            {/* COL 3: การประเมิน (Prescreen + AI + Resume) */}
                                                             <td className="text-center">
                                                                 {isEditing ? (
-                                                                    <input type="time" value={editFormData.interviewTime || ''} onChange={e => setEditFormData({...editFormData, interviewTime: e.target.value})} className="admin-edit text-xs min-w-[90px]" /> 
+                                                                    <div className="flex flex-col gap-1.5 items-center">
+                                                                        <div className="flex gap-1 w-full justify-center">
+                                                                            <select value={editFormData.prescreenStatus || 'Wait Prescreen'} onChange={(e) => setEditFormData({...editFormData, prescreenStatus: e.target.value})} className="admin-edit text-[11px] w-1/2">
+                                                                                <option value="Wait Prescreen">Wait Prescreen</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option>
+                                                                            </select>
+                                                                            <select value={editFormData.aiSummary || 'รอผล'} onChange={(e) => setEditFormData({...editFormData, aiSummary: e.target.value, aiScore: null})} className="admin-edit text-[11px] w-1/2">
+                                                                                <option value="รอผล">รอผล AI</option><option value="ผ่าน">ผ่าน AI</option><option value="ไม่ผ่าน">ไม่ผ่าน AI</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
                                                                 ) : (
-                                                                    <span className="text-slate-500 text-xs whitespace-nowrap">{item.interviewTime || '-'}</span>
+                                                                    <div className="flex flex-col items-center gap-1.5">
+                                                                        <div className="flex flex-wrap justify-center gap-1">
+                                                                            <span className={`badge ${item.prescreenStatus === 'No Dup' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : item.prescreenStatus === 'Dup' ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                                                                                {item.prescreenStatus}
+                                                                            </span>
+                                                                            {item.aiScore !== undefined && item.aiScore !== null ? (
+                                                                                <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 shadow-sm ${getAiScoreClass(item.aiScore)}`}>
+                                                                                    <i data-lucide="sparkles" className="w-3 h-3"></i> {item.aiScore}%
+                                                                                </button>
+                                                                            ) : item.aiSummary === 'รอผล' ? (
+                                                                                <span className="badge bg-slate-100 text-slate-500 ring-1 ring-slate-400/20">รอ AI</span>
+                                                                            ) : item.aiSummary === 'ผ่าน' ? (
+                                                                                <span className="badge bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20">ผ่าน AI</span>
+                                                                            ) : item.aiSummary === 'ไม่ผ่าน' ? (
+                                                                                <span className="badge bg-rose-50 text-rose-600 ring-1 ring-rose-500/20">ไม่ผ่าน AI</span>
+                                                                            ) : item.aiSummary ? (
+                                                                                <button onClick={() => setPopup({ title: "AI ERROR", msg: item.aiSummary })} className="badge cursor-pointer bg-slate-50 text-rose-500 ring-1 ring-rose-500/30 hover:scale-105 transition-transform flex items-center justify-center gap-1">
+                                                                                    <i data-lucide="alert-circle" className="w-3 h-3"></i> Failed
+                                                                                </button>
+                                                                            ) : null}
+                                                                        </div>
+                                                                        
+                                                                        {/* Resume Link/Upload */}
+                                                                        <div className="flex justify-center mt-1">
+                                                                            {item.resumeLink ? (
+                                                                                <div className="flex gap-1">
+                                                                                    <a href={item.resumeLink} target="_blank" className="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-colors flex items-center gap-1" title="View Resume"><i data-lucide="file-text" className="w-3 h-3"></i> เปิดเรซูเม่</a>
+                                                                                    {currentUserAgency === 'Admin' && (
+                                                                                        <a href={getDownloadLink(item.resumeLink)} target="_blank" className="text-slate-600 bg-slate-100 hover:bg-slate-200 p-1 rounded-md transition-colors" title="Download"><i data-lucide="download" className="w-3 h-3"></i></a>
+                                                                                    )}
+                                                                                </div>
+                                                                            ) : (
+                                                                                currentUserAgency !== 'Admin' && item.prescreenStatus === 'No Dup' ? (
+                                                                                    <button onClick={() => { setTargetId(item.id); fileInputRef.current.click(); }} className="text-indigo-600 bg-white border border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 text-[10px] font-bold px-3 py-1 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap">
+                                                                                        {isUploading === item.id ? (
+                                                                                            <div className="w-3 h-3 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                                                                                        ) : (
+                                                                                            <span className="flex items-center"><i data-lucide="upload" className="w-3 h-3"></i></span>
+                                                                                        )} 
+                                                                                        {isUploading === item.id ? "กำลังอัปโหลด..." : "อัปโหลดไฟล์"}
+                                                                                    </button>
+                                                                                ) : <span className="text-slate-300 flex items-center text-[10px]"><i data-lucide="lock" className="w-3 h-3 mr-1"></i> ไม่มีไฟล์</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
                                                                 )}
                                                             </td>
+
+                                                            {/* COL 4: นัดหมายสัมภาษณ์ */}
                                                             <td className="text-center">
                                                                 {isEditing ? (
-                                                                    (editFormData.aiSummary === 'ผ่าน' && editFormData.interviewDate) ? (
-                                                                        <select value={editFormData.interviewStatus || 'รอผล'} onChange={e => setEditFormData({...editFormData, interviewStatus: e.target.value})} className="admin-edit text-xs min-w-[90px]">
-                                                                            <option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option>
-                                                                        </select> 
-                                                                    ) : (
-                                                                        <span className="text-slate-300 text-[10px]">-</span>
-                                                                    )
+                                                                    <div className="flex flex-col gap-1.5 items-center">
+                                                                        <div className="flex gap-1 w-full justify-center">
+                                                                            <input type="date" value={editFormData.interviewDate || ''} onChange={e => setEditFormData({...editFormData, interviewDate: e.target.value})} className="admin-edit text-[11px] w-1/2" /> 
+                                                                            <input type="time" value={editFormData.interviewTime || ''} onChange={e => setEditFormData({...editFormData, interviewTime: e.target.value})} className="admin-edit text-[11px] w-1/2" /> 
+                                                                        </div>
+                                                                        {(editFormData.aiSummary === 'ผ่าน' && editFormData.interviewDate) && (
+                                                                            <select value={editFormData.interviewStatus || 'รอผล'} onChange={e => setEditFormData({...editFormData, interviewStatus: e.target.value})} className="admin-edit text-[11px] w-full">
+                                                                                <option value="รอผล">ผลการสัมภาษณ์: รอผล</option><option value="ผ่าน">ผลการสัมภาษณ์: ผ่าน</option><option value="ไม่ผ่าน">ผลการสัมภาษณ์: ไม่ผ่าน</option>
+                                                                            </select> 
+                                                                        )}
+                                                                    </div>
                                                                 ) : (
-                                                                    (item.aiSummary === 'ผ่าน' && item.interviewDate) ? (
-                                                                        <span className={`badge ${getInterviewStatusClass(item.interviewStatus || 'รอผล')}`}>{item.interviewStatus || 'รอผล'}</span>
-                                                                    ) : (
-                                                                        <span className="text-slate-300 text-[10px]">-</span>
-                                                                    )
+                                                                    <div className="flex flex-col items-center">
+                                                                        {(item.interviewDate || item.interviewTime) ? (
+                                                                            <div className="text-[10px] text-slate-600 font-bold mb-1.5 bg-slate-50 border border-slate-100 rounded-md px-2 py-1 inline-flex items-center gap-1.5">
+                                                                                <span><i data-lucide="calendar" className="w-3 h-3 inline"></i> {item.interviewDate || '-'}</span>
+                                                                                <span><i data-lucide="clock" className="w-3 h-3 inline"></i> {item.interviewTime || '-'}</span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="text-[10px] text-slate-400 mb-1.5">- ไม่ได้นัดหมาย -</div>
+                                                                        )}
+                                                                        
+                                                                        {(item.aiSummary === 'ผ่าน' && item.interviewDate) && (
+                                                                            <span className={`badge ${getInterviewStatusClass(item.interviewStatus || 'รอผล')}`}>{item.interviewStatus || 'รอผล'}</span>
+                                                                        )}
+                                                                    </div>
                                                                 )}
                                                             </td>
+
+                                                            {/* COL 5: จัดการ */}
                                                             <td className="text-center">
                                                                 <div className="flex justify-center gap-1.5">
                                                                     {currentUserAgency === 'Admin' ? (
                                                                         isEditing ? (
                                                                             <React.Fragment>
-                                                                                <button onClick={() => handleSaveEdit(item.id)} className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2 rounded-lg transition-colors" title="บันทึก"><i data-lucide="check" className="w-4 h-4"></i></button>
-                                                                                <button onClick={() => setEditingId(null)} className="text-slate-500 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors" title="ยกเลิก"><i data-lucide="x" className="w-4 h-4"></i></button>
+                                                                                <button onClick={() => handleSaveEdit(item.id)} className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2 rounded-lg transition-colors border border-emerald-200" title="บันทึก"><i data-lucide="check" className="w-4 h-4"></i></button>
+                                                                                <button onClick={() => setEditingId(null)} className="text-slate-500 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors border border-slate-200" title="ยกเลิก"><i data-lucide="x" className="w-4 h-4"></i></button>
                                                                             </React.Fragment>
                                                                         ) : (
                                                                             <React.Fragment>
