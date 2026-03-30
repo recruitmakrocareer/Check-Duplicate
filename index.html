@@ -195,6 +195,7 @@
             const [jobRequirements, setJobRequirements] = useState(defaultJobReqs);
             const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
             const [editAiReq, setEditAiReq] = useState({});
+            const [openaiApiKey, setOpenaiApiKey] = useState('');
 
             const [confirmingId, setConfirmingId] = useState(null);
             const [confirmFormData, setConfirmFormData] = useState({ status: '', comment: '' });
@@ -290,7 +291,9 @@
 
                 const unsubSettings = window.FB.methods.onSnapshot(window.FB.methods.doc(window.FB.db, 'settings', 'ai_requirements'), (docSnap) => {
                     if (docSnap.exists()) {
-                        setJobRequirements({ ...defaultJobReqs, ...docSnap.data() });
+                        const { openai_api_key, ...reqs } = docSnap.data();
+                        setJobRequirements({ ...defaultJobReqs, ...reqs });
+                        setOpenaiApiKey(openai_api_key || '');
                     }
                 });
 
@@ -378,36 +381,29 @@
                         const res = await response.json();
                         
                         if (res.status === "success") {
-                            let aiData = { score: null, summary: 'รอผล' }; 
-                            
-                            // ⚙️ สวิตช์ปิด-เปิดระบบ AI
-                            const ENABLE_AI = false;
-                            
+                            let aiData = { score: null, summary: 'รอผล', detail: '' };
+
+                            const apiKey = openaiApiKey ? openaiApiKey.trim() : '';
+                            const ENABLE_AI = apiKey.startsWith('sk-');
+
                             if (ENABLE_AI) {
                                 try {
-                                    const openAIApiKey = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".trim(); 
-                                    
-                                    if (!openAIApiKey || openAIApiKey.includes('xxxx')) {
-                                        throw new Error("ยังไม่ได้ตั้งค่า OpenAI API Key");
-                                    }
-
                                     const pdfText = await extractTextFromPDF(base64);
                                     if (!pdfText) throw new Error("ไม่สามารถดึงข้อความจากไฟล์ PDF ได้");
 
-                                    const specificCriteria = jobRequirements[position] 
-                                        ? `โดยมีคุณสมบัติหลักที่ต้องการคือ: "${jobRequirements[position]}"` 
+                                    const specificCriteria = jobRequirements[position]
+                                        ? `คุณสมบัติหลักที่ต้องการ: "${jobRequirements[position]}"`
                                         : "";
 
-                                    const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครที่มีเนื้อหาดังนี้:\n\n"${pdfText.substring(0, 10000)}"\n\nเพื่อดูความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria} ประเมินคะแนนความเหมาะสมเต็ม 100 คะแนน (พิจารณาจากความสอดคล้องของทักษะ ประสบการณ์ และการศึกษาตามคุณสมบัติที่ระบุ) และเขียนสรุปเป็นภาษาไทย 2-3 ประโยค อธิบายเหตุผลที่ให้คะแนนเท่านี้ ตอบกลับมาในรูปแบบ JSON ที่มี key คือ "score" (ตัวเลข) และ "summary" (ข้อความสรุป)`;
+                                    const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครด้านล่าง เพื่อประเมินความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria}\n\nเนื้อหา Resume:\n"${pdfText.substring(0, 10000)}"\n\nตอบกลับในรูปแบบ JSON เท่านั้น มี key ดังนี้:\n- "score": คะแนนความเหมาะสม 0-100 (ตัวเลข)\n- "result": "ผ่าน" หรือ "ไม่ผ่าน" เท่านั้น (คะแนน 60 ขึ้นไป = ผ่าน)\n- "detail": สรุปเหตุผลเป็นภาษาไทย 2-3 ประโยค`;
 
-                                    const targetUrl = "https://api.openai.com/v1/chat/completions?nocache=" + Date.now();
-                                    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+                                    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent("https://api.openai.com/v1/chat/completions");
 
                                     const aiRes = await fetch(proxyUrl, {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
-                                            'Authorization': `Bearer ${openAIApiKey}`
+                                            'Authorization': `Bearer ${apiKey}`
                                         },
                                         body: JSON.stringify({
                                             model: 'gpt-4o-mini',
@@ -415,26 +411,29 @@
                                             response_format: { type: 'json_object' }
                                         })
                                     });
-                                    
+
                                     const aiJson = await aiRes.json();
-                                    
+
                                     if (!aiRes.ok) {
                                         throw new Error(aiJson.error?.message || "OpenAI API Error");
                                     }
-                                    
+
                                     const aiContent = JSON.parse(aiJson.choices[0].message.content);
-                                    aiData = { score: aiContent.score, summary: aiContent.summary };
+                                    const resultVal = aiContent.result === 'ผ่าน' ? 'ผ่าน' : aiContent.result === 'ไม่ผ่าน' ? 'ไม่ผ่าน' : (aiContent.score >= 60 ? 'ผ่าน' : 'ไม่ผ่าน');
+                                    aiData = { score: aiContent.score, summary: resultVal, detail: aiContent.detail || '' };
 
                                 } catch (aiErr) {
                                     console.error("AI Analysis failed:", aiErr);
                                     aiData.summary = "AI ขัดข้อง: " + aiErr.message;
+                                    aiData.detail = '';
                                 }
                             }
 
-                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), { 
+                            await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), {
                                 resumeLink: res.url,
                                 aiScore: aiData.score,
-                                aiSummary: aiData.summary
+                                aiSummary: aiData.summary,
+                                aiDetail: aiData.detail
                             });
                             
                             setPopup({ title: "SUCCESS", msg: `อัปโหลดไฟล์สำเร็จ!` });
@@ -474,7 +473,8 @@
                         interviewDate: editFormData.interviewDate || '',
                         interviewTime: editFormData.interviewTime || '',
                         interviewStatus: finalInterviewStatus,
-                        interviewComment: finalInterviewComment
+                        interviewComment: finalInterviewComment,
+                        aiDetail: editFormData.aiDetail || ''
                     });
                     setEditingId(null);
                     setPopup({ title: "SUCCESS", msg: "บันทึกการแก้ไขเรียบร้อย!" });
@@ -504,7 +504,8 @@
 
             const saveAiSettings = async () => {
                 try {
-                    await window.FB.methods.setDoc(window.FB.methods.doc(window.FB.db, 'settings', 'ai_requirements'), editAiReq);
+                    const { openai_api_key, ...reqs } = editAiReq;
+                    await window.FB.methods.setDoc(window.FB.methods.doc(window.FB.db, 'settings', 'ai_requirements'), { ...reqs, openai_api_key: openai_api_key || '' });
                     setIsAiSettingsOpen(false);
                     setPopup({ title: "SUCCESS", msg: "บันทึกเงื่อนไขการประเมินของ AI เรียบร้อยแล้ว!" });
                 } catch (error) {
@@ -707,6 +708,31 @@
                                     
                                     <div className="p-6 overflow-y-auto flex-1 bg-slate-50/30">
                                         <div className="space-y-6">
+                                            {/* OpenAI API Key */}
+                                            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200">
+                                                <label className="modern-label text-indigo-700 mb-2 flex items-center gap-2">
+                                                    <i data-lucide="key" className="w-3.5 h-3.5"></i> OpenAI API Key
+                                                </label>
+                                                <input
+                                                    type="password"
+                                                    className="modern-input text-xs font-mono"
+                                                    placeholder="sk-..."
+                                                    value={editAiReq.openai_api_key || ''}
+                                                    onChange={(e) => setEditAiReq({...editAiReq, openai_api_key: e.target.value})}
+                                                />
+                                                <p className="text-[10px] text-indigo-500 mt-1.5 flex items-center gap-1">
+                                                    <i data-lucide="info" className="w-3 h-3"></i>
+                                                    AI จะทำงานอัตโนมัติเมื่อใส่ API Key — ใช้ gpt-4o-mini, คะแนน ≥ 60 = ผ่าน
+                                                </p>
+                                            </div>
+
+                                            {/* เส้นแบ่ง */}
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-1 h-px bg-slate-200"></div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">เงื่อนไขคุณสมบัติแต่ละตำแหน่ง</span>
+                                                <div className="flex-1 h-px bg-slate-200"></div>
+                                            </div>
+
                                             {positions.map(pos => (
                                                 <div key={pos} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                                                     <label className="modern-label text-indigo-600 mb-2 flex items-center gap-2">
@@ -929,7 +955,7 @@
                                                     <i data-lucide="upload-cloud" className="w-3.5 h-3.5"></i> Import CSV
                                                 </label>
                                                 
-                                                <button onClick={() => { setEditAiReq({...jobRequirements}); setIsAiSettingsOpen(true); }} className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
+                                                <button onClick={() => { setEditAiReq({...jobRequirements, openai_api_key: openaiApiKey}); setIsAiSettingsOpen(true); }} className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
                                                     <i data-lucide="settings" className="w-3.5 h-3.5"></i> ตั้งค่า AI
                                                 </button>
                                                 <button onClick={exportToCSV} className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
@@ -1034,7 +1060,7 @@
                                                                                 {item.prescreenStatus}
                                                                             </span>
                                                                             {item.aiScore !== undefined && item.aiScore !== null ? (
-                                                                                <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 shadow-sm ${getAiScoreClass(item.aiScore)}`}>
+                                                                                <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiDetail || item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 shadow-sm ${getAiScoreClass(item.aiScore)}`}>
                                                                                     <i data-lucide="sparkles" className="w-3 h-3"></i> {item.aiScore}%
                                                                                 </button>
                                                                             ) : item.aiSummary === 'รอผล' ? (
