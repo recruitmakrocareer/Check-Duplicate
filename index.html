@@ -200,6 +200,9 @@
             const [confirmingId, setConfirmingId] = useState(null);
             const [confirmFormData, setConfirmFormData] = useState({ status: '', comment: '' });
 
+            const [showCalendarView, setShowCalendarView] = useState(false);
+            const [calendarDate, setCalendarDate] = useState(new Date());
+
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
 
@@ -681,6 +684,136 @@
                             </div>
                         )}
 
+                        {/* 📅 Interview Calendar Modal */}
+                        {showCalendarView && (() => {
+                            const year = calendarDate.getFullYear();
+                            const month = calendarDate.getMonth();
+                            const monthNames = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+                            const dayNames = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+                            const firstDay = new Date(year, month, 1).getDay();
+                            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                            const interviewsInMonth = cloudCandidates.filter(c => {
+                                if (!c.interviewDate) return false;
+                                const d = new Date(c.interviewDate + 'T00:00:00');
+                                return d.getFullYear() === year && d.getMonth() === month;
+                            });
+
+                            const getInterviewsForDay = (day) => {
+                                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                return interviewsInMonth.filter(c => c.interviewDate === dateStr)
+                                    .sort((a, b) => (a.interviewTime || '').localeCompare(b.interviewTime || ''));
+                            };
+
+                            const today = new Date();
+                            const isToday = (day) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+
+                            const cells = [];
+                            for (let i = 0; i < firstDay; i++) cells.push(null);
+                            for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+                            const calStatusColor = (status) => {
+                                if (status === 'ผ่าน') return 'bg-indigo-100 text-indigo-700 border-l-2 border-indigo-400';
+                                if (status === 'ไม่ผ่าน') return 'bg-slate-100 text-slate-500 border-l-2 border-slate-400';
+                                if (status === 'ไม่เข้าสัมภาษณ์') return 'bg-rose-50 text-rose-600 border-l-2 border-rose-400';
+                                if (status === 'อื่นๆ') return 'bg-purple-50 text-purple-600 border-l-2 border-purple-400';
+                                return 'bg-amber-50 text-amber-700 border-l-2 border-amber-400';
+                            };
+
+                            return (
+                                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[998] p-4">
+                                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-6xl popup-animate border border-slate-100 flex flex-col max-h-[95vh]">
+                                        {/* Header */}
+                                        <div className="p-5 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50 rounded-t-[2rem] shrink-0">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-11 h-11 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center shadow-inner">
+                                                    <i data-lucide="calendar-days" className="w-5 h-5"></i>
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">ตารางปฏิทินสัมภาษณ์</h3>
+                                                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Interview Calendar — Admin View</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden">
+                                                    <button onClick={() => setCalendarDate(new Date(year, month - 1, 1))} className="p-2 text-slate-500 hover:bg-violet-50 hover:text-violet-600 transition-colors">
+                                                        <i data-lucide="chevron-left" className="w-4 h-4"></i>
+                                                    </button>
+                                                    <span className="px-3 font-black text-sm text-slate-800 min-w-[148px] text-center">{monthNames[month]} {year + 543}</span>
+                                                    <button onClick={() => setCalendarDate(new Date(year, month + 1, 1))} className="p-2 text-slate-500 hover:bg-violet-50 hover:text-violet-600 transition-colors">
+                                                        <i data-lucide="chevron-right" className="w-4 h-4"></i>
+                                                    </button>
+                                                </div>
+                                                <button onClick={() => setCalendarDate(new Date())} className="bg-violet-50 text-violet-600 border border-violet-200 px-3 py-2 rounded-xl text-[11px] font-bold uppercase hover:bg-violet-100 transition-colors">วันนี้</button>
+                                                <button onClick={() => setShowCalendarView(false)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 p-2 rounded-xl transition-colors">
+                                                    <i data-lucide="x" className="w-5 h-5"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Calendar Body */}
+                                        <div className="flex-1 overflow-y-auto p-5">
+                                            {/* Day name headers */}
+                                            <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+                                                {dayNames.map((d, i) => (
+                                                    <div key={d} className={`text-center text-[10px] font-black uppercase tracking-wider py-1.5 rounded-lg ${i === 0 ? 'text-rose-500 bg-rose-50' : i === 6 ? 'text-blue-500 bg-blue-50' : 'text-slate-500 bg-slate-50'}`}>{d}</div>
+                                                ))}
+                                            </div>
+                                            {/* Day cells */}
+                                            <div className="grid grid-cols-7 gap-1.5">
+                                                {cells.map((day, idx) => {
+                                                    if (day === null) return <div key={`empty-${idx}`} className="rounded-xl min-h-[110px] bg-slate-50/40"></div>;
+                                                    const dayInterviews = getInterviewsForDay(day);
+                                                    const colIdx = idx % 7;
+                                                    const isSun = colIdx === 0;
+                                                    const isSat = colIdx === 6;
+                                                    return (
+                                                        <div key={day} className={`rounded-xl border min-h-[110px] p-2 flex flex-col gap-1 transition-all ${isToday(day) ? 'border-violet-300 bg-violet-50/50 ring-2 ring-violet-200/60' : isSun || isSat ? 'border-slate-100 bg-rose-50/20' : 'border-slate-100 bg-white hover:border-violet-200'}`}>
+                                                            <div className={`text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full mb-0.5 shrink-0 ${isToday(day) ? 'bg-violet-500 text-white shadow-sm' : isSun || isSat ? 'text-rose-400' : 'text-slate-500'}`}>{day}</div>
+                                                            {dayInterviews.map(c => (
+                                                                <div key={c.id} title={`${c.interviewTime || ''} — ${c.firstName ? `${c.firstName} ${c.lastName}` : (c.name || '')} | ${c.position || ''} | ${c.agency || ''}`}
+                                                                    className={`rounded-md px-1.5 py-1 text-[9px] font-bold leading-tight ${calStatusColor(c.interviewStatus || 'รอผล')}`}>
+                                                                    <div className="flex items-center gap-0.5 mb-0.5 opacity-80">
+                                                                        <i data-lucide="clock" className="w-2.5 h-2.5 shrink-0"></i>
+                                                                        <span>{c.interviewTime || '--:--'}</span>
+                                                                        <span className="ml-auto opacity-60 text-[8px]">{c.agency || ''}</span>
+                                                                    </div>
+                                                                    <div className="truncate font-black">{c.firstName ? `${c.firstName} ${c.lastName}` : (c.name || '-')}</div>
+                                                                    <div className="truncate text-[8px] opacity-70">{c.position || ''}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Legend */}
+                                            <div className="mt-4 flex flex-wrap items-center gap-2 justify-end">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">สถานะ:</span>
+                                                {[['รอผล', 'bg-amber-50 text-amber-700 border-l-2 border-amber-400'], ['ผ่าน', 'bg-indigo-100 text-indigo-700 border-l-2 border-indigo-400'], ['ไม่ผ่าน', 'bg-slate-100 text-slate-500 border-l-2 border-slate-400'], ['ไม่เข้าสัมภาษณ์', 'bg-rose-50 text-rose-600 border-l-2 border-rose-400'], ['อื่นๆ', 'bg-purple-50 text-purple-600 border-l-2 border-purple-400']].map(([label, cls]) => (
+                                                    <span key={label} className={`px-2 py-1 rounded-md text-[10px] font-bold ${cls}`}>{label}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Footer Summary */}
+                                        <div className="p-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-white rounded-b-[2rem] shrink-0">
+                                            <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+                                                <i data-lucide="calendar-check" className="w-3.5 h-3.5 text-violet-500"></i>
+                                                นัดหมายทั้งหมดในเดือนนี้: <span className="text-violet-600 ml-1">{interviewsInMonth.length} คน</span>
+                                            </span>
+                                            <div className="flex flex-wrap gap-3 text-[11px] font-bold">
+                                                <span className="text-amber-600">{interviewsInMonth.filter(c => !c.interviewStatus || c.interviewStatus === 'รอผล').length} รอผล</span>
+                                                <span className="text-indigo-600">{interviewsInMonth.filter(c => c.interviewStatus === 'ผ่าน').length} ผ่าน</span>
+                                                <span className="text-rose-500">{interviewsInMonth.filter(c => c.interviewStatus === 'ไม่ผ่าน').length} ไม่ผ่าน</span>
+                                                <span className="text-slate-400">{interviewsInMonth.filter(c => c.interviewStatus === 'ไม่เข้าสัมภาษณ์').length} ไม่เข้า</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         {/* ⚙️ AI Settings Modal */}
                         {isAiSettingsOpen && (
                             <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[999] p-4 transition-opacity">
@@ -952,6 +1085,9 @@
                                                 </button>
                                                 <button onClick={exportToCSV} className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
                                                     <i data-lucide="download" className="w-3.5 h-3.5"></i> Export CSV
+                                                </button>
+                                                <button onClick={() => { setCalendarDate(new Date()); setShowCalendarView(true); }} className="bg-violet-500 hover:bg-violet-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
+                                                    <i data-lucide="calendar-days" className="w-3.5 h-3.5"></i> ปฏิทินสัมภาษณ์
                                                 </button>
                                             </React.Fragment>
                                         )}
