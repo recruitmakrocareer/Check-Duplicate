@@ -215,6 +215,8 @@
                 if (status === 'ผ่าน') return 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20';
                 if (status === 'ไม่ผ่าน') return 'bg-slate-100 text-slate-500 ring-1 ring-slate-400/20';
                 if (status === 'รอผล') return 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20';
+                if (status === 'ไม่เข้าสัมภาษณ์') return 'bg-rose-50 text-rose-500 ring-1 ring-rose-400/20';
+                if (status === 'อื่นๆ') return 'bg-purple-50 text-purple-500 ring-1 ring-purple-400/20';
                 return 'bg-slate-50 text-slate-400 border border-slate-200';
             };
 
@@ -445,6 +447,9 @@
                         finalInterviewStatus = 'รอผล';
                     }
 
+                    let finalInterviewComment = editFormData.interviewComment || '';
+                    if (finalInterviewStatus !== 'อื่นๆ') finalInterviewComment = '';
+
                     await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', id), {
                         submissionDate: editFormData.submissionDate || '',
                         agency: editFormData.agency || '',
@@ -458,7 +463,8 @@
                         aiScore: editFormData.aiScore !== undefined ? editFormData.aiScore : null,
                         interviewDate: editFormData.interviewDate || '',
                         interviewTime: editFormData.interviewTime || '',
-                        interviewStatus: finalInterviewStatus
+                        interviewStatus: finalInterviewStatus,
+                        interviewComment: finalInterviewComment
                     });
                     setEditingId(null);
                     setPopup({ title: "SUCCESS", msg: "บันทึกการแก้ไขเรียบร้อย!" });
@@ -499,6 +505,7 @@
                     "วันสัมภาษณ์": item.interviewDate || '',
                     "เวลาสัมภาษณ์": item.interviewTime || '',
                     "ผลสัมภาษณ์": (item.aiSummary === 'ผ่าน' && item.interviewDate) ? (item.interviewStatus || 'รอผล') : '',
+                    "หมายเหตุสัมภาษณ์": (item.interviewStatus === 'อื่นๆ') ? (item.interviewComment || '') : '',
                     "ลิงก์ Resume": item.resumeLink || ''
                 }));
 
@@ -810,7 +817,7 @@
                                 <div className="filter-item"><label className="modern-label">PRESCREEN</label><select value={filters.preScreen} onChange={e => setFilters({...filters, preScreen: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
                                 
                                 <div className="filter-item"><label className="modern-label">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
-                                <div className="filter-item"><label className="modern-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({...filters, intResult: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
+                                <div className="filter-item"><label className="modern-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({...filters, intResult: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option><option value="ไม่เข้าสัมภาษณ์">ไม่เข้าสัมภาษณ์</option><option value="อื่นๆ">อื่นๆ</option></select></div>
                                 <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', preScreen:'', intDate:'', intResult:'', agency:''})} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
                             </div>
 
@@ -1047,9 +1054,14 @@
                                                                             <input type="time" value={editFormData.interviewTime || ''} onChange={e => setEditFormData({...editFormData, interviewTime: e.target.value})} className="admin-edit text-[11px] w-1/2" /> 
                                                                         </div>
                                                                         {(editFormData.aiSummary === 'ผ่าน' && editFormData.interviewDate) && (
-                                                                            <select value={editFormData.interviewStatus || 'รอผล'} onChange={e => setEditFormData({...editFormData, interviewStatus: e.target.value})} className="admin-edit text-[11px] w-full">
-                                                                                <option value="รอผล">ผลการสัมภาษณ์: รอผล</option><option value="ผ่าน">ผลการสัมภาษณ์: ผ่าน</option><option value="ไม่ผ่าน">ผลการสัมภาษณ์: ไม่ผ่าน</option>
-                                                                            </select> 
+                                                                            <React.Fragment>
+                                                                                <select value={editFormData.interviewStatus || 'รอผล'} onChange={e => setEditFormData({...editFormData, interviewStatus: e.target.value})} className="admin-edit text-[11px] w-full">
+                                                                                    <option value="รอผล">ผลการสัมภาษณ์: รอผล</option><option value="ผ่าน">ผลการสัมภาษณ์: ผ่าน</option><option value="ไม่ผ่าน">ผลการสัมภาษณ์: ไม่ผ่าน</option><option value="ไม่เข้าสัมภาษณ์">ผลการสัมภาษณ์: ไม่เข้าสัมภาษณ์</option><option value="อื่นๆ">ผลการสัมภาษณ์: อื่นๆ</option>
+                                                                                </select>
+                                                                                {editFormData.interviewStatus === 'อื่นๆ' && (
+                                                                                    <textarea value={editFormData.interviewComment || ''} onChange={e => setEditFormData({...editFormData, interviewComment: e.target.value})} placeholder="ระบุรายละเอียด..." className="admin-edit text-[11px] w-full resize-none" rows={2} />
+                                                                                )}
+                                                                            </React.Fragment>
                                                                         )}
                                                                     </div>
                                                                 ) : (
@@ -1064,7 +1076,12 @@
                                                                         )}
                                                                         
                                                                         {(item.aiSummary === 'ผ่าน' && item.interviewDate) && (
-                                                                            <span className={`badge ${getInterviewStatusClass(item.interviewStatus || 'รอผล')}`}>{item.interviewStatus || 'รอผล'}</span>
+                                                                            <React.Fragment>
+                                                                                <span className={`badge ${getInterviewStatusClass(item.interviewStatus || 'รอผล')}`}>{item.interviewStatus || 'รอผล'}</span>
+                                                                                {item.interviewStatus === 'อื่นๆ' && item.interviewComment && (
+                                                                                    <div className="text-[10px] text-purple-500 mt-1 max-w-[160px] break-words">{item.interviewComment}</div>
+                                                                                )}
+                                                                            </React.Fragment>
                                                                         )}
                                                                     </div>
                                                                 )}
