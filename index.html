@@ -196,6 +196,9 @@
             const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
             const [editAiReq, setEditAiReq] = useState({});
 
+            const [confirmingId, setConfirmingId] = useState(null);
+            const [confirmFormData, setConfirmFormData] = useState({ status: '', comment: '' });
+
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
 
@@ -216,6 +219,13 @@
                 if (status === 'ไม่ผ่าน') return 'bg-slate-100 text-slate-500 ring-1 ring-slate-400/20';
                 if (status === 'รอผล') return 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20';
                 if (status === 'ไม่เข้าสัมภาษณ์') return 'bg-rose-50 text-rose-500 ring-1 ring-rose-400/20';
+                if (status === 'อื่นๆ') return 'bg-purple-50 text-purple-500 ring-1 ring-purple-400/20';
+                return 'bg-slate-50 text-slate-400 border border-slate-200';
+            };
+
+            const getConfirmStatusClass = (status) => {
+                if (status === 'ยืนยัน') return 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20';
+                if (status === 'ยกเลิก') return 'bg-rose-50 text-rose-500 ring-1 ring-rose-400/20';
                 if (status === 'อื่นๆ') return 'bg-purple-50 text-purple-500 ring-1 ring-purple-400/20';
                 return 'bg-slate-50 text-slate-400 border border-slate-200';
             };
@@ -473,6 +483,25 @@
                 }
             };
 
+            const handleSaveConfirm = async (id) => {
+                if (!confirmFormData.status) {
+                    setPopup({ title: "WARNING", msg: "กรุณาเลือกสถานะการยืนยัน" });
+                    return;
+                }
+                try {
+                    const dataToSave = {
+                        confirmStatus: confirmFormData.status,
+                        confirmComment: confirmFormData.status === 'อื่นๆ' ? (confirmFormData.comment || '') : ''
+                    };
+                    await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', id), dataToSave);
+                    setConfirmingId(null);
+                    setConfirmFormData({ status: '', comment: '' });
+                    setPopup({ title: "SUCCESS", msg: "บันทึกการยืนยันสัมภาษณ์เรียบร้อย!" });
+                } catch (error) {
+                    setPopup({ title: "ERROR", msg: "เกิดข้อผิดพลาดในการบันทึก กรุณาลองใหม่" });
+                }
+            };
+
             const saveAiSettings = async () => {
                 try {
                     await window.FB.methods.setDoc(window.FB.methods.doc(window.FB.db, 'settings', 'ai_requirements'), editAiReq);
@@ -506,6 +535,8 @@
                     "เวลาสัมภาษณ์": item.interviewTime || '',
                     "ผลสัมภาษณ์": (item.aiSummary === 'ผ่าน' && item.interviewDate) ? (item.interviewStatus || 'รอผล') : '',
                     "หมายเหตุสัมภาษณ์": (item.interviewStatus === 'อื่นๆ') ? (item.interviewComment || '') : '',
+                    "ยืนยันสัมภาษณ์": item.interviewDate ? (item.confirmStatus || '') : '',
+                    "หมายเหตุยืนยัน": (item.confirmStatus === 'อื่นๆ') ? (item.confirmComment || '') : '',
                     "ลิงก์ Resume": item.resumeLink || ''
                 }));
 
@@ -1082,6 +1113,60 @@
                                                                                     <div className="text-[10px] text-purple-500 mt-1 max-w-[160px] break-words">{item.interviewComment}</div>
                                                                                 )}
                                                                             </React.Fragment>
+                                                                        )}
+
+                                                                        {/* Agency Confirmation Section */}
+                                                                        {item.interviewDate && (
+                                                                            <div className="mt-2 pt-2 border-t border-slate-100 w-full">
+                                                                                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">ยืนยันการเข้าสัมภาษณ์</div>
+                                                                                {confirmingId === item.id ? (
+                                                                                    <div className="flex flex-col gap-1.5 w-full">
+                                                                                        <div className="flex gap-1 justify-center">
+                                                                                            {['ยืนยัน', 'ยกเลิก', 'อื่นๆ'].map(s => (
+                                                                                                <button key={s} onClick={() => setConfirmFormData({ ...confirmFormData, status: s })}
+                                                                                                    className={`text-[10px] font-bold px-2 py-1 rounded-md border transition-colors ${confirmFormData.status === s ?
+                                                                                                        s === 'ยืนยัน' ? 'bg-emerald-500 text-white border-emerald-500' :
+                                                                                                        s === 'ยกเลิก' ? 'bg-rose-500 text-white border-rose-500' :
+                                                                                                        'bg-purple-500 text-white border-purple-500'
+                                                                                                        : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}>
+                                                                                                    {s}
+                                                                                                </button>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                        {confirmFormData.status === 'อื่นๆ' && (
+                                                                                            <textarea value={confirmFormData.comment || ''} onChange={e => setConfirmFormData({ ...confirmFormData, comment: e.target.value })} placeholder="ระบุรายละเอียด เช่น เลื่อนวันสัมภาษณ์, เลื่อนเวลา..." className="modern-input text-[10px] resize-none" rows={2} />
+                                                                                        )}
+                                                                                        <div className="flex gap-1 justify-end">
+                                                                                            <button onClick={() => { setConfirmingId(null); setConfirmFormData({ status: '', comment: '' }); }} className="text-[10px] px-2 py-1 rounded-md bg-slate-100 text-slate-500 hover:bg-slate-200 font-medium">ยกเลิก</button>
+                                                                                            <button disabled={!confirmFormData.status} onClick={() => handleSaveConfirm(item.id)} className="text-[10px] px-2 py-1 rounded-md bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-40 font-medium">บันทึก</button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="flex flex-col items-center gap-1">
+                                                                                        {item.confirmStatus ? (
+                                                                                            <React.Fragment>
+                                                                                                <span className={`badge ${getConfirmStatusClass(item.confirmStatus)}`}>
+                                                                                                    {item.confirmStatus === 'ยืนยัน' ? '✓ ยืนยันแล้ว' : item.confirmStatus === 'ยกเลิก' ? '✗ ยกเลิก' : 'อื่นๆ'}
+                                                                                                </span>
+                                                                                                {item.confirmStatus === 'อื่นๆ' && item.confirmComment && (
+                                                                                                    <div className="text-[10px] text-purple-500 max-w-[160px] break-words text-center">{item.confirmComment}</div>
+                                                                                                )}
+                                                                                                {currentUserAgency !== 'Admin' && (
+                                                                                                    <button onClick={() => { setConfirmingId(item.id); setConfirmFormData({ status: item.confirmStatus, comment: item.confirmComment || '' }); }} className="text-[9px] text-slate-400 hover:text-indigo-500 underline mt-0.5">แก้ไข</button>
+                                                                                                )}
+                                                                                            </React.Fragment>
+                                                                                        ) : (
+                                                                                            currentUserAgency !== 'Admin' ? (
+                                                                                                <button onClick={() => { setConfirmingId(item.id); setConfirmFormData({ status: '', comment: '' }); }} className="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-lg border border-indigo-200 transition-colors flex items-center gap-1 whitespace-nowrap">
+                                                                                                    <i data-lucide="check-square" className="w-3 h-3"></i> ยืนยันสัมภาษณ์
+                                                                                                </button>
+                                                                                            ) : (
+                                                                                                <span className="text-[10px] text-slate-300">- รอการยืนยัน -</span>
+                                                                                            )
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                 )}
