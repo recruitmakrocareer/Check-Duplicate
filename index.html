@@ -381,7 +381,7 @@
                         const res = await response.json();
                         
                         if (res.status === "success") {
-                            let aiData = { score: null, summary: 'รอผล', detail: '' };
+                            let aiData = { summary: 'รอผล', detail: '' };
 
                             const apiKey = openaiApiKey ? openaiApiKey.trim() : '';
                             const ENABLE_AI = apiKey.startsWith('sk-');
@@ -395,7 +395,7 @@
                                         ? `คุณสมบัติหลักที่ต้องการ: "${jobRequirements[position]}"`
                                         : "";
 
-                                    const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครด้านล่าง เพื่อประเมินความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria}\n\nเนื้อหา Resume:\n"${pdfText.substring(0, 10000)}"\n\nตอบกลับในรูปแบบ JSON เท่านั้น มี key ดังนี้:\n- "score": คะแนนความเหมาะสม 0-100 (ตัวเลข)\n- "result": "ผ่าน" หรือ "ไม่ผ่าน" เท่านั้น (คะแนน 60 ขึ้นไป = ผ่าน)\n- "detail": สรุปเหตุผลเป็นภาษาไทย 2-3 ประโยค`;
+                                    const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครด้านล่าง เพื่อประเมินความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria}\n\nเนื้อหา Resume:\n"${pdfText.substring(0, 10000)}"\n\nตอบกลับในรูปแบบ JSON เท่านั้น มี key ดังนี้:\n- "result": "ผ่าน" หรือ "ไม่ผ่าน" เท่านั้น\n- "detail": สรุปเหตุผลเป็นภาษาไทย 2-3 ประโยค`;
 
                                     const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent("https://api.openai.com/v1/chat/completions");
 
@@ -419,8 +419,8 @@
                                     }
 
                                     const aiContent = JSON.parse(aiJson.choices[0].message.content);
-                                    const resultVal = aiContent.result === 'ผ่าน' ? 'ผ่าน' : aiContent.result === 'ไม่ผ่าน' ? 'ไม่ผ่าน' : (aiContent.score >= 60 ? 'ผ่าน' : 'ไม่ผ่าน');
-                                    aiData = { score: aiContent.score, summary: resultVal, detail: aiContent.detail || '' };
+                                    const resultVal = aiContent.result === 'ผ่าน' ? 'ผ่าน' : 'ไม่ผ่าน';
+                                    aiData = { summary: resultVal, detail: aiContent.detail || '' };
 
                                 } catch (aiErr) {
                                     console.error("AI Analysis failed:", aiErr);
@@ -431,7 +431,7 @@
 
                             await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', targetId), {
                                 resumeLink: res.url,
-                                aiScore: aiData.score,
+                                aiScore: null,
                                 aiSummary: aiData.summary,
                                 aiDetail: aiData.detail
                             });
@@ -673,12 +673,6 @@
                                     <p className="text-xs font-bold text-indigo-500 mb-6 uppercase tracking-widest">{aiModal.name}</p>
                                     
                                     <div className="bg-slate-50 rounded-2xl p-6 mb-6">
-                                        <div className="text-5xl font-black mb-2 flex items-center justify-center gap-1" style={{ color: getAiColor(aiModal.score) }}>
-                                            {aiModal.score}<span className="text-xl font-bold opacity-50">%</span>
-                                        </div>
-                                        <div className="w-full bg-slate-200 rounded-full h-1.5 mb-5 overflow-hidden">
-                                            <div className="h-1.5 rounded-full transition-all duration-1000" style={{ width: `${aiModal.score}%`, backgroundColor: getAiColor(aiModal.score) }}></div>
-                                        </div>
                                         <p className="text-[14px] font-medium text-slate-700 leading-relaxed text-left">
                                             {aiModal.summary}
                                         </p>
@@ -700,7 +694,7 @@
                                             </div>
                                             <div>
                                                 <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">ตั้งค่าเงื่อนไข AI (Prescreen)</h3>
-                                                <p className="text-xs font-medium text-slate-500">กำหนดคุณสมบัติของแต่ละตำแหน่ง เพื่อให้ AI สแกนและให้คะแนนได้แม่นยำขึ้น</p>
+                                                <p className="text-xs font-medium text-slate-500">กำหนดคุณสมบัติของแต่ละตำแหน่ง เพื่อให้ AI ประเมินผล ผ่าน / ไม่ผ่าน ได้แม่นยำขึ้น</p>
                                             </div>
                                         </div>
                                         <button onClick={() => setIsAiSettingsOpen(false)} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 p-2 rounded-xl transition-colors"><i data-lucide="x" className="w-6 h-6"></i></button>
@@ -722,7 +716,7 @@
                                                 />
                                                 <p className="text-[10px] text-indigo-500 mt-1.5 flex items-center gap-1">
                                                     <i data-lucide="info" className="w-3 h-3"></i>
-                                                    AI จะทำงานอัตโนมัติเมื่อใส่ API Key — ใช้ gpt-4o-mini, คะแนน ≥ 60 = ผ่าน
+                                                    AI จะทำงานอัตโนมัติเมื่อใส่ API Key — ใช้ gpt-4o-mini ประเมินผล ผ่าน / ไม่ผ่าน
                                                 </p>
                                             </div>
 
@@ -1048,7 +1042,7 @@
                                                                             <select value={editFormData.prescreenStatus || 'Wait Prescreen'} onChange={(e) => setEditFormData({...editFormData, prescreenStatus: e.target.value})} className="admin-edit text-[11px] w-1/2">
                                                                                 <option value="Wait Prescreen">Wait Prescreen</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option>
                                                                             </select>
-                                                                            <select value={editFormData.aiSummary || 'รอผล'} onChange={(e) => setEditFormData({...editFormData, aiSummary: e.target.value, aiScore: null})} className="admin-edit text-[11px] w-1/2">
+                                                                            <select value={editFormData.aiSummary || 'รอผล'} onChange={(e) => setEditFormData({...editFormData, aiSummary: e.target.value})} className="admin-edit text-[11px] w-1/2">
                                                                                 <option value="รอผล">รอผล AI</option><option value="ผ่าน">ผ่าน AI</option><option value="ไม่ผ่าน">ไม่ผ่าน AI</option>
                                                                             </select>
                                                                         </div>
@@ -1059,16 +1053,16 @@
                                                                             <span className={`badge ${item.prescreenStatus === 'No Dup' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20' : item.prescreenStatus === 'Dup' ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-500/20' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
                                                                                 {item.prescreenStatus}
                                                                             </span>
-                                                                            {item.aiScore !== undefined && item.aiScore !== null ? (
-                                                                                <button onClick={() => setAiModal({ score: item.aiScore, summary: item.aiDetail || item.aiSummary, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge cursor-pointer hover:scale-105 transition-transform flex items-center justify-center gap-1 shadow-sm ${getAiScoreClass(item.aiScore)}`}>
-                                                                                    <i data-lucide="sparkles" className="w-3 h-3"></i> {item.aiScore}%
-                                                                                </button>
-                                                                            ) : item.aiSummary === 'รอผล' ? (
+                                                                            {item.aiSummary === 'รอผล' ? (
                                                                                 <span className="badge bg-slate-100 text-slate-500 ring-1 ring-slate-400/20">รอ AI</span>
                                                                             ) : item.aiSummary === 'ผ่าน' ? (
-                                                                                <span className="badge bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20">ผ่าน AI</span>
+                                                                                <button onClick={() => item.aiDetail && setAiModal({ summary: item.aiDetail, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge flex items-center gap-1 bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/20 ${item.aiDetail ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}>
+                                                                                    <i data-lucide="check-circle" className="w-3 h-3"></i> ผ่าน AI
+                                                                                </button>
                                                                             ) : item.aiSummary === 'ไม่ผ่าน' ? (
-                                                                                <span className="badge bg-rose-50 text-rose-600 ring-1 ring-rose-500/20">ไม่ผ่าน AI</span>
+                                                                                <button onClick={() => item.aiDetail && setAiModal({ summary: item.aiDetail, name: item.firstName ? `${item.firstName} ${item.lastName}` : item.name })} className={`badge flex items-center gap-1 bg-rose-50 text-rose-600 ring-1 ring-rose-500/20 ${item.aiDetail ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}>
+                                                                                    <i data-lucide="x-circle" className="w-3 h-3"></i> ไม่ผ่าน AI
+                                                                                </button>
                                                                             ) : item.aiSummary ? (
                                                                                 <button onClick={() => setPopup({ title: "AI ERROR", msg: item.aiSummary })} className="badge cursor-pointer bg-slate-50 text-rose-500 ring-1 ring-rose-500/30 hover:scale-105 transition-transform flex items-center justify-center gap-1">
                                                                                     <i data-lucide="alert-circle" className="w-3 h-3"></i> Failed
