@@ -397,9 +397,7 @@
 
                                     const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครด้านล่าง เพื่อประเมินความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria}\n\nเนื้อหา Resume:\n"${pdfText.substring(0, 10000)}"\n\nตอบกลับในรูปแบบ JSON เท่านั้น มี key ดังนี้:\n- "result": "ผ่าน" หรือ "ไม่ผ่าน" เท่านั้น\n- "detail": สรุปเหตุผลเป็นภาษาไทย 2-3 ประโยค`;
 
-                                    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent("https://api.openai.com/v1/chat/completions");
-
-                                    const aiRes = await fetch(proxyUrl, {
+                                    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
