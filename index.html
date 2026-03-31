@@ -400,28 +400,24 @@
 
                                     const promptText = `คุณคือ HR ผู้เชี่ยวชาญ จงวิเคราะห์ Resume ของผู้สมัครด้านล่าง เพื่อประเมินความเหมาะสมกับตำแหน่ง "${position}" ${specificCriteria}\n\nเนื้อหา Resume:\n"${pdfText.substring(0, 10000)}"\n\nตอบกลับในรูปแบบ JSON เท่านั้น มี key ดังนี้:\n- "result": "ผ่าน" หรือ "ไม่ผ่าน" เท่านั้น\n- "detail": สรุปเหตุผลเป็นภาษาไทย 2-3 ประโยค`;
 
-                                    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+                                    // Route through Apps Script proxy to avoid CORS restrictions
+                                    const aiRes = await fetch(scriptURL, {
                                         method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'Authorization': `Bearer ${apiKey}`
-                                        },
                                         body: JSON.stringify({
-                                            model: 'gpt-4o-mini',
-                                            messages: [{ role: 'user', content: promptText }],
-                                            response_format: { type: 'json_object' }
+                                            action: 'ai_analyze',
+                                            openai_api_key: apiKey,
+                                            prompt: promptText
                                         })
                                     });
 
                                     const aiJson = await aiRes.json();
 
-                                    if (!aiRes.ok) {
-                                        throw new Error(aiJson.error?.message || "OpenAI API Error");
+                                    if (aiJson.status !== 'success') {
+                                        throw new Error(aiJson.error || "AI Proxy Error");
                                     }
 
-                                    const aiContent = JSON.parse(aiJson.choices[0].message.content);
-                                    const resultVal = aiContent.result === 'ผ่าน' ? 'ผ่าน' : 'ไม่ผ่าน';
-                                    aiData = { summary: resultVal, detail: aiContent.detail || '' };
+                                    const resultVal = aiJson.result === 'ผ่าน' ? 'ผ่าน' : 'ไม่ผ่าน';
+                                    aiData = { summary: resultVal, detail: aiJson.detail || '' };
 
                                 } catch (aiErr) {
                                     console.error("AI Analysis failed:", aiErr);
