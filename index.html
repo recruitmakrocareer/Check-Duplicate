@@ -404,7 +404,7 @@
                                     const aiRes = await fetch(scriptURL, {
                                         method: 'POST',
                                         body: JSON.stringify({
-                                            action: 'ai_analyze',
+                                            action: 'analyzeResume',
                                             openai_api_key: apiKey,
                                             prompt: promptText
                                         })
@@ -413,7 +413,7 @@
                                     const aiJson = await aiRes.json();
 
                                     if (aiJson.status !== 'success') {
-                                        throw new Error(aiJson.error || "AI Proxy Error");
+                                        throw new Error(aiJson.message || aiJson.error || "AI Proxy Error");
                                     }
 
                                     const resultVal = aiJson.result === 'ผ่าน' ? 'ผ่าน' : 'ไม่ผ่าน';
