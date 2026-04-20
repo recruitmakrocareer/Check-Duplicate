@@ -216,6 +216,8 @@
             const [calEditFormData, setCalEditFormData] = useState({});
             const [pendingEditId, setPendingEditId] = useState(null);
             const [calResumePreview, setCalResumePreview] = useState(null);
+            const [calFilterTime, setCalFilterTime] = useState('');
+            const [calFilterLocation, setCalFilterLocation] = useState('');
 
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
@@ -1004,9 +1006,17 @@
                     return 'bg-amber-50 text-amber-700 border-l-2 border-amber-400';
                 };
 
+                const applyCalFilters = (list) => list.filter(c =>
+                    (!calFilterTime || c.interviewTime === calFilterTime) &&
+                    (!calFilterLocation || c.location === calFilterLocation)
+                );
+
+                const uniqueCalTimes = [...new Set(publicCalCandidates.map(c => c.interviewTime).filter(Boolean))].sort();
+                const uniqueCalLocations = [...new Set(publicCalCandidates.map(c => c.location).filter(Boolean))].sort((a, b) => parseInt(a) - parseInt(b));
+
                 const getInterviewsForDate = (dateStr) =>
-                    publicCalCandidates
-                        .filter(c => c.interviewDate === dateStr)
+                    applyCalFilters(publicCalCandidates
+                        .filter(c => c.interviewDate === dateStr))
                         .sort((a, b) => (a.interviewTime || '').localeCompare(b.interviewTime || ''));
 
                 // Month view helpers
@@ -1016,11 +1026,11 @@
                 for (let i = 0; i < firstDay; i++) monthCells.push(null);
                 for (let d = 1; d <= daysInMonth; d++) monthCells.push(d);
 
-                const interviewsInMonth = publicCalCandidates.filter(c => {
+                const interviewsInMonth = applyCalFilters(publicCalCandidates.filter(c => {
                     if (!c.interviewDate) return false;
                     const d = new Date(c.interviewDate + 'T00:00:00');
                     return d.getFullYear() === pcYear && d.getMonth() === pcMonth;
-                });
+                }));
 
                 // Week view helpers
                 const getWeekStart = (date) => {
@@ -1143,7 +1153,8 @@
                 return (
                     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-violet-50/30 flex flex-col">
                         {/* Header */}
-                        <div className="bg-white border-b border-slate-100 shadow-sm px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-10">
+                        <div className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-10">
+                            <div className="px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center">
                                     <i data-lucide="calendar-days" className="w-5 h-5"></i>
@@ -1173,6 +1184,57 @@
                                 <button onClick={() => { setShowPublicCalendar(false); setCalAdminAuthenticated(false); setCalEditingId(null); }} className="text-slate-400 hover:bg-rose-50 hover:text-rose-500 p-2 rounded-xl transition-colors" title="ปิด">
                                     <i data-lucide="x" className="w-5 h-5"></i>
                                 </button>
+                            </div>
+                            </div>
+
+                            {/* Filter Bar */}
+                            <div className="px-4 sm:px-6 py-2.5 border-t border-slate-100 bg-slate-50/60 flex flex-wrap items-center gap-3">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                    <i data-lucide="filter" className="w-3 h-3"></i> ตัวกรอง
+                                </span>
+
+                                {/* Time Filter */}
+                                <div className="flex items-center gap-1.5">
+                                    <i data-lucide="clock" className="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                                    <select
+                                        value={calFilterTime}
+                                        onChange={e => setCalFilterTime(e.target.value)}
+                                        className="text-[11px] font-semibold border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-300 min-w-[120px]"
+                                    >
+                                        <option value="">เวลาทั้งหมด</option>
+                                        {uniqueCalTimes.map(t => <option key={t} value={t}>{t} น.</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Location Filter */}
+                                <div className="flex items-center gap-1.5">
+                                    <i data-lucide="map-pin" className="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                                    <select
+                                        value={calFilterLocation}
+                                        onChange={e => setCalFilterLocation(e.target.value)}
+                                        className="text-[11px] font-semibold border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-300 min-w-[180px] max-w-[260px]"
+                                    >
+                                        <option value="">สาขาทั้งหมด</option>
+                                        {uniqueCalLocations.map(l => <option key={l} value={l}>{l}</option>)}
+                                    </select>
+                                </div>
+
+                                {/* Clear */}
+                                {(calFilterTime || calFilterLocation) && (
+                                    <button
+                                        onClick={() => { setCalFilterTime(''); setCalFilterLocation(''); }}
+                                        className="flex items-center gap-1 text-[10px] font-bold text-rose-500 hover:text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                                    >
+                                        <i data-lucide="x" className="w-3 h-3"></i> ล้างตัวกรอง
+                                    </button>
+                                )}
+
+                                {/* Active filter summary */}
+                                {(calFilterTime || calFilterLocation) && (
+                                    <span className="ml-auto text-[10px] font-semibold text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1.5 rounded-lg">
+                                        กรองแล้ว · {(calFilterTime ? `${calFilterTime} น.` : '')} {(calFilterLocation ? calFilterLocation : '')}
+                                    </span>
+                                )}
                             </div>
                         </div>
 
