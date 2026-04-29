@@ -1382,28 +1382,26 @@
                                                         const isEditing = calEditingId === c.id;
                                                         if (isEditing) return <CandidateCard key={c.id} c={c} compact={false} />;
                                                         return (
-                                                            <div key={c.id} className={`flex items-start gap-3 p-4 rounded-xl border ${calStatusColor(c.interviewStatus || 'รอผล')} relative group`}>
+                                                            <div key={c.id} className={`flex items-center gap-3 p-4 rounded-xl border ${calStatusColor(c.interviewStatus || 'รอผล')} relative group`}>
                                                                 <div className="text-center shrink-0">
                                                                     <div className="text-xl font-black text-slate-700">{c.interviewTime || '--'}</div>
                                                                     <div className="text-[9px] font-semibold text-slate-400 uppercase">เวลา</div>
                                                                 </div>
                                                                 <div className="w-px bg-slate-200 self-stretch mx-1 shrink-0"></div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="font-black text-slate-800 text-base truncate">{c.firstName ? `${c.firstName} ${c.lastName}` : (c.name || '-')}{c.position ? ` · ${c.position}` : ''}</div>
+                                                                <div className="flex-1 flex items-center gap-2 min-w-0 overflow-hidden">
+                                                                    <span className="font-black text-slate-800 text-sm truncate shrink-0 max-w-[220px]">{c.firstName ? `${c.firstName} ${c.lastName}` : (c.name || '-')}{c.position ? ` · ${c.position}` : ''}</span>
                                                                     {c.location && (
-                                                                        <div className="flex items-center gap-1 mt-1">
-                                                                            <i data-lucide="map-pin" className="w-3.5 h-3.5 text-violet-400 shrink-0"></i>
-                                                                            <span className="text-sm font-black text-slate-700">{c.location}</span>
-                                                                        </div>
+                                                                        <span className="flex items-center gap-0.5 shrink-0">
+                                                                            <i data-lucide="map-pin" className="w-3 h-3 text-violet-400 shrink-0"></i>
+                                                                            <span className="text-[11px] font-bold text-slate-600 whitespace-nowrap">{c.location}</span>
+                                                                        </span>
                                                                     )}
-                                                                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${c.interviewStatus === 'ผ่าน' ? 'bg-indigo-100 text-indigo-700' : c.interviewStatus === 'ไม่ผ่าน' ? 'bg-slate-100 text-slate-500' : c.interviewStatus === 'ไม่เข้าสัมภาษณ์' ? 'bg-rose-100 text-rose-600' : c.interviewStatus === 'อื่นๆ' ? 'bg-purple-100 text-purple-600' : 'bg-amber-100 text-amber-700'}`}>{c.interviewStatus || 'รอผล'}</span>
-                                                                        {c.agency && <span className="text-[10px] font-semibold text-slate-400">{c.agency}</span>}
-                                                                        {c.confirmStatus && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${c.confirmStatus === 'ยืนยัน' ? 'bg-emerald-100 text-emerald-700' : c.confirmStatus === 'ยกเลิก' ? 'bg-rose-100 text-rose-600' : 'bg-purple-100 text-purple-600'}`}>{c.confirmStatus}</span>}
-                                                                    </div>
-                                                                    {c.interviewComment && <div className="text-[10px] text-slate-400 mt-1 italic">หมายเหตุ: {c.interviewComment}</div>}
+                                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${c.interviewStatus === 'ผ่าน' ? 'bg-indigo-100 text-indigo-700' : c.interviewStatus === 'ไม่ผ่าน' ? 'bg-slate-100 text-slate-500' : c.interviewStatus === 'ไม่เข้าสัมภาษณ์' ? 'bg-rose-100 text-rose-600' : c.interviewStatus === 'อื่นๆ' ? 'bg-purple-100 text-purple-600' : 'bg-amber-100 text-amber-700'}`}>{c.interviewStatus || 'รอผล'}</span>
+                                                                    {c.agency && <span className="text-[10px] font-semibold text-slate-400 shrink-0">{c.agency}</span>}
+                                                                    {c.confirmStatus && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${c.confirmStatus === 'ยืนยัน' ? 'bg-emerald-100 text-emerald-700' : c.confirmStatus === 'ยกเลิก' ? 'bg-rose-100 text-rose-600' : 'bg-purple-100 text-purple-600'}`}>{c.confirmStatus}</span>}
+                                                                    {c.interviewComment && <span className="text-[10px] text-slate-400 italic truncate">หมายเหตุ: {c.interviewComment}</span>}
                                                                 </div>
-                                                                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                                                <div className="flex items-center gap-1.5 shrink-0">
                                                                     {c.interviewer && <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200 whitespace-nowrap">{c.interviewer}</span>}
                                                                     <div className="opacity-0 group-hover:opacity-100 flex gap-1.5 transition-all">
                                                                         {c.resumeLink && (
