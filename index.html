@@ -581,7 +581,7 @@
             const handleCalendarSaveEdit = async () => {
                 try {
                     const commentEl = document.getElementById('cal-comment-draft-input');
-                    const commentValue = calEditFormData.interviewStatus === 'อื่นๆ' ? (commentEl ? commentEl.value : calCommentDraft) : '';
+                    const commentValue = ['ผ่าน', 'ไม่ผ่าน', 'อื่นๆ'].includes(calEditFormData.interviewStatus) ? (commentEl ? commentEl.value : calCommentDraft) : '';
                     await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', calEditingId), {
                         interviewDate: calEditFormData.interviewDate || '',
                         interviewTime: calEditFormData.interviewTime || '',
@@ -1126,7 +1126,7 @@
                                     <option value="อื่นๆ">อื่นๆ</option>
                                 </select>
                             </div>
-                            {calEditFormData.interviewStatus === 'อื่นๆ' && (
+                            {['ผ่าน', 'ไม่ผ่าน', 'อื่นๆ'].includes(calEditFormData.interviewStatus) && (
                                 <div>
                                     <label className="text-[9px] font-bold text-slate-400 uppercase">หมายเหตุ</label>
                                     <input type="text" id="cal-comment-draft-input" defaultValue={calCommentDraft} className="w-full text-[13px] border-2 border-violet-300 rounded-lg px-3 py-2 font-semibold bg-white focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-200" placeholder="ระบุหมายเหตุ..." autoComplete="off" />
