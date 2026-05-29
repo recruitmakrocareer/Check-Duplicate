@@ -278,7 +278,8 @@
                 window.FB.methods.signInAnonymously(window.FB.auth);
                 window.FB.methods.onAuthStateChanged(window.FB.auth, (u) => {
                     setUser(u);
-                    
+                    if (!u) return;
+
                     fetch(dataSheetCSV).then(r => r.text()).then(res => {
                         const parsed = Papa.parse(res, { header: true }).data;
                         setExternalDataDb(parsed.filter(r => r.Email || r.Name).map(r => ({
