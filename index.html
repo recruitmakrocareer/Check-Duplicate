@@ -326,18 +326,19 @@
             }, [user, currentUserAgency]);
 
             useEffect(() => {
-                if (!showPublicCalendar || !user) return;
+                if (!showPublicCalendar) return;
                 const q = window.FB.methods.query(window.FB.methods.collection(window.FB.db, 'candidates'));
                 const unsub = window.FB.methods.onSnapshot(q, (sn) => {
                     setPublicCalCandidates(sn.docs.map(d => ({ id: d.id, ...d.data() })));
-                });
+                }, (err) => { console.warn('Calendar snapshot error:', err); });
                 const unsubSettings = window.FB.methods.onSnapshot(
                     window.FB.methods.doc(window.FB.db, 'settings', 'ai_requirements'),
                     (docSnap) => {
                         if (docSnap.exists() && docSnap.data().calendar_admin_password) {
                             setCalAdminPassword(docSnap.data().calendar_admin_password);
                         }
-                    }
+                    },
+                    () => {}
                 );
                 return () => { unsub(); unsubSettings(); };
             }, [showPublicCalendar, user]);
