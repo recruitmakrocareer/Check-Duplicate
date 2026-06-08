@@ -1582,7 +1582,7 @@
                             const filtered = activeRows.filter(row => {
                                 if (vacancyFilter.storeName && row[colStoreKey] !== vacancyFilter.storeName) return false;
                                 if (vacancyFilter.department && row[colDeptKey] !== vacancyFilter.department) return false;
-                                if (vacancyFilter.onlyPositive && parseInt(row[colVacKey] || 0) <= 0) return false;
+                                if (vacancyFilter.onlyPositive && parseInt(row[colVacKey] || 0) >= 0) return false;
                                 return true;
                             });
                             return (
