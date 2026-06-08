@@ -226,6 +226,7 @@
             const [showVacancy, setShowVacancy] = useState(false);
             const [vacancyData, setVacancyData] = useState([]);
             const [vacancyLoading, setVacancyLoading] = useState(false);
+            const [vacancyFilter, setVacancyFilter] = useState({ storeName: '', department: '', onlyPositive: false });
             const vacancySheetCSV = 'https://docs.google.com/spreadsheets/d/1qw73fReeyiUdEnP1So-m4xQW0IywyxIPLH0TBAaPZVo/export?format=csv&gid=1527213487';
 
             const fetchVacancy = () => {
@@ -1563,7 +1564,16 @@
                         </form>
                         </div>
 
-                        {showVacancy && (
+                        {showVacancy && (() => {
+                            const storeNames = [...new Set(vacancyData.map(r => r['STORE_NAME']).filter(Boolean))].sort();
+                            const departments = [...new Set(vacancyData.map(r => r['DEPARTMENT']).filter(Boolean))].sort();
+                            const filtered = vacancyData.filter(row => {
+                                if (vacancyFilter.storeName && row['STORE_NAME'] !== vacancyFilter.storeName) return false;
+                                if (vacancyFilter.department && row['DEPARTMENT'] !== vacancyFilter.department) return false;
+                                if (vacancyFilter.onlyPositive && parseInt(row['VACANCY'] || 0) <= 0) return false;
+                                return true;
+                            });
+                            return (
                             <div className="w-full max-w-4xl mt-6 mb-auto">
                                 <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] border border-slate-50 overflow-hidden">
                                     <div className="flex items-center gap-3 p-6 border-b border-slate-100">
@@ -1574,10 +1584,35 @@
                                             <h2 className="font-black text-base text-slate-800">ตำแหน่งงานว่าง</h2>
                                             <p className="text-slate-400 text-xs font-medium">รายการตำแหน่งที่เปิดรับสมัคร</p>
                                         </div>
-                                        <span className="ml-auto bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1 rounded-full ring-1 ring-emerald-500/20">{vacancyData.length} รายการ</span>
+                                        <span className="ml-auto bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1 rounded-full ring-1 ring-emerald-500/20">{filtered.length} / {vacancyData.length} รายการ</span>
                                     </div>
-                                    {vacancyData.length === 0 ? (
-                                        <div className="p-10 text-slate-400 text-sm">ไม่พบข้อมูลตำแหน่งว่าง</div>
+
+                                    <div className="p-4 border-b border-slate-100 flex flex-wrap gap-3 items-center bg-slate-50/50">
+                                        <select value={vacancyFilter.storeName} onChange={e => setVacancyFilter(f => ({...f, storeName: e.target.value}))}
+                                            className="flex-1 min-w-[160px] bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                                            <option value="">ทุกสาขา</option>
+                                            {storeNames.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                        <select value={vacancyFilter.department} onChange={e => setVacancyFilter(f => ({...f, department: e.target.value}))}
+                                            className="flex-1 min-w-[160px] bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                                            <option value="">ทุกแผนก</option>
+                                            {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                        <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl px-3 py-2">
+                                            <input type="checkbox" checked={vacancyFilter.onlyPositive} onChange={e => setVacancyFilter(f => ({...f, onlyPositive: e.target.checked}))}
+                                                className="w-4 h-4 rounded accent-emerald-500" />
+                                            มีอัตราว่าง
+                                        </label>
+                                        {(vacancyFilter.storeName || vacancyFilter.department || vacancyFilter.onlyPositive) && (
+                                            <button onClick={() => setVacancyFilter({ storeName: '', department: '', onlyPositive: false })}
+                                                className="flex items-center gap-1 text-xs text-rose-500 hover:text-rose-600 font-bold bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl px-3 py-2 transition-colors">
+                                                <i data-lucide="x" className="w-3 h-3"></i> ล้าง
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {filtered.length === 0 ? (
+                                        <div className="p-10 text-slate-400 text-sm">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</div>
                                     ) : (
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-sm text-left">
@@ -1589,7 +1624,7 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {vacancyData.map((row, i) => (
+                                                    {filtered.map((row, i) => (
                                                         <tr key={i} className={`border-b border-slate-50 hover:bg-slate-50 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-50/50'}`}>
                                                             {Object.values(row).map((val, j) => (
                                                                 <td key={j} className="px-4 py-3 text-slate-700 whitespace-nowrap">{val || '-'}</td>
@@ -1602,7 +1637,8 @@
                                     )}
                                 </div>
                             </div>
-                        )}
+                            );
+                        })()}
                     </div>
                     {renderModals()}
                 </React.Fragment>
