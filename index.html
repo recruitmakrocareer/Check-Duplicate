@@ -224,23 +224,30 @@
 
             // Vacancy States
             const [showVacancy, setShowVacancy] = useState(false);
-            const [vacancyData, setVacancyData] = useState([]);
+            const [vacancyData, setVacancyData] = useState({ b2b: [], section: [] });
             const [vacancyLoading, setVacancyLoading] = useState(false);
+            const [vacancyTab, setVacancyTab] = useState('b2b');
             const [vacancyFilter, setVacancyFilter] = useState({ storeName: '', department: '', onlyPositive: false });
-            const vacancySheetCSV = 'https://docs.google.com/spreadsheets/d/1qw73fReeyiUdEnP1So-m4xQW0IywyxIPLH0TBAaPZVo/export?format=csv&gid=1527213487';
+            const vacancySheets = {
+                b2b:     { label: 'Vacancy B2B Sales',        url: 'https://docs.google.com/spreadsheets/d/1qw73fReeyiUdEnP1So-m4xQW0IywyxIPLH0TBAaPZVo/export?format=csv&gid=0' },
+                section: { label: 'Vacancy Section Manager',  url: 'https://docs.google.com/spreadsheets/d/1qw73fReeyiUdEnP1So-m4xQW0IywyxIPLH0TBAaPZVo/export?format=csv&gid=1527213487' },
+            };
 
             const fetchVacancy = () => {
                 if (showVacancy) { setShowVacancy(false); return; }
                 setVacancyLoading(true);
-                fetch(vacancySheetCSV)
-                    .then(r => r.text())
-                    .then(text => {
-                        const parsed = window.Papa ? Papa.parse(text, { header: true, skipEmptyLines: true }).data : [];
-                        setVacancyData(parsed);
-                        setShowVacancy(true);
-                    })
-                    .catch(() => setVacancyData([]))
-                    .finally(() => setVacancyLoading(false));
+                Promise.all(
+                    Object.entries(vacancySheets).map(([key, sheet]) =>
+                        fetch(sheet.url).then(r => r.text()).then(text =>
+                            [key, window.Papa ? Papa.parse(text, { header: true, skipEmptyLines: true }).data : []]
+                        )
+                    )
+                ).then(results => {
+                    const data = {};
+                    results.forEach(([key, rows]) => { data[key] = rows; });
+                    setVacancyData(data);
+                    setShowVacancy(true);
+                }).catch(() => {}).finally(() => setVacancyLoading(false));
             };
 
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
@@ -1565,13 +1572,14 @@
                         </div>
 
                         {showVacancy && (() => {
-                            const cols = vacancyData.length > 0 ? Object.keys(vacancyData[0]) : [];
+                            const activeRows = vacancyData[vacancyTab] || [];
+                            const cols = activeRows.length > 0 ? Object.keys(activeRows[0]) : [];
                             const colStoreKey = cols.find(k => k.trim().toUpperCase() === 'STORE_NAME') || 'STORE_NAME';
                             const colDeptKey = cols.find(k => k.trim().toUpperCase() === 'DEPARTMENT') || 'DEPARTMENT';
                             const colVacKey = cols.find(k => k.trim().toUpperCase() === 'VACANCY') || 'VACANCY';
-                            const storeNames = [...new Set(vacancyData.map(r => r[colStoreKey]).filter(Boolean))].sort();
-                            const departments = [...new Set(vacancyData.map(r => r[colDeptKey]).filter(Boolean))].sort();
-                            const filtered = vacancyData.filter(row => {
+                            const storeNames = [...new Set(activeRows.map(r => r[colStoreKey]).filter(Boolean))].sort();
+                            const departments = [...new Set(activeRows.map(r => r[colDeptKey]).filter(Boolean))].sort();
+                            const filtered = activeRows.filter(row => {
                                 if (vacancyFilter.storeName && row[colStoreKey] !== vacancyFilter.storeName) return false;
                                 if (vacancyFilter.department && row[colDeptKey] !== vacancyFilter.department) return false;
                                 if (vacancyFilter.onlyPositive && parseInt(row[colVacKey] || 0) <= 0) return false;
@@ -1588,7 +1596,17 @@
                                             <h2 className="font-black text-base text-slate-800">ตำแหน่งงานว่าง</h2>
                                             <p className="text-slate-400 text-xs font-medium">รายการตำแหน่งที่เปิดรับสมัคร</p>
                                         </div>
-                                        <span className="ml-auto bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1 rounded-full ring-1 ring-emerald-500/20">{filtered.length} / {vacancyData.length} รายการ</span>
+                                        <span className="ml-auto bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1 rounded-full ring-1 ring-emerald-500/20">{filtered.length} / {activeRows.length} รายการ</span>
+                                    </div>
+
+                                    <div className="flex border-b border-slate-100">
+                                        {Object.entries(vacancySheets).map(([key, sheet]) => (
+                                            <button key={key} type="button"
+                                                onClick={() => { setVacancyTab(key); setVacancyFilter({ storeName: '', department: '', onlyPositive: false }); }}
+                                                className={`flex-1 py-3 text-sm font-bold tracking-wide transition-all ${vacancyTab === key ? 'text-emerald-600 border-b-2 border-emerald-500 bg-emerald-50/50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}>
+                                                {sheet.label}
+                                            </button>
+                                        ))}
                                     </div>
 
                                     <div className="p-4 border-b border-slate-100 flex flex-wrap gap-3 items-center bg-slate-50/50">
@@ -1622,7 +1640,7 @@
                                             <table className="w-full text-sm text-left">
                                                 <thead>
                                                     <tr className="bg-slate-50 border-b border-slate-100">
-                                                        {Object.keys(vacancyData[0]).map(col => (
+                                                        {cols.map(col => (
                                                             <th key={col} className="px-4 py-3 font-bold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">{col}</th>
                                                         ))}
                                                     </tr>
