@@ -1565,12 +1565,16 @@
                         </div>
 
                         {showVacancy && (() => {
-                            const storeNames = [...new Set(vacancyData.map(r => r['STORE_NAME']).filter(Boolean))].sort();
-                            const departments = [...new Set(vacancyData.map(r => r['DEPARTMENT']).filter(Boolean))].sort();
+                            const cols = vacancyData.length > 0 ? Object.keys(vacancyData[0]) : [];
+                            const colStoreKey = cols.find(k => k.trim().toUpperCase() === 'STORE_NAME') || 'STORE_NAME';
+                            const colDeptKey = cols.find(k => k.trim().toUpperCase() === 'DEPARTMENT') || 'DEPARTMENT';
+                            const colVacKey = cols.find(k => k.trim().toUpperCase() === 'VACANCY') || 'VACANCY';
+                            const storeNames = [...new Set(vacancyData.map(r => r[colStoreKey]).filter(Boolean))].sort();
+                            const departments = [...new Set(vacancyData.map(r => r[colDeptKey]).filter(Boolean))].sort();
                             const filtered = vacancyData.filter(row => {
-                                if (vacancyFilter.storeName && row['STORE_NAME'] !== vacancyFilter.storeName) return false;
-                                if (vacancyFilter.department && row['DEPARTMENT'] !== vacancyFilter.department) return false;
-                                if (vacancyFilter.onlyPositive && parseInt(row['VACANCY'] || 0) <= 0) return false;
+                                if (vacancyFilter.storeName && row[colStoreKey] !== vacancyFilter.storeName) return false;
+                                if (vacancyFilter.department && row[colDeptKey] !== vacancyFilter.department) return false;
+                                if (vacancyFilter.onlyPositive && parseInt(row[colVacKey] || 0) <= 0) return false;
                                 return true;
                             });
                             return (
