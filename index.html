@@ -222,6 +222,26 @@
             const [calFilterTime, setCalFilterTime] = useState('');
             const [calFilterLocation, setCalFilterLocation] = useState('');
 
+            // Vacancy States
+            const [showVacancy, setShowVacancy] = useState(false);
+            const [vacancyData, setVacancyData] = useState([]);
+            const [vacancyLoading, setVacancyLoading] = useState(false);
+            const vacancySheetCSV = 'https://docs.google.com/spreadsheets/d/1qw73fReeyiUdEnP1So-m4xQW0IywyxIPLH0TBAaPZVo/export?format=csv&gid=1527213487';
+
+            const fetchVacancy = () => {
+                if (showVacancy) { setShowVacancy(false); return; }
+                setVacancyLoading(true);
+                fetch(vacancySheetCSV)
+                    .then(r => r.text())
+                    .then(text => {
+                        const parsed = window.Papa ? Papa.parse(text, { header: true, skipEmptyLines: true }).data : [];
+                        setVacancyData(parsed);
+                        setShowVacancy(true);
+                    })
+                    .catch(() => setVacancyData([]))
+                    .finally(() => setVacancyLoading(false));
+            };
+
             const normalize = (s) => s ? s.toString().toLowerCase().replace(/[^a-z0-9ก-ฮ]/g, '').trim() : '';
             const getDownloadLink = (url) => { if (!url) return "#"; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/uc?id=${fileId[0]}&export=download` : url; };
             const getPreviewLink = (url) => { if (!url) return null; const fileId = url.match(/[-\w]{25,}/); return fileId ? `https://drive.google.com/file/d/${fileId[0]}/preview` : url; };
@@ -1511,29 +1531,78 @@
 
             if (!currentUserAgency) return (
                 <React.Fragment>
-                    <div className="h-screen flex items-center justify-center text-center p-6 bg-gradient-to-br from-slate-100 to-slate-200">
+                    <div className="min-h-screen flex flex-col items-center justify-start text-center p-6 bg-gradient-to-br from-slate-100 to-slate-200 pb-12">
+                        <div className="flex flex-col items-center w-full max-w-sm mt-auto mb-4 pt-8">
                         <form onSubmit={(e) => {
                             e.preventDefault();
                             const map = { "admin@company.com": "Admin", "manpower@agency.com": "Manpower", "metalent@agency.com": "Me Talent", "prtr@agency.com": "PRTR", "talentvis@agency.com": "Talentvis", "techgrid@agency.com": "Techgrid" };
                             const agency = map[loginEmail.trim().toLowerCase()];
                             if (agency) setCurrentUserAgency(agency); else setPopup({ title: "ERROR", msg: "Login Failed. Invalid email address." });
-                        }} className="bg-white p-10 rounded-[2.5rem] w-full max-w-sm shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] border border-slate-50 relative overflow-hidden">
+                        }} className="bg-white p-10 rounded-[2.5rem] w-full shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] border border-slate-50 relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-full h-2 bg-indigo-500"></div>
                             <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
                                 <i data-lucide="fingerprint" className="w-8 h-8"></i>
                             </div>
                             <h1 className="text-2xl font-black mb-2 text-slate-800">Welcome Back</h1>
                             <p className="text-slate-400 font-medium text-sm mb-8">Sign in with your agency email</p>
-                            
+
                             <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="modern-input text-center mb-6 py-3.5 text-base" placeholder="Enter your email" required />
                             <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95">Authenticate</button>
-                            <div className="mt-4 pt-4 border-t border-slate-100">
+                            <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-3">
                                 <button type="button" onClick={() => { setShowPublicCalendar(true); }} className="w-full bg-slate-50 hover:bg-violet-50 text-slate-500 hover:text-violet-600 border border-slate-200 hover:border-violet-200 py-3 rounded-xl font-bold uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2 text-sm">
                                     <i data-lucide="calendar-days" className="w-4 h-4"></i>
                                     ดูปฏิทินสัมภาษณ์
                                 </button>
+                                <button type="button" onClick={fetchVacancy} className={`w-full py-3 rounded-xl font-bold uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2 text-sm border ${showVacancy ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border-emerald-200 hover:border-emerald-300' : 'bg-slate-50 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 border border-slate-200 hover:border-emerald-200'}`}>
+                                    {vacancyLoading
+                                        ? <><i data-lucide="loader" className="w-4 h-4 animate-spin"></i> กำลังโหลด...</>
+                                        : <><i data-lucide="briefcase" className="w-4 h-4"></i> {showVacancy ? 'ซ่อนตำแหน่งว่าง' : 'เช็คตำแหน่งว่าง'}</>
+                                    }
+                                </button>
                             </div>
                         </form>
+                        </div>
+
+                        {showVacancy && (
+                            <div className="w-full max-w-4xl mt-6 mb-auto">
+                                <div className="bg-white rounded-[2rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] border border-slate-50 overflow-hidden">
+                                    <div className="flex items-center gap-3 p-6 border-b border-slate-100">
+                                        <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                                            <i data-lucide="briefcase" className="w-5 h-5"></i>
+                                        </div>
+                                        <div className="text-left">
+                                            <h2 className="font-black text-base text-slate-800">ตำแหน่งงานว่าง</h2>
+                                            <p className="text-slate-400 text-xs font-medium">รายการตำแหน่งที่เปิดรับสมัคร</p>
+                                        </div>
+                                        <span className="ml-auto bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1 rounded-full ring-1 ring-emerald-500/20">{vacancyData.length} รายการ</span>
+                                    </div>
+                                    {vacancyData.length === 0 ? (
+                                        <div className="p-10 text-slate-400 text-sm">ไม่พบข้อมูลตำแหน่งว่าง</div>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm text-left">
+                                                <thead>
+                                                    <tr className="bg-slate-50 border-b border-slate-100">
+                                                        {Object.keys(vacancyData[0]).map(col => (
+                                                            <th key={col} className="px-4 py-3 font-bold text-slate-600 text-xs uppercase tracking-wide whitespace-nowrap">{col}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {vacancyData.map((row, i) => (
+                                                        <tr key={i} className={`border-b border-slate-50 hover:bg-slate-50 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-50/50'}`}>
+                                                            {Object.values(row).map((val, j) => (
+                                                                <td key={j} className="px-4 py-3 text-slate-700 whitespace-nowrap">{val || '-'}</td>
+                                                            ))}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                     {renderModals()}
                 </React.Fragment>
