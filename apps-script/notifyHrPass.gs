@@ -12,7 +12,7 @@
  */
 
 // ⚠️ แก้ ID ให้ตรงกับ Google Sheet config (Manpower_Status) ของจริง
-var HR_EMAIL_SHEET_ID = 'ใส่_SPREADSHEET_ID_ที่นี่';
+var HR_EMAIL_SHEET_ID = '1od3mh-iw2POMD-e7E_4P7S0FtFUNeBoRj643TqF_4EI';
 var HR_EMAIL_SHEET_NAME = 'Manpower_Status';
 
 /**
