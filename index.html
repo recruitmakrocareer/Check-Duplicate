@@ -159,6 +159,15 @@
             const [currentUserAgency, setCurrentUserAgency] = useState('');
             const [loginEmail, setLoginEmail] = useState('');
             const [isLoading, setIsLoading] = useState(true);
+
+            // หน้านัดหมายสัมภาษณ์สำหรับ HR สาขา (เปิดจากลิงก์ใน email ไม่ต้อง login)
+            // URL: ?schedule=<candidateDocId>
+            const scheduleId = useMemo(() => new URLSearchParams(window.location.search).get('schedule'), []);
+            const [scheduleCandidate, setScheduleCandidate] = useState(null);
+            const [scheduleNotFound, setScheduleNotFound] = useState(false);
+            const [scheduleForm, setScheduleForm] = useState({ interviewDate: '', interviewTime: '', interviewer: '', interviewComment: '' });
+            const [scheduleSaved, setScheduleSaved] = useState(false);
+            const [scheduleSaving, setScheduleSaving] = useState(false);
             const [cloudCandidates, setCloudCandidates] = useState([]);
             const [gmailDb, setGmailDb] = useState([]); 
             const [externalDataDb, setExternalDataDb] = useState([]); 
@@ -334,6 +343,52 @@
                 });
             }, []);
 
+            // โหลดข้อมูลผู้สมัครสำหรับหน้านัดหมาย (ใช้ anonymous auth ไม่ต้อง login agency)
+            useEffect(() => {
+                if (!scheduleId || !user) return;
+                const unsub = window.FB.methods.onSnapshot(
+                    window.FB.methods.doc(window.FB.db, 'candidates', scheduleId),
+                    (docSnap) => {
+                        if (docSnap.exists()) {
+                            const c = { id: docSnap.id, ...docSnap.data() };
+                            setScheduleCandidate(c);
+                            setScheduleForm(prev => (prev.interviewDate || prev.interviewTime || prev.interviewer) ? prev : {
+                                interviewDate: c.interviewDate || '',
+                                interviewTime: c.interviewTime || '',
+                                interviewer: c.interviewer || '',
+                                interviewComment: c.interviewComment || ''
+                            });
+                        } else {
+                            setScheduleNotFound(true);
+                        }
+                    },
+                    () => setScheduleNotFound(true)
+                );
+                return () => unsub();
+            }, [scheduleId, user]);
+
+            const handleScheduleSave = async () => {
+                if (!scheduleForm.interviewDate || !scheduleForm.interviewTime) {
+                    setPopup({ title: "WARNING", msg: "กรุณาระบุวันที่และเวลาสัมภาษณ์" });
+                    return;
+                }
+                setScheduleSaving(true);
+                try {
+                    await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', scheduleId), {
+                        interviewDate: scheduleForm.interviewDate,
+                        interviewTime: scheduleForm.interviewTime,
+                        interviewer: scheduleForm.interviewer || '',
+                        interviewComment: scheduleForm.interviewComment || '',
+                        interviewStatus: scheduleCandidate.interviewStatus || 'รอผล'
+                    });
+                    setScheduleSaved(true);
+                } catch (e) {
+                    setPopup({ title: "ERROR", msg: "บันทึกไม่สำเร็จ: " + e.message });
+                } finally {
+                    setScheduleSaving(false);
+                }
+            };
+
             useEffect(() => {
                 if (!user || !currentUserAgency) return;
                 const q = window.FB.methods.query(window.FB.methods.collection(window.FB.db, 'candidates'));
@@ -439,11 +494,12 @@
 
             // แจ้ง HR สาขาทาง email เมื่อผู้สมัครผ่าน AI Prescreen (ส่งผ่าน Google Apps Script)
             // fire-and-forget: ถ้าส่งไม่สำเร็จจะ log ไว้เฉย ๆ ไม่กระทบ flow หลัก
-            const notifyHrPrescreenPass = (candidate, aiDetail, resumeLink) => {
+            const notifyHrPrescreenPass = (candidate, aiDetail, resumeLink, candidateId) => {
                 fetch(scriptURL, {
                     method: "POST",
                     body: JSON.stringify({
                         action: "notifyHrPass",
+                        candidateId: candidateId || '',
                         location: candidate.location || '',
                         firstName: candidate.firstName || '',
                         lastName: candidate.lastName || '',
@@ -526,7 +582,7 @@
                             });
 
                             if (aiData.summary === 'ผ่าน' && targetCandidate) {
-                                notifyHrPrescreenPass(targetCandidate, aiData.detail, res.url);
+                                notifyHrPrescreenPass(targetCandidate, aiData.detail, res.url, targetId);
                             }
 
                             setPopup({ title: "SUCCESS", msg: `อัปโหลดไฟล์สำเร็จ!` });
@@ -571,7 +627,7 @@
                     });
                     // กรณี Admin แก้ผล AI Prescreen เป็น "ผ่าน" ด้วยตนเอง ก็แจ้ง HR สาขาเช่นกัน
                     if (editFormData.aiSummary === 'ผ่าน' && prevCandidate && prevCandidate.aiSummary !== 'ผ่าน') {
-                        notifyHrPrescreenPass({ ...prevCandidate, ...editFormData }, editFormData.aiDetail, prevCandidate.resumeLink);
+                        notifyHrPrescreenPass({ ...prevCandidate, ...editFormData }, editFormData.aiDetail, prevCandidate.resumeLink, id);
                     }
                     setEditingId(null);
                     setPopup({ title: "SUCCESS", msg: "บันทึกการแก้ไขเรียบร้อย!" });
@@ -1056,6 +1112,82 @@
                     <p className="tracking-widest uppercase text-sm font-black text-slate-400">Syncing Workspace...</p>
                 </div>
             );
+
+            // ===== หน้านัดหมายสัมภาษณ์สำหรับ HR สาขา (เปิดจากลิงก์ email ไม่ต้อง login) =====
+            if (scheduleId) {
+                const INTERVIEWERS = ["Dujdaw S.","Jirayu J.","Montree Y.","Nattaphon A.","Panwadee P.","Rattakate P.","Sedtharoj T.","Tanagrid J.","Tanawat T.","Thanaphat K.","Thanaset M.","Wutipon S.","Yongyoot P.","Yuwarat B.","Tanachai B.","Phongpanot","Sanya","Sales Manager"];
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg border border-slate-100 p-8 popup-animate">
+                            <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <i data-lucide="calendar-clock" className="w-7 h-7"></i>
+                            </div>
+                            <h1 className="text-xl font-black text-center text-slate-800 mb-1">นัดหมายสัมภาษณ์</h1>
+                            <p className="text-slate-400 text-sm font-medium text-center mb-6">Candidate Checker — สำหรับ HR สาขา</p>
+
+                            {scheduleNotFound ? (
+                                <div className="text-center py-8">
+                                    <p className="text-rose-500 font-bold">ไม่พบข้อมูลผู้สมัคร</p>
+                                    <p className="text-slate-400 text-sm mt-2">ลิงก์อาจไม่ถูกต้อง หรือข้อมูลถูกลบไปแล้ว</p>
+                                </div>
+                            ) : !scheduleCandidate ? (
+                                <div className="flex flex-col items-center py-8 gap-3">
+                                    <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                                    <p className="text-slate-400 text-sm font-bold">กำลังโหลดข้อมูลผู้สมัคร...</p>
+                                </div>
+                            ) : scheduleSaved ? (
+                                <div className="text-center py-8">
+                                    <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i data-lucide="check" className="w-8 h-8"></i>
+                                    </div>
+                                    <p className="text-emerald-600 font-black text-lg">บันทึกนัดหมายเรียบร้อย!</p>
+                                    <p className="text-slate-500 text-sm mt-2 font-medium">
+                                        {scheduleCandidate.firstName} {scheduleCandidate.lastName} — {scheduleForm.interviewDate} เวลา {scheduleForm.interviewTime} น.
+                                    </p>
+                                    <p className="text-slate-400 text-xs mt-3">ข้อมูลถูกบันทึกเข้าระบบและปฏิทินสัมภาษณ์แล้ว ปิดหน้านี้ได้เลย</p>
+                                </div>
+                            ) : (
+                                <React.Fragment>
+                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 text-sm">
+                                        <div className="font-black text-slate-800 text-base mb-1">{scheduleCandidate.firstName} {scheduleCandidate.lastName}</div>
+                                        <div className="text-slate-500 font-medium">ตำแหน่ง: {scheduleCandidate.position || '-'} · สาขา: {scheduleCandidate.location || '-'}</div>
+                                        <div className="text-slate-500 font-medium">โทร: {scheduleCandidate.tel || '-'} · Agency: {scheduleCandidate.agency || '-'}</div>
+                                        {scheduleCandidate.resumeLink && <a href={scheduleCandidate.resumeLink} target="_blank" rel="noreferrer" className="text-indigo-600 font-bold text-xs underline mt-1 inline-block">เปิดดู Resume</a>}
+                                        {scheduleCandidate.interviewDate && <div className="text-amber-600 text-xs font-bold mt-2">⚠ มีนัดเดิม: {scheduleCandidate.interviewDate} {scheduleCandidate.interviewTime || ''} — บันทึกใหม่จะทับนัดเดิม</div>}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 mb-3">
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase">วันสัมภาษณ์ *</label>
+                                            <input type="date" value={scheduleForm.interviewDate} onChange={e => setScheduleForm({...scheduleForm, interviewDate: e.target.value})} className="modern-input py-2.5" />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-500 uppercase">เวลา *</label>
+                                            <input type="time" value={scheduleForm.interviewTime} onChange={e => setScheduleForm({...scheduleForm, interviewTime: e.target.value})} className="modern-input py-2.5" />
+                                        </div>
+                                    </div>
+                                    <div className="mb-3">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">ผู้สัมภาษณ์</label>
+                                        <select value={scheduleForm.interviewer} onChange={e => setScheduleForm({...scheduleForm, interviewer: e.target.value})} className="modern-input py-2.5">
+                                            <option value="">-- เลือกผู้สัมภาษณ์ --</option>
+                                            {INTERVIEWERS.map(name => <option key={name} value={name}>{name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="mb-5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">หมายเหตุ</label>
+                                        <textarea rows="2" value={scheduleForm.interviewComment} onChange={e => setScheduleForm({...scheduleForm, interviewComment: e.target.value})} className="modern-input py-2.5" placeholder="เช่น สถานที่นัด, สิ่งที่ต้องเตรียม"></textarea>
+                                    </div>
+                                    <button onClick={handleScheduleSave} disabled={scheduleSaving} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3.5 rounded-xl font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95">
+                                        {scheduleSaving ? 'กำลังบันทึก...' : 'บันทึกนัดหมายสัมภาษณ์'}
+                                    </button>
+                                </React.Fragment>
+                            )}
+                            {popup && (
+                                <div className="mt-4 text-center text-sm font-bold text-rose-500 cursor-pointer" onClick={() => setPopup(null)}>{popup.msg}</div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
 
             if (showPublicCalendar) {
                 const thMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];

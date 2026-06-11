@@ -43,8 +43,8 @@ function notifyHrPass(data) {
       'Agency: ' + (data.agency || '-') + '\n' +
       'ผล AI: ' + (data.aiDetail || '-') + '\n' +
       (data.resumeLink ? 'Resume: ' + data.resumeLink + '\n' : '') +
-      '\nกรุณาเข้าระบบ Candidate Checker เพื่อนัดหมายสัมภาษณ์\n' +
-      'https://recruitmakrocareer.github.io/Check-Duplicate/\n';
+      '\nคลิกลิงก์ด้านล่างเพื่อลงเวลานัดหมายสัมภาษณ์ (ไม่ต้อง Login)\n' +
+      'https://recruitmakrocareer.github.io/Check-Duplicate/?schedule=' + (data.candidateId || '') + '\n';
 
     MailApp.sendEmail(hrEmail, subject, body);
     return jsonOut({ status: 'success' });
