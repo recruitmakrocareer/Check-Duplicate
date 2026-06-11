@@ -55,8 +55,11 @@ function notifyHrPass(data) {
       'Agency: ' + (data.agency || '-') + '\n' +
       'ผล AI: ' + (data.aiDetail || '-') + '\n' +
       (data.resumeLink ? 'Resume: ' + data.resumeLink + '\n' : '') +
-      '\nคลิกลิงก์ด้านล่างเพื่อลงเวลานัดหมายสัมภาษณ์ (ไม่ต้อง Login)\n' +
-      'https://recruitmakrocareer.github.io/Check-Duplicate/?schedule=' + (data.candidateId || '') + '\n';
+      '\n--- ลิงก์สำหรับ HR (ไม่ต้อง Login) ---\n' +
+      'ลงเวลานัดหมายสัมภาษณ์:\n' +
+      'https://recruitmakrocareer.github.io/Check-Duplicate/?schedule=' + (data.candidateId || '') + '\n\n' +
+      'บันทึกผลสัมภาษณ์ (ใช้หลังสัมภาษณ์เสร็จ):\n' +
+      'https://recruitmakrocareer.github.io/Check-Duplicate/?interview=' + (data.candidateId || '') + '\n';
 
     MailApp.sendEmail(toEmail, subject, body);
     return jsonOut({ status: 'success' });
