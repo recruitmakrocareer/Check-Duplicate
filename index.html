@@ -437,6 +437,26 @@
                 setDraftList(updated); setIsChecked(true);
             };
 
+            // แจ้ง HR สาขาทาง email เมื่อผู้สมัครผ่าน AI Prescreen (ส่งผ่าน Google Apps Script)
+            // fire-and-forget: ถ้าส่งไม่สำเร็จจะ log ไว้เฉย ๆ ไม่กระทบ flow หลัก
+            const notifyHrPrescreenPass = (candidate, aiDetail, resumeLink) => {
+                fetch(scriptURL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        action: "notifyHrPass",
+                        location: candidate.location || '',
+                        firstName: candidate.firstName || '',
+                        lastName: candidate.lastName || '',
+                        tel: candidate.tel || '',
+                        email: candidate.email || '',
+                        position: candidate.position || '',
+                        agency: candidate.agency || '',
+                        aiDetail: aiDetail || '',
+                        resumeLink: resumeLink || ''
+                    })
+                }).catch(err => console.warn('notifyHrPass failed:', err));
+            };
+
             const onFileChange = async (e) => {
                 const file = e.target.files[0]; if (!file || !targetId) return;
                 setIsUploading(targetId);
@@ -504,7 +524,11 @@
                                 aiSummary: aiData.summary,
                                 aiDetail: aiData.detail
                             });
-                            
+
+                            if (aiData.summary === 'ผ่าน' && targetCandidate) {
+                                notifyHrPrescreenPass(targetCandidate, aiData.detail, res.url);
+                            }
+
                             setPopup({ title: "SUCCESS", msg: `อัปโหลดไฟล์สำเร็จ!` });
                         }
                     } finally { 
@@ -518,6 +542,7 @@
 
             const handleSaveEdit = async (id) => {
                 try {
+                    const prevCandidate = cloudCandidates.find(c => c.id === id);
                     let finalInterviewStatus = editFormData.interviewStatus || '';
                     if (editFormData.aiSummary !== 'ผ่าน' || !editFormData.interviewDate) {
                         finalInterviewStatus = '';
@@ -544,6 +569,10 @@
                         interviewComment: finalInterviewComment,
                         aiDetail: editFormData.aiDetail || ''
                     });
+                    // กรณี Admin แก้ผล AI Prescreen เป็น "ผ่าน" ด้วยตนเอง ก็แจ้ง HR สาขาเช่นกัน
+                    if (editFormData.aiSummary === 'ผ่าน' && prevCandidate && prevCandidate.aiSummary !== 'ผ่าน') {
+                        notifyHrPrescreenPass({ ...prevCandidate, ...editFormData }, editFormData.aiDetail, prevCandidate.resumeLink);
+                    }
                     setEditingId(null);
                     setPopup({ title: "SUCCESS", msg: "บันทึกการแก้ไขเรียบร้อย!" });
                 } catch (error) {
