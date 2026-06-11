@@ -162,7 +162,7 @@
 
             // หน้านัดหมายสัมภาษณ์สำหรับ HR สาขา (เปิดจากลิงก์ใน email ไม่ต้อง login)
             // URL: ?schedule=<candidateDocId>
-            const scheduleId = useMemo(() => new URLSearchParams(window.location.search).get('schedule'), []);
+            const scheduleId = useMemo(() => { const v = new URLSearchParams(window.location.search).get('schedule'); return (v && v.trim()) ? v.trim() : null; }, []);
             const [scheduleCandidate, setScheduleCandidate] = useState(null);
             const [scheduleNotFound, setScheduleNotFound] = useState(false);
             const [scheduleForm, setScheduleForm] = useState({ interviewDate: '', interviewTime: '', interviewer: '', interviewComment: '' });
