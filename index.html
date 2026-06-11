@@ -168,6 +168,16 @@
             const [scheduleForm, setScheduleForm] = useState({ interviewDate: '', interviewTime: '', interviewer: '', interviewComment: '' });
             const [scheduleSaved, setScheduleSaved] = useState(false);
             const [scheduleSaving, setScheduleSaving] = useState(false);
+
+            // หน้าอัปเดตผลสัมภาษณ์สำหรับ HR (เปิดจากลิงก์ใน email ไม่ต้อง login)
+            // URL: ?interview=<candidateDocId>
+            const interviewId = useMemo(() => { const v = new URLSearchParams(window.location.search).get('interview'); return (v && v.trim()) ? v.trim() : null; }, []);
+            const [interviewCandidate, setInterviewCandidate] = useState(null);
+            const [interviewNotFound, setInterviewNotFound] = useState(false);
+            const [interviewForm, setInterviewForm] = useState({ interviewStatus: '', interviewComment: '' });
+            const [interviewSaved, setInterviewSaved] = useState(false);
+            const [interviewSaving, setInterviewSaving] = useState(false);
+
             const [cloudCandidates, setCloudCandidates] = useState([]);
             const [gmailDb, setGmailDb] = useState([]); 
             const [externalDataDb, setExternalDataDb] = useState([]); 
@@ -386,6 +396,47 @@
                     setPopup({ title: "ERROR", msg: "บันทึกไม่สำเร็จ: " + e.message });
                 } finally {
                     setScheduleSaving(false);
+                }
+            };
+
+            // โหลดข้อมูลผู้สมัครสำหรับหน้าอัปเดตผลสัมภาษณ์
+            useEffect(() => {
+                if (!interviewId || !user) return;
+                const unsub = window.FB.methods.onSnapshot(
+                    window.FB.methods.doc(window.FB.db, 'candidates', interviewId),
+                    (docSnap) => {
+                        if (docSnap.exists()) {
+                            const c = { id: docSnap.id, ...docSnap.data() };
+                            setInterviewCandidate(c);
+                            setInterviewForm(prev => prev.interviewStatus ? prev : {
+                                interviewStatus: c.interviewStatus || '',
+                                interviewComment: c.interviewComment || ''
+                            });
+                        } else {
+                            setInterviewNotFound(true);
+                        }
+                    },
+                    () => setInterviewNotFound(true)
+                );
+                return () => unsub();
+            }, [interviewId, user]);
+
+            const handleInterviewSave = async () => {
+                if (!interviewForm.interviewStatus) {
+                    setPopup({ title: "WARNING", msg: "กรุณาเลือกผลการสัมภาษณ์" });
+                    return;
+                }
+                setInterviewSaving(true);
+                try {
+                    await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', interviewId), {
+                        interviewStatus: interviewForm.interviewStatus,
+                        interviewComment: interviewForm.interviewComment || ''
+                    });
+                    setInterviewSaved(true);
+                } catch (e) {
+                    setPopup({ title: "ERROR", msg: "บันทึกไม่สำเร็จ: " + e.message });
+                } finally {
+                    setInterviewSaving(false);
                 }
             };
 
@@ -1178,6 +1229,77 @@
                                     </div>
                                     <button onClick={handleScheduleSave} disabled={scheduleSaving} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3.5 rounded-xl font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95">
                                         {scheduleSaving ? 'กำลังบันทึก...' : 'บันทึกนัดหมายสัมภาษณ์'}
+                                    </button>
+                                </React.Fragment>
+                            )}
+                            {popup && (
+                                <div className="mt-4 text-center text-sm font-bold text-rose-500 cursor-pointer" onClick={() => setPopup(null)}>{popup.msg}</div>
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            // ===== หน้าบันทึกผลสัมภาษณ์สำหรับ HR (เปิดจากลิงก์ email ไม่ต้อง login) =====
+            if (interviewId) {
+                const INTERVIEW_STATUSES = ['ผ่าน', 'ไม่ผ่าน', 'ไม่เข้าสัมภาษณ์', 'อื่นๆ'];
+                const statusColor = { 'ผ่าน': 'bg-emerald-100 border-emerald-400 text-emerald-700', 'ไม่ผ่าน': 'bg-rose-100 border-rose-400 text-rose-700', 'ไม่เข้าสัมภาษณ์': 'bg-amber-100 border-amber-400 text-amber-700', 'อื่นๆ': 'bg-slate-100 border-slate-400 text-slate-700' };
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg border border-slate-100 p-8 popup-animate">
+                            <div className="w-14 h-14 bg-violet-100 text-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <i data-lucide="clipboard-check" className="w-7 h-7"></i>
+                            </div>
+                            <h1 className="text-xl font-black text-center text-slate-800 mb-1">บันทึกผลสัมภาษณ์</h1>
+                            <p className="text-slate-400 text-sm font-medium text-center mb-6">Candidate Checker — สำหรับ HR สาขา</p>
+
+                            {interviewNotFound ? (
+                                <div className="text-center py-8">
+                                    <p className="text-rose-500 font-bold">ไม่พบข้อมูลผู้สมัคร</p>
+                                    <p className="text-slate-400 text-sm mt-2">ลิงก์อาจไม่ถูกต้อง หรือข้อมูลถูกลบไปแล้ว</p>
+                                </div>
+                            ) : !interviewCandidate ? (
+                                <div className="flex flex-col items-center py-8 gap-3">
+                                    <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+                                    <p className="text-slate-400 text-sm font-bold">กำลังโหลดข้อมูลผู้สมัคร...</p>
+                                </div>
+                            ) : interviewSaved ? (
+                                <div className="text-center py-8">
+                                    <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i data-lucide="check" className="w-8 h-8"></i>
+                                    </div>
+                                    <p className="text-emerald-600 font-black text-lg">บันทึกผลสัมภาษณ์เรียบร้อย!</p>
+                                    <p className="text-slate-500 text-sm mt-2 font-medium">
+                                        {interviewCandidate.firstName} {interviewCandidate.lastName} — {interviewForm.interviewStatus}
+                                    </p>
+                                    <p className="text-slate-400 text-xs mt-3">ข้อมูลถูกอัปเดตเข้าระบบแล้ว ปิดหน้านี้ได้เลย</p>
+                                </div>
+                            ) : (
+                                <React.Fragment>
+                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 text-sm">
+                                        <div className="font-black text-slate-800 text-base mb-1">{interviewCandidate.firstName} {interviewCandidate.lastName}</div>
+                                        <div className="text-slate-500 font-medium">ตำแหน่ง: {interviewCandidate.position || '-'} · สาขา: {interviewCandidate.location || '-'}</div>
+                                        <div className="text-slate-500 font-medium">โทร: {interviewCandidate.tel || '-'} · Agency: {interviewCandidate.agency || '-'}</div>
+                                        {interviewCandidate.interviewDate && <div className="text-indigo-600 text-xs font-bold mt-2">นัดสัมภาษณ์: {interviewCandidate.interviewDate} {interviewCandidate.interviewTime || ''} {interviewCandidate.interviewer ? '· ' + interviewCandidate.interviewer : ''}</div>}
+                                        {interviewCandidate.interviewStatus && interviewCandidate.interviewStatus !== 'รอผล' && <div className="text-amber-600 text-xs font-bold mt-1">⚠ ผลเดิม: {interviewCandidate.interviewStatus} — บันทึกใหม่จะทับผลเดิม</div>}
+                                    </div>
+                                    <div className="mb-4">
+                                        <label className="text-xs font-bold text-slate-500 uppercase block mb-2">ผลการสัมภาษณ์ *</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {INTERVIEW_STATUSES.map(s => (
+                                                <button key={s} onClick={() => setInterviewForm({...interviewForm, interviewStatus: s})}
+                                                    className={`py-3 rounded-xl border-2 font-bold text-sm transition-all ${interviewForm.interviewStatus === s ? statusColor[s] + ' ring-2 ring-offset-1 ring-current' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}>
+                                                    {s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="mb-5">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">หมายเหตุ / เหตุผล</label>
+                                        <textarea rows="3" value={interviewForm.interviewComment} onChange={e => setInterviewForm({...interviewForm, interviewComment: e.target.value})} className="modern-input py-2.5" placeholder="เช่น เหตุผลที่ไม่ผ่าน, รายละเอียดเพิ่มเติม"></textarea>
+                                    </div>
+                                    <button onClick={handleInterviewSave} disabled={interviewSaving || !interviewForm.interviewStatus} className="w-full bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white py-3.5 rounded-xl font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95">
+                                        {interviewSaving ? 'กำลังบันทึก...' : 'บันทึกผลสัมภาษณ์'}
                                     </button>
                                 </React.Fragment>
                             )}
