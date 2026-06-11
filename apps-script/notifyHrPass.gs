@@ -15,6 +15,9 @@
 var HR_EMAIL_SHEET_ID = '1od3mh-iw2POMD-e7E_4P7S0FtFUNeBoRj643TqF_4EI';
 var HR_EMAIL_SHEET_NAME = 'Manpower_Status';
 
+// ตำแหน่งอื่นๆ ที่ไม่ใช่ Sales Executive ส่งให้ทีมกลางแทน HR สาขา
+var RECRUIT_OPS_EMAIL = 'Recruit_Operations@cpaxtra.co.th';
+
 /**
  * เรียกจาก doPost เดิม — เพิ่มบรรทัดนี้ไว้ต้นฟังก์ชัน doPost:
  *
@@ -27,13 +30,22 @@ function notifyHrPass(data) {
     var storeNo = String(data.location || '').split('-')[0].trim();
     if (!storeNo) return jsonOut({ status: 'error', message: 'no location' });
 
-    var hrEmail = lookupHrEmail(storeNo);
-    if (!hrEmail) return jsonOut({ status: 'error', message: 'HR email not found for store ' + storeNo });
+    // แยกผู้รับตามตำแหน่ง: Sales Executive → HR สาขา / ตำแหน่งอื่นๆ → Recruit Operations
+    var isSalesExecutive = String(data.position || '').trim().toLowerCase() === 'sales executive';
+    var toEmail, greeting;
+    if (isSalesExecutive) {
+      toEmail = lookupHrEmail(storeNo);
+      if (!toEmail) return jsonOut({ status: 'error', message: 'HR email not found for store ' + storeNo });
+      greeting = 'เรียน HR สาขา ' + (data.location || storeNo);
+    } else {
+      toEmail = RECRUIT_OPS_EMAIL;
+      greeting = 'เรียน ทีม Recruit Operations';
+    }
 
     var fullName = (data.firstName || '') + ' ' + (data.lastName || '');
     var subject = '[Candidate Checker] ผู้สมัครผ่าน AI Prescreen — ' + fullName + ' (' + (data.position || '-') + ')';
     var body =
-      'เรียน HR สาขา ' + (data.location || storeNo) + '\n\n' +
+      greeting + '\n\n' +
       'มีผู้สมัครใหม่ผ่านการคัดกรองเบื้องต้น (AI Prescreen) แล้ว รายละเอียดดังนี้\n\n' +
       'ชื่อ-นามสกุล: ' + fullName + '\n' +
       'ตำแหน่ง: ' + (data.position || '-') + '\n' +
@@ -46,7 +58,7 @@ function notifyHrPass(data) {
       '\nคลิกลิงก์ด้านล่างเพื่อลงเวลานัดหมายสัมภาษณ์ (ไม่ต้อง Login)\n' +
       'https://recruitmakrocareer.github.io/Check-Duplicate/?schedule=' + (data.candidateId || '') + '\n';
 
-    MailApp.sendEmail(hrEmail, subject, body);
+    MailApp.sendEmail(toEmail, subject, body);
     return jsonOut({ status: 'success' });
   } catch (err) {
     return jsonOut({ status: 'error', message: String(err) });

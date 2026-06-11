@@ -45,6 +45,11 @@ function doPost(e) {
 
 อัปโหลด resume ที่ผ่านเกณฑ์ใน Candidate Checker แล้วตรวจว่า HR สาขานั้นได้รับ email
 
+## การแยกผู้รับตามตำแหน่ง
+
+- ตำแหน่ง **Sales Executive** → ส่งให้ HR สาขา (lookup จากคอลัมน์ `HR_Email` ตาม `Store_No`)
+- ตำแหน่งอื่นๆ ทั้งหมด → ส่งให้ `Recruit_Operations@cpaxtra.co.th` (ค่าคงที่ `RECRUIT_OPS_EMAIL` ใน `notifyHrPass.gs`)
+
 ## หมายเหตุ
 
 - ใช้ `MailApp.sendEmail` — โควต้าส่งของบัญชี Google ทั่วไปคือ ~100 ฉบับ/วัน (Workspace ~1,500/วัน)
