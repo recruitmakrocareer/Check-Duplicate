@@ -12,7 +12,7 @@
  */
 
 // ⚠️ แก้ ID ให้ตรงกับ Google Sheet config (Manpower_Status) ของจริง
-var HR_EMAIL_SHEET_ID = 'ใส่_SPREADSHEET_ID_ที่นี่';
+var HR_EMAIL_SHEET_ID = '1od3mh-iw2POMD-e7E_4P7S0FtFUNeBoRj643TqF_4EI';
 var HR_EMAIL_SHEET_NAME = 'Manpower_Status';
 
 /**
@@ -43,8 +43,8 @@ function notifyHrPass(data) {
       'Agency: ' + (data.agency || '-') + '\n' +
       'ผล AI: ' + (data.aiDetail || '-') + '\n' +
       (data.resumeLink ? 'Resume: ' + data.resumeLink + '\n' : '') +
-      '\nกรุณาเข้าระบบ Candidate Checker เพื่อนัดหมายสัมภาษณ์\n' +
-      'https://recruitmakrocareer.github.io/Check-Duplicate/\n';
+      '\nคลิกลิงก์ด้านล่างเพื่อลงเวลานัดหมายสัมภาษณ์ (ไม่ต้อง Login)\n' +
+      'https://recruitmakrocareer.github.io/Check-Duplicate/?schedule=' + (data.candidateId || '') + '\n';
 
     MailApp.sendEmail(hrEmail, subject, body);
     return jsonOut({ status: 'success' });
