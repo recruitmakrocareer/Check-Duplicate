@@ -165,7 +165,7 @@
             const scheduleId = useMemo(() => { const v = new URLSearchParams(window.location.search).get('schedule'); return (v && v.trim()) ? v.trim() : null; }, []);
             const [scheduleCandidate, setScheduleCandidate] = useState(null);
             const [scheduleNotFound, setScheduleNotFound] = useState(false);
-            const [scheduleForm, setScheduleForm] = useState({ interviewDate: '', interviewTime: '', interviewer: '', interviewComment: '' });
+            const [scheduleForm, setScheduleForm] = useState({ interviewDate: '', interviewTime: '', interviewer: '', interviewComment: '', interviewMode: '', interviewLink: '', interviewPlace: '' });
             const [scheduleSaved, setScheduleSaved] = useState(false);
             const [scheduleSaving, setScheduleSaving] = useState(false);
 
@@ -366,7 +366,10 @@
                                 interviewDate: c.interviewDate || '',
                                 interviewTime: c.interviewTime || '',
                                 interviewer: c.interviewer || '',
-                                interviewComment: c.interviewComment || ''
+                                interviewComment: c.interviewComment || '',
+                                interviewMode: c.interviewMode || '',
+                                interviewLink: c.interviewLink || '',
+                                interviewPlace: c.interviewPlace || ''
                             });
                         } else {
                             setScheduleNotFound(true);
@@ -389,6 +392,9 @@
                         interviewTime: scheduleForm.interviewTime,
                         interviewer: scheduleForm.interviewer || '',
                         interviewComment: scheduleForm.interviewComment || '',
+                        interviewMode: scheduleForm.interviewMode || '',
+                        interviewLink: scheduleForm.interviewMode === 'Online' ? (scheduleForm.interviewLink || '') : '',
+                        interviewPlace: scheduleForm.interviewMode === 'Onsite' ? (scheduleForm.interviewPlace || '') : '',
                         interviewStatus: scheduleCandidate.interviewStatus || 'รอผล'
                     });
                     setScheduleSaved(true);
@@ -672,6 +678,9 @@
                         aiScore: editFormData.aiScore !== undefined ? editFormData.aiScore : null,
                         interviewDate: editFormData.interviewDate || '',
                         interviewTime: editFormData.interviewTime || '',
+                        interviewMode: editFormData.interviewMode || '',
+                        interviewLink: editFormData.interviewMode === 'Online' ? (editFormData.interviewLink || '') : '',
+                        interviewPlace: editFormData.interviewMode === 'Onsite' ? (editFormData.interviewPlace || '') : '',
                         interviewStatus: finalInterviewStatus,
                         interviewComment: finalInterviewComment,
                         aiDetail: editFormData.aiDetail || ''
@@ -787,6 +796,8 @@
                     "AI Summary": item.aiSummary || '',
                     "วันสัมภาษณ์": item.interviewDate || '',
                     "เวลาสัมภาษณ์": item.interviewTime || '',
+                    "รูปแบบสัมภาษณ์": item.interviewMode || '',
+                    "Link/สถานที่สัมภาษณ์": item.interviewMode === 'Online' ? (item.interviewLink || '') : (item.interviewMode === 'Onsite' ? (item.interviewPlace || '') : ''),
                     "ผลสัมภาษณ์": (item.aiSummary === 'ผ่าน' && item.interviewDate) ? (item.interviewStatus || 'รอผล') : '',
                     "หมายเหตุสัมภาษณ์": item.interviewComment || '',
                     "ยืนยันสัมภาษณ์": item.interviewDate ? (item.confirmStatus || '') : '',
@@ -1195,6 +1206,11 @@
                                     <p className="text-slate-500 text-sm mt-2 font-medium">
                                         {scheduleCandidate.firstName} {scheduleCandidate.lastName} — {scheduleForm.interviewDate} เวลา {scheduleForm.interviewTime} น.
                                     </p>
+                                    {scheduleForm.interviewMode && (
+                                        <p className="text-slate-500 text-sm mt-1 font-medium">
+                                            รูปแบบ: สัมภาษณ์ {scheduleForm.interviewMode}{scheduleForm.interviewMode === 'Online' && scheduleForm.interviewLink ? ` · ${scheduleForm.interviewLink}` : ''}{scheduleForm.interviewMode === 'Onsite' && scheduleForm.interviewPlace ? ` · ${scheduleForm.interviewPlace}` : ''}
+                                        </p>
+                                    )}
                                     <p className="text-slate-400 text-xs mt-3">ข้อมูลถูกบันทึกเข้าระบบและปฏิทินสัมภาษณ์แล้ว ปิดหน้านี้ได้เลย</p>
                                 </div>
                             ) : (
@@ -1223,9 +1239,34 @@
                                             {INTERVIEWERS.map(name => <option key={name} value={name}>{name}</option>)}
                                         </select>
                                     </div>
+                                    <div className="mb-3">
+                                        <label className="text-xs font-bold text-slate-500 uppercase block mb-1.5">รูปแบบการสัมภาษณ์</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button type="button" onClick={() => setScheduleForm({...scheduleForm, interviewMode: scheduleForm.interviewMode === 'Online' ? '' : 'Online'})}
+                                                className={`py-2.5 rounded-xl border-2 font-bold text-sm transition-all flex items-center justify-center gap-1.5 ${scheduleForm.interviewMode === 'Online' ? 'bg-sky-100 border-sky-400 text-sky-700 ring-2 ring-offset-1 ring-sky-300' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}>
+                                                <i data-lucide="video" className="w-4 h-4"></i> สัมภาษณ์ Online
+                                            </button>
+                                            <button type="button" onClick={() => setScheduleForm({...scheduleForm, interviewMode: scheduleForm.interviewMode === 'Onsite' ? '' : 'Onsite'})}
+                                                className={`py-2.5 rounded-xl border-2 font-bold text-sm transition-all flex items-center justify-center gap-1.5 ${scheduleForm.interviewMode === 'Onsite' ? 'bg-emerald-100 border-emerald-400 text-emerald-700 ring-2 ring-offset-1 ring-emerald-300' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}>
+                                                <i data-lucide="map-pin" className="w-4 h-4"></i> สัมภาษณ์ Onsite
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {scheduleForm.interviewMode === 'Online' && (
+                                        <div className="mb-3">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">Link สัมภาษณ์ Online</label>
+                                            <input type="url" value={scheduleForm.interviewLink} onChange={e => setScheduleForm({...scheduleForm, interviewLink: e.target.value})} className="modern-input py-2.5" placeholder="เช่น https://meet.google.com/xxx-xxxx-xxx" />
+                                        </div>
+                                    )}
+                                    {scheduleForm.interviewMode === 'Onsite' && (
+                                        <div className="mb-3">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">สถานที่สัมภาษณ์ (Onsite)</label>
+                                            <input type="text" value={scheduleForm.interviewPlace} onChange={e => setScheduleForm({...scheduleForm, interviewPlace: e.target.value})} className="modern-input py-2.5" placeholder="เช่น สาขา 1-Lardprao ชั้น 2 ห้องประชุม HR" />
+                                        </div>
+                                    )}
                                     <div className="mb-5">
                                         <label className="text-xs font-bold text-slate-500 uppercase">หมายเหตุ</label>
-                                        <textarea rows="2" value={scheduleForm.interviewComment} onChange={e => setScheduleForm({...scheduleForm, interviewComment: e.target.value})} className="modern-input py-2.5" placeholder="เช่น สถานที่นัด, สิ่งที่ต้องเตรียม"></textarea>
+                                        <textarea rows="2" value={scheduleForm.interviewComment} onChange={e => setScheduleForm({...scheduleForm, interviewComment: e.target.value})} className="modern-input py-2.5" placeholder="เช่น สิ่งที่ต้องเตรียม, เอกสารที่ต้องนำมา"></textarea>
                                     </div>
                                     <button onClick={handleScheduleSave} disabled={scheduleSaving} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white py-3.5 rounded-xl font-bold uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-95">
                                         {scheduleSaving ? 'กำลังบันทึก...' : 'บันทึกนัดหมายสัมภาษณ์'}
@@ -1280,7 +1321,7 @@
                                         <div className="font-black text-slate-800 text-base mb-1">{interviewCandidate.firstName} {interviewCandidate.lastName}</div>
                                         <div className="text-slate-500 font-medium">ตำแหน่ง: {interviewCandidate.position || '-'} · สาขา: {interviewCandidate.location || '-'}</div>
                                         <div className="text-slate-500 font-medium">โทร: {interviewCandidate.tel || '-'} · Agency: {interviewCandidate.agency || '-'}</div>
-                                        {interviewCandidate.interviewDate && <div className="text-indigo-600 text-xs font-bold mt-2">นัดสัมภาษณ์: {interviewCandidate.interviewDate} {interviewCandidate.interviewTime || ''} {interviewCandidate.interviewer ? '· ' + interviewCandidate.interviewer : ''}</div>}
+                                        {interviewCandidate.interviewDate && <div className="text-indigo-600 text-xs font-bold mt-2">นัดสัมภาษณ์: {interviewCandidate.interviewDate} {interviewCandidate.interviewTime || ''} {interviewCandidate.interviewer ? '· ' + interviewCandidate.interviewer : ''}{interviewCandidate.interviewMode ? ` · ${interviewCandidate.interviewMode}${interviewCandidate.interviewMode === 'Onsite' && interviewCandidate.interviewPlace ? ` (${interviewCandidate.interviewPlace})` : ''}` : ''}</div>}
                                         {interviewCandidate.interviewStatus && interviewCandidate.interviewStatus !== 'รอผล' && <div className="text-amber-600 text-xs font-bold mt-1">⚠ ผลเดิม: {interviewCandidate.interviewStatus} — บันทึกใหม่จะทับผลเดิม</div>}
                                     </div>
                                     <div className="mb-4">
@@ -1498,6 +1539,7 @@
                             <div className="font-black truncate pr-8">{c.firstName ? `${c.firstName} ${c.lastName}` : (c.name || '-')}</div>
                             {!compact && <div className="truncate text-[9px] opacity-70">{c.position || ''}</div>}
                             {!compact && <div className="truncate text-[8px] opacity-50">{c.agency || ''} {c.location ? `· ${c.location}` : ''}</div>}
+                            {!compact && c.interviewMode && <div className="truncate text-[8px] font-black opacity-80">{c.interviewMode === 'Online' ? '💻 Online' : `📍 Onsite${c.interviewPlace ? `: ${c.interviewPlace}` : ''}`}</div>}
                             <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 flex gap-0.5 transition-all">
                                 {c.resumeLink && (
                                     <button onClick={(e) => { e.stopPropagation(); setCalResumePreview(c); }} className="bg-white/80 hover:bg-indigo-50 text-indigo-500 rounded-md p-0.5 transition-all" title="ดู Resume">
@@ -1715,6 +1757,14 @@
                                                                     <span className={`text-xs font-black px-2.5 py-0.5 rounded-full shrink-0 ${c.interviewStatus === 'ผ่าน' ? 'bg-indigo-100 text-indigo-700' : c.interviewStatus === 'ไม่ผ่าน' ? 'bg-slate-100 text-slate-500' : c.interviewStatus === 'ไม่เข้าสัมภาษณ์' ? 'bg-rose-100 text-rose-600' : c.interviewStatus === 'อื่นๆ' ? 'bg-purple-100 text-purple-600' : 'bg-amber-100 text-amber-700'}`}>{c.interviewStatus || 'รอผล'}</span>
                                                                     {c.agency && <span className="text-xs font-semibold text-slate-400 shrink-0">{c.agency}</span>}
                                                                     {c.confirmStatus && <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0 ${c.confirmStatus === 'ยืนยัน' ? 'bg-emerald-100 text-emerald-700' : c.confirmStatus === 'ยกเลิก' ? 'bg-rose-100 text-rose-600' : 'bg-purple-100 text-purple-600'}`}>{c.confirmStatus}</span>}
+                                                                    {c.interviewMode && (
+                                                                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full shrink-0 ${c.interviewMode === 'Online' ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                                            {c.interviewMode}{c.interviewMode === 'Onsite' && c.interviewPlace ? `: ${c.interviewPlace}` : ''}
+                                                                        </span>
+                                                                    )}
+                                                                    {c.interviewMode === 'Online' && c.interviewLink && (
+                                                                        <a href={c.interviewLink} target="_blank" rel="noreferrer" className="text-xs font-bold text-sky-600 underline shrink-0">Link สัมภาษณ์</a>
+                                                                    )}
                                                                     {c.interviewComment && <span className="text-xs text-slate-400 italic truncate">หมายเหตุ: {c.interviewComment}</span>}
                                                                 </div>
                                                                 <div className="flex items-center gap-1.5 shrink-0">
@@ -2271,9 +2321,18 @@
                                                                 {isEditing ? (
                                                                     <div className="flex flex-col gap-1.5 items-center">
                                                                         <div className="flex gap-1 w-full justify-center">
-                                                                            <input type="date" value={editFormData.interviewDate || ''} onChange={e => setEditFormData({...editFormData, interviewDate: e.target.value})} className="admin-edit text-[11px] w-1/2" /> 
-                                                                            <input type="time" value={editFormData.interviewTime || ''} onChange={e => setEditFormData({...editFormData, interviewTime: e.target.value})} className="admin-edit text-[11px] w-1/2" /> 
+                                                                            <input type="date" value={editFormData.interviewDate || ''} onChange={e => setEditFormData({...editFormData, interviewDate: e.target.value})} className="admin-edit text-[11px] w-1/2" />
+                                                                            <input type="time" value={editFormData.interviewTime || ''} onChange={e => setEditFormData({...editFormData, interviewTime: e.target.value})} className="admin-edit text-[11px] w-1/2" />
                                                                         </div>
+                                                                        <select value={editFormData.interviewMode || ''} onChange={e => setEditFormData({...editFormData, interviewMode: e.target.value})} className="admin-edit text-[11px] w-full">
+                                                                            <option value="">รูปแบบสัมภาษณ์: -</option><option value="Online">รูปแบบสัมภาษณ์: Online</option><option value="Onsite">รูปแบบสัมภาษณ์: Onsite</option>
+                                                                        </select>
+                                                                        {editFormData.interviewMode === 'Online' && (
+                                                                            <input type="url" value={editFormData.interviewLink || ''} onChange={e => setEditFormData({...editFormData, interviewLink: e.target.value})} placeholder="Link สัมภาษณ์ Online..." className="admin-edit text-[11px] w-full" />
+                                                                        )}
+                                                                        {editFormData.interviewMode === 'Onsite' && (
+                                                                            <input type="text" value={editFormData.interviewPlace || ''} onChange={e => setEditFormData({...editFormData, interviewPlace: e.target.value})} placeholder="สถานที่สัมภาษณ์ เช่น สาขา..." className="admin-edit text-[11px] w-full" />
+                                                                        )}
                                                                         {(editFormData.aiSummary === 'ผ่าน' && editFormData.interviewDate) && (
                                                                             <React.Fragment>
                                                                                 <select value={editFormData.interviewStatus || 'รอผล'} onChange={e => setEditFormData({...editFormData, interviewStatus: e.target.value})} className="admin-edit text-[11px] w-full">
@@ -2292,6 +2351,20 @@
                                                                             </div>
                                                                         ) : (
                                                                             <div className="text-[10px] text-slate-400 mb-1.5">- ไม่ได้นัดหมาย -</div>
+                                                                        )}
+
+                                                                        {item.interviewMode && (
+                                                                            <div className="flex flex-col items-center gap-0.5 mb-1.5">
+                                                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${item.interviewMode === 'Online' ? 'bg-sky-50 text-sky-600 ring-1 ring-sky-400/30' : 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-400/30'}`}>
+                                                                                    สัมภาษณ์ {item.interviewMode}
+                                                                                </span>
+                                                                                {item.interviewMode === 'Online' && item.interviewLink && (
+                                                                                    <a href={item.interviewLink} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-sky-600 underline max-w-[160px] truncate" title={item.interviewLink}>เปิด Link สัมภาษณ์</a>
+                                                                                )}
+                                                                                {item.interviewMode === 'Onsite' && item.interviewPlace && (
+                                                                                    <div className="text-[10px] text-emerald-600 font-semibold max-w-[160px] break-words">{item.interviewPlace}</div>
+                                                                                )}
+                                                                            </div>
                                                                         )}
                                                                         
                                                                         {(item.aiSummary === 'ผ่าน' && item.interviewDate) && (
