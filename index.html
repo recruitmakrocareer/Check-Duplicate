@@ -509,6 +509,24 @@
             const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+            // นับจำนวนวันตั้งแต่ AI Prescreen ผ่าน → วันนัดสัมภาษณ์ (ถ้ายังไม่นัด นับถึงวันนี้)
+            const prescreenToInterview = (item) => {
+                if (item.aiSummary !== 'ผ่าน') return null;
+                // วันเริ่ม: ใช้ aiPassedAt ก่อน, ถ้าไม่มี (ข้อมูลเก่า) fallback เป็น submissionDate แล้ว createdAt
+                let start = null;
+                if (item.aiPassedAt) start = new Date(item.aiPassedAt);
+                else if (item.submissionDate) start = new Date(item.submissionDate + 'T00:00:00');
+                else if (item.createdAt) start = new Date(item.createdAt);
+                if (!start || isNaN(start)) return null;
+                const scheduled = !!item.interviewDate;
+                const end = scheduled ? new Date(item.interviewDate + 'T00:00:00') : new Date();
+                if (isNaN(end)) return null;
+                const d0 = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+                const d1 = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+                const days = Math.round((d1 - d0) / 86400000);
+                return { days, scheduled, estimated: !item.aiPassedAt };
+            };
+
             // คำนวณ Performance (เฉพาะ Admin) — กรองตามช่วงวันที่ส่งได้ จัดกลุ่มได้ทั้ง Agency และ ตำแหน่งงาน
             const dashboardPerformance = useMemo(() => {
                 const KNOWN_AGENCIES = ['Manpower', 'Me Talent', 'PRTR', 'Talentvis', 'Techgrid'];
@@ -700,7 +718,9 @@
                                 resumeLink: res.url,
                                 aiScore: null,
                                 aiSummary: aiData.summary,
-                                aiDetail: aiData.detail
+                                aiDetail: aiData.detail,
+                                // บันทึกวันที่ AI Prescreen ผ่าน (ครั้งแรกที่ผ่านเท่านั้น) เพื่อใช้นับจำนวนวันถึงวันนัดสัมภาษณ์
+                                ...(aiData.summary === 'ผ่าน' && !(targetCandidate && targetCandidate.aiPassedAt) ? { aiPassedAt: Date.now() } : {})
                             });
 
                             if (aiData.summary === 'ผ่าน' && targetCandidate) {
@@ -730,6 +750,15 @@
 
                     let finalInterviewComment = editFormData.interviewComment || '';
 
+                    // บันทึก/อัปเดตวันที่ AI Prescreen ผ่าน เพื่อนับจำนวนวันถึงวันนัดสัมภาษณ์
+                    let aiPassedAtUpdate = {};
+                    if (editFormData.aiSummary === 'ผ่าน') {
+                        if (!(prevCandidate && prevCandidate.aiPassedAt)) aiPassedAtUpdate = { aiPassedAt: Date.now() };
+                    } else {
+                        // เปลี่ยนผลออกจาก "ผ่าน" → ล้างวันที่ผ่านทิ้ง
+                        if (prevCandidate && prevCandidate.aiPassedAt) aiPassedAtUpdate = { aiPassedAt: null };
+                    }
+
                     await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', id), {
                         submissionDate: editFormData.submissionDate || '',
                         agency: editFormData.agency || '',
@@ -748,7 +777,8 @@
                         interviewPlace: editFormData.interviewMode === 'Onsite' ? (editFormData.interviewPlace || '') : '',
                         interviewStatus: finalInterviewStatus,
                         interviewComment: finalInterviewComment,
-                        aiDetail: editFormData.aiDetail || ''
+                        aiDetail: editFormData.aiDetail || '',
+                        ...aiPassedAtUpdate
                     });
                     // กรณี Admin แก้ผล AI Prescreen เป็น "ผ่าน" ด้วยตนเอง ก็แจ้ง HR สาขาเช่นกัน
                     if (editFormData.aiSummary === 'ผ่าน' && prevCandidate && prevCandidate.aiSummary !== 'ผ่าน') {
@@ -859,6 +889,7 @@
                     "สถานะตรวจสอบ": item.prescreenStatus || '',
                     "AI Score": item.aiScore ? `${item.aiScore}%` : '',
                     "AI Summary": item.aiSummary || '',
+                    "จำนวนวัน Prescreen→สัมภาษณ์": (() => { const p = prescreenToInterview(item); return p && p.scheduled ? p.days : ''; })(),
                     "วันสัมภาษณ์": item.interviewDate || '',
                     "เวลาสัมภาษณ์": item.interviewTime || '',
                     "รูปแบบสัมภาษณ์": item.interviewMode || '',
@@ -2508,6 +2539,19 @@
                                                                                 ) : <span className="text-slate-300 flex items-center text-[10px]"><i data-lucide="lock" className="w-3 h-3 mr-1"></i> ไม่มีไฟล์</span>
                                                                             )}
                                                                         </div>
+
+                                                                        {/* จำนวนวัน: AI Prescreen ผ่าน → วันนัดสัมภาษณ์ */}
+                                                                        {(() => {
+                                                                            const p = prescreenToInterview(item);
+                                                                            if (!p) return null;
+                                                                            const title = `นับจาก${p.estimated ? 'วันที่ส่ง (ประมาณการ)' : 'วันที่ AI Prescreen ผ่าน'} ${p.scheduled ? 'ถึงวันนัดสัมภาษณ์' : 'ถึงวันนี้ (ยังไม่นัด)'}`;
+                                                                            return (
+                                                                                <span title={title} className={`badge flex items-center gap-1 mt-1 ${p.scheduled ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/20' : 'bg-amber-50 text-amber-600 ring-1 ring-amber-500/20'}`}>
+                                                                                    <i data-lucide={p.scheduled ? 'timer' : 'hourglass'} className="w-3 h-3"></i>
+                                                                                    {p.scheduled ? `นัดภายใน ${p.days} วัน` : `รอนัด ${p.days} วัน`}{p.estimated ? '*' : ''}
+                                                                                </span>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                 )}
                                                             </td>
