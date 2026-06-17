@@ -242,6 +242,11 @@
             const [calFilterTime, setCalFilterTime] = useState('');
             const [calFilterLocation, setCalFilterLocation] = useState('');
 
+            // Agency Performance Dashboard States (Admin only)
+            const [showDashboard, setShowDashboard] = useState(false);
+            const [dashFrom, setDashFrom] = useState('');
+            const [dashTo, setDashTo] = useState('');
+
             // Vacancy States
             const [showVacancy, setShowVacancy] = useState(false);
             const [vacancyData, setVacancyData] = useState({ b2b: [], section: [] });
@@ -502,6 +507,55 @@
 
             const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+            // คำนวณ Performance ของแต่ละ Agency (เฉพาะ Admin) — กรองตามช่วงวันที่ส่งได้
+            const agencyPerformance = useMemo(() => {
+                const KNOWN_AGENCIES = ['Manpower', 'Me Talent', 'PRTR', 'Talentvis', 'Techgrid'];
+                const inRange = (d) => {
+                    if (!d) return !dashFrom && !dashTo; // ไม่มีวันที่ส่ง → นับเฉพาะเมื่อไม่ได้กรองช่วง
+                    if (dashFrom && d < dashFrom) return false;
+                    if (dashTo && d > dashTo) return false;
+                    return true;
+                };
+                const source = cloudCandidates.filter(item =>
+                    item.agency && item.agency !== 'Admin' && inRange(item.submissionDate)
+                );
+                const blank = () => ({
+                    total: 0, noDup: 0, dup: 0, waitDup: 0,
+                    aiPass: 0, aiFail: 0, aiWait: 0,
+                    scheduled: 0, intPass: 0, intFail: 0, intNoShow: 0, intWait: 0
+                });
+                const map = {};
+                KNOWN_AGENCIES.forEach(a => { map[a] = blank(); });
+                source.forEach(item => {
+                    const a = item.agency;
+                    if (!map[a]) map[a] = blank();
+                    const s = map[a];
+                    s.total++;
+                    if (item.prescreenStatus === 'No Dup') s.noDup++;
+                    else if (item.prescreenStatus === 'Dup') s.dup++;
+                    else s.waitDup++;
+                    if (item.aiSummary === 'ผ่าน') s.aiPass++;
+                    else if (item.aiSummary === 'ไม่ผ่าน') s.aiFail++;
+                    else s.aiWait++;
+                    if (item.interviewDate) {
+                        s.scheduled++;
+                        if (item.interviewStatus === 'ผ่าน') s.intPass++;
+                        else if (item.interviewStatus === 'ไม่ผ่าน') s.intFail++;
+                        else if (item.interviewStatus === 'ไม่เข้าสัมภาษณ์') s.intNoShow++;
+                        else s.intWait++;
+                    }
+                });
+                const rows = Object.keys(map)
+                    .map(agency => ({ agency, ...map[agency] }))
+                    .filter(r => r.total > 0 || KNOWN_AGENCIES.includes(r.agency))
+                    .sort((a, b) => b.total - a.total);
+                const totals = rows.reduce((acc, r) => {
+                    Object.keys(blank()).forEach(k => { acc[k] = (acc[k] || 0) + r[k]; });
+                    return acc;
+                }, blank());
+                return { rows, totals };
+            }, [cloudCandidates, dashFrom, dashTo]);
 
             const extractTextFromPDF = async (base64Data) => {
                 try {
@@ -2067,6 +2121,116 @@
                         )}
 
                         <div className="flex-1 min-w-0 flex flex-col gap-6">
+                            {currentUserAgency === 'Admin' && showDashboard && (() => {
+                                const { rows, totals } = agencyPerformance;
+                                const pct = (n, d) => d > 0 ? Math.round((n / d) * 100) : 0;
+                                const summaryCards = [
+                                    { label: 'ผู้สมัครทั้งหมด', value: totals.total, sub: 'Total Submitted', icon: 'users', color: 'indigo' },
+                                    { label: 'ผ่าน AI Prescreen', value: totals.aiPass, sub: `${pct(totals.aiPass, totals.total)}% ของทั้งหมด`, icon: 'sparkles', color: 'sky' },
+                                    { label: 'นัดสัมภาษณ์', value: totals.scheduled, sub: `${pct(totals.scheduled, totals.total)}% ของทั้งหมด`, icon: 'calendar-check', color: 'violet' },
+                                    { label: 'สัมภาษณ์ผ่าน', value: totals.intPass, sub: `${pct(totals.intPass, totals.total)}% Conversion`, icon: 'trophy', color: 'emerald' },
+                                ];
+                                const colorMap = {
+                                    indigo: 'bg-indigo-50 text-indigo-600',
+                                    sky: 'bg-sky-50 text-sky-600',
+                                    violet: 'bg-violet-50 text-violet-600',
+                                    emerald: 'bg-emerald-50 text-emerald-600',
+                                };
+                                return (
+                                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                                        <div className="p-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
+                                            <div className="flex items-center gap-2 text-slate-700">
+                                                <i data-lucide="bar-chart-3" className="w-4 h-4 text-amber-500"></i>
+                                                <h2 className="font-black text-sm uppercase tracking-wide">Dashboard Performance Agency</h2>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">ช่วงวันที่ส่ง</span>
+                                                <input type="date" value={dashFrom} onChange={e => setDashFrom(e.target.value)} className="modern-input py-1.5 px-2 text-xs" />
+                                                <span className="text-slate-300">—</span>
+                                                <input type="date" value={dashTo} onChange={e => setDashTo(e.target.value)} className="modern-input py-1.5 px-2 text-xs" />
+                                                {(dashFrom || dashTo) && (
+                                                    <button onClick={() => { setDashFrom(''); setDashTo(''); }} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[32px] px-3 rounded-lg text-[10px] font-bold uppercase transition-colors">Clear</button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4">
+                                            {summaryCards.map(c => (
+                                                <div key={c.label} className="bg-slate-50/70 border border-slate-100 rounded-xl p-4 flex items-center gap-3">
+                                                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${colorMap[c.color]}`}>
+                                                        <i data-lucide={c.icon} className="w-5 h-5"></i>
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="text-2xl font-black text-slate-800 leading-none">{c.value}</div>
+                                                        <div className="text-[11px] font-bold text-slate-500 mt-1 truncate">{c.label}</div>
+                                                        <div className="text-[10px] font-medium text-slate-400 truncate">{c.sub}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="overflow-x-auto px-4 pb-4">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                                                        <th className="text-left py-2 px-2 font-bold">Agency</th>
+                                                        <th className="text-center py-2 px-2 font-bold">ส่งทั้งหมด</th>
+                                                        <th className="text-center py-2 px-2 font-bold">ไม่ซ้ำ / ซ้ำ</th>
+                                                        <th className="text-center py-2 px-2 font-bold">AI ผ่าน</th>
+                                                        <th className="text-center py-2 px-2 font-bold">นัดสัมภาษณ์</th>
+                                                        <th className="text-center py-2 px-2 font-bold">สัมภาษณ์ผ่าน</th>
+                                                        <th className="text-center py-2 px-2 font-bold w-[18%]">Conversion</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {rows.map(r => {
+                                                        const conv = pct(r.intPass, r.total);
+                                                        return (
+                                                            <tr key={r.agency} className="border-b border-slate-50 hover:bg-slate-50/50">
+                                                                <td className="py-2.5 px-2 font-black text-slate-700">{r.agency}</td>
+                                                                <td className="py-2.5 px-2 text-center font-bold text-slate-700">{r.total}</td>
+                                                                <td className="py-2.5 px-2 text-center font-semibold">
+                                                                    <span className="text-emerald-600">{r.noDup}</span>
+                                                                    <span className="text-slate-300 mx-0.5">/</span>
+                                                                    <span className="text-rose-500">{r.dup}</span>
+                                                                </td>
+                                                                <td className="py-2.5 px-2 text-center font-semibold text-sky-600">{r.aiPass} <span className="text-slate-400 font-medium text-[11px]">({pct(r.aiPass, r.total)}%)</span></td>
+                                                                <td className="py-2.5 px-2 text-center font-semibold text-violet-600">{r.scheduled} <span className="text-slate-400 font-medium text-[11px]">({pct(r.scheduled, r.total)}%)</span></td>
+                                                                <td className="py-2.5 px-2 text-center font-semibold text-emerald-600">{r.intPass}</td>
+                                                                <td className="py-2.5 px-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${conv}%` }}></div>
+                                                                        </div>
+                                                                        <span className="text-[11px] font-bold text-slate-600 w-9 text-right">{conv}%</span>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                    {rows.every(r => r.total === 0) && (
+                                                        <tr><td colSpan="7" className="text-center py-8 text-slate-400 font-medium">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>
+                                                    )}
+                                                </tbody>
+                                                {totals.total > 0 && (
+                                                    <tfoot>
+                                                        <tr className="border-t-2 border-slate-100 bg-slate-50/50 font-black text-slate-700">
+                                                            <td className="py-2.5 px-2">รวมทั้งหมด</td>
+                                                            <td className="py-2.5 px-2 text-center">{totals.total}</td>
+                                                            <td className="py-2.5 px-2 text-center"><span className="text-emerald-600">{totals.noDup}</span><span className="text-slate-300 mx-0.5">/</span><span className="text-rose-500">{totals.dup}</span></td>
+                                                            <td className="py-2.5 px-2 text-center text-sky-600">{totals.aiPass}</td>
+                                                            <td className="py-2.5 px-2 text-center text-violet-600">{totals.scheduled}</td>
+                                                            <td className="py-2.5 px-2 text-center text-emerald-600">{totals.intPass}</td>
+                                                            <td className="py-2.5 px-2 text-center">{pct(totals.intPass, totals.total)}%</td>
+                                                        </tr>
+                                                    </tfoot>
+                                                )}
+                                            </table>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             <div className="compact-filter-bar" style={{ gridTemplateColumns: currentUserAgency === 'Admin' ? 'repeat(8, 1fr) auto' : 'repeat(7, 1fr) auto' }}>
                                 <div className="filter-item"><label className="modern-label">วันที่ส่ง</label><input type="date" value={filters.subDate} onChange={e => setFilters({...filters, subDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
                                 
@@ -2167,6 +2331,9 @@
                                                 </button>
                                                 <button onClick={exportToCSV} className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
                                                     <i data-lucide="download" className="w-3.5 h-3.5"></i> Export CSV
+                                                </button>
+                                                <button onClick={() => setShowDashboard(v => !v)} className={`px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95 ${showDashboard ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-amber-100 hover:bg-amber-200 text-amber-700'}`}>
+                                                    <i data-lucide="bar-chart-3" className="w-3.5 h-3.5"></i> Dashboard Agency
                                                 </button>
                                                 <button onClick={() => { setCalendarDate(new Date()); setShowCalendarView(true); }} className="bg-violet-500 hover:bg-violet-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
                                                     <i data-lucide="calendar-days" className="w-3.5 h-3.5"></i> ปฏิทินสัมภาษณ์
