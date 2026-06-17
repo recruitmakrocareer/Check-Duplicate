@@ -791,6 +791,34 @@
                 }
             };
 
+            // เติม aiPassedAt ย้อนหลังให้ข้อมูลเก่าที่ผ่าน AI แล้วแต่ยังไม่มีวันที่ผ่าน (Admin กดครั้งเดียว)
+            const [isBackfilling, setIsBackfilling] = useState(false);
+            const handleBackfillAiPassedAt = async () => {
+                const targets = cloudCandidates.filter(c => c.aiSummary === 'ผ่าน' && !c.aiPassedAt);
+                if (targets.length === 0) {
+                    setPopup({ title: "INFO", msg: "ไม่มีข้อมูลที่ต้องเติมย้อนหลัง — ทุกเคสที่ผ่าน AI มีวันที่ผ่านครบแล้ว" });
+                    return;
+                }
+                if (!window.confirm(`พบ ${targets.length} เคสที่ผ่าน AI แต่ยังไม่มีวันที่ผ่าน\n\nจะเติมวันที่ผ่านย้อนหลังโดยใช้ "วันที่ส่ง" (หรือวันที่สร้างข้อมูล) เป็นค่าเริ่มต้น\nดำเนินการต่อหรือไม่?`)) return;
+                setIsBackfilling(true);
+                try {
+                    let ok = 0;
+                    for (const c of targets) {
+                        let ts = null;
+                        if (c.submissionDate) ts = new Date(c.submissionDate + 'T12:00:00').getTime();
+                        else if (c.createdAt) ts = c.createdAt;
+                        if (!ts || isNaN(ts)) continue;
+                        await window.FB.methods.updateDoc(window.FB.methods.doc(window.FB.db, 'candidates', c.id), { aiPassedAt: ts });
+                        ok++;
+                    }
+                    setPopup({ title: "SUCCESS", msg: `เติมวันที่ผ่าน AI ย้อนหลังสำเร็จ ${ok}/${targets.length} เคส` });
+                } catch (error) {
+                    setPopup({ title: "ERROR", msg: "เกิดข้อผิดพลาดระหว่างเติมข้อมูล กรุณาลองใหม่" });
+                } finally {
+                    setIsBackfilling(false);
+                }
+            };
+
             const handleSaveConfirm = async (id) => {
                 if (!confirmFormData.status) {
                     setPopup({ title: "WARNING", msg: "กรุณาเลือกสถานะการยืนยัน" });
@@ -2390,6 +2418,9 @@
                                                 </button>
                                                 <button onClick={exportToCSV} className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95">
                                                     <i data-lucide="download" className="w-3.5 h-3.5"></i> Export CSV
+                                                </button>
+                                                <button onClick={handleBackfillAiPassedAt} disabled={isBackfilling} className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95 border border-slate-200 disabled:opacity-50" title="เติมวันที่ AI Prescreen ผ่าน ย้อนหลังให้ข้อมูลเก่า (กดครั้งเดียว)">
+                                                    {isBackfilling ? <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div> : <i data-lucide="history" className="w-3.5 h-3.5"></i>} เติมวันที่ผ่าน
                                                 </button>
                                                 <button onClick={() => setShowDashboard(v => !v)} className={`px-4 py-1.5 rounded-xl text-[11px] font-bold uppercase transition-colors flex items-center gap-1.5 shadow-sm active:scale-95 ${showDashboard ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-amber-100 hover:bg-amber-200 text-amber-700'}`}>
                                                     <i data-lucide="bar-chart-3" className="w-3.5 h-3.5"></i> Dashboard Agency
