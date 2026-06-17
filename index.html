@@ -126,21 +126,34 @@
 <body>
     <div id="root"></div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <!--
+      โหลด Firebase ผ่าน dynamic import() ใน classic script (ไม่ใช่ type="module")
+      เพื่อไม่ให้ @babel/standalone (in-browser Babel) ไปจับ script นี้มาแปลง
+      ซึ่งจะทำให้เกิด error "Cannot use import statement outside a module"
+      แล้ว Babel หยุดทำงาน ส่งผลให้ React app (script text/babel) ไม่รันและหน้าว่าง
+    -->
+    <script>
+        Promise.all([
+            import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"),
+            import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"),
+            import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js")
+        ]).then(([appMod, authMod, fsMod]) => {
+            const { initializeApp } = appMod;
+            const { getAuth, signInAnonymously, onAuthStateChanged } = authMod;
+            const { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, writeBatch, setDoc } = fsMod;
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAX6alx5rJRDRd8Wcvj4rDLLsYwz37NXEQ",
-            authDomain: "recruit-operation-project.firebaseapp.com",
-            projectId: "recruit-operation-project",
-            storageBucket: "recruit-operation-project.firebasestorage.app",
-            messagingSenderId: "857023562077",
-            appId: "1:857023562077:web:669da5cfc20cf7707e68b4"
-        };
-        const app = initializeApp(firebaseConfig);
-        window.FB = { db: getFirestore(app), auth: getAuth(app), methods: { signInAnonymously, onAuthStateChanged, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, writeBatch, setDoc } };
+            const firebaseConfig = {
+                apiKey: "AIzaSyAX6alx5rJRDRd8Wcvj4rDLLsYwz37NXEQ",
+                authDomain: "recruit-operation-project.firebaseapp.com",
+                projectId: "recruit-operation-project",
+                storageBucket: "recruit-operation-project.firebasestorage.app",
+                messagingSenderId: "857023562077",
+                appId: "1:857023562077:web:669da5cfc20cf7707e68b4"
+            };
+            const app = initializeApp(firebaseConfig);
+            window.FB = { db: getFirestore(app), auth: getAuth(app), methods: { signInAnonymously, onAuthStateChanged, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, writeBatch, setDoc } };
+            window.dispatchEvent(new Event('fb-ready'));
+        }).catch((err) => console.error('Firebase load failed:', err));
     </script>
 
     <script type="text/babel">
@@ -156,6 +169,8 @@
             const configCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxq53q5Vk4M8Pl198a5N1znINRlUqpbB4E8ZFBVE_GYTWX9qwuHSIljFlImhM110x0d2XeER8A28up/pub?output=csv";
 
             const [user, setUser] = useState(null);
+            // Firebase โหลดแบบ async (dynamic import) — รอจน window.FB พร้อมก่อนเริ่ม auth
+            const [fbReady, setFbReady] = useState(() => !!window.FB);
             const [currentUserAgency, setCurrentUserAgency] = useState('');
             const [loginEmail, setLoginEmail] = useState('');
             const [isLoading, setIsLoading] = useState(true);
@@ -321,7 +336,14 @@
             });
 
             useEffect(() => {
-                if (!window.FB) return;
+                if (window.FB) { setFbReady(true); return; }
+                const onReady = () => setFbReady(true);
+                window.addEventListener('fb-ready', onReady);
+                return () => window.removeEventListener('fb-ready', onReady);
+            }, []);
+
+            useEffect(() => {
+                if (!fbReady || !window.FB) return;
                 window.FB.methods.signInAnonymously(window.FB.auth);
                 window.FB.methods.onAuthStateChanged(window.FB.auth, (u) => {
                     setUser(u);
@@ -351,7 +373,7 @@
                         setGmailDb(emails); setIsLoading(false); 
                     }).catch(() => setIsLoading(false));
                 });
-            }, []);
+            }, [fbReady]);
 
             // โหลดข้อมูลผู้สมัครสำหรับหน้านัดหมาย (ใช้ anonymous auth ไม่ต้อง login agency)
             useEffect(() => {
@@ -466,7 +488,7 @@
             }, [user, currentUserAgency]);
 
             useEffect(() => {
-                if (!showPublicCalendar) return;
+                if (!showPublicCalendar || !window.FB) return;
                 const q = window.FB.methods.query(window.FB.methods.collection(window.FB.db, 'candidates'));
                 const unsub = window.FB.methods.onSnapshot(q, (sn) => {
                     setPublicCalCandidates(sn.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -481,7 +503,7 @@
                     () => {}
                 );
                 return () => { unsub(); unsubSettings(); };
-            }, [showPublicCalendar, user]);
+            }, [showPublicCalendar, user, fbReady]);
 
             const allFiltered = useMemo(() => {
                 return cloudCandidates.filter(item => {
