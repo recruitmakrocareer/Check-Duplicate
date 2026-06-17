@@ -562,7 +562,8 @@
                 };
                 return {
                     agency: groupBy(item => item.agency, KNOWN_AGENCIES),
-                    position: groupBy(item => item.position || 'ไม่ระบุตำแหน่ง'),
+                    // มุมมองตำแหน่งงาน: แตกเป็น Agency + ตำแหน่ง (คั่นด้วย  แล้วแยกตอนแสดงผล)
+                    position: groupBy(item => `${item.agency}${item.position || 'ไม่ระบุตำแหน่ง'}`),
                 };
             }, [cloudCandidates, dashFrom, dashTo]);
 
@@ -2131,9 +2132,18 @@
 
                         <div className="flex-1 min-w-0 flex flex-col gap-6">
                             {currentUserAgency === 'Admin' && showDashboard && (() => {
-                                const { rows, totals } = dashboardPerformance[dashGroupBy];
-                                const groupLabel = dashGroupBy === 'position' ? 'ตำแหน่งงาน' : 'Agency';
+                                const { rows: rawRows, totals } = dashboardPerformance[dashGroupBy];
+                                const isPosView = dashGroupBy === 'position';
+                                const groupLabel = isPosView ? 'ตำแหน่งงาน' : 'Agency';
                                 const pct = (n, d) => d > 0 ? Math.round((n / d) * 100) : 0;
+                                // มุมมองตำแหน่ง: แยก key เป็น Agency + ตำแหน่ง แล้วเรียงตาม Agency → จำนวนมากสุด
+                                const rows = isPosView
+                                    ? rawRows.map(r => {
+                                        const [agency, position] = r.key.split('');
+                                        return { ...r, agency, position };
+                                      }).sort((a, b) => a.agency.localeCompare(b.agency) || b.total - a.total)
+                                    : rawRows;
+                                const colCount = isPosView ? 8 : 7;
                                 const summaryCards = [
                                     { label: 'ผู้สมัครทั้งหมด', value: totals.total, sub: 'Total Submitted', icon: 'users', color: 'indigo' },
                                     { label: 'ผ่าน AI Prescreen', value: totals.aiPass, sub: `${pct(totals.aiPass, totals.total)}% ของทั้งหมด`, icon: 'sparkles', color: 'sky' },
@@ -2189,6 +2199,7 @@
                                             <table className="w-full text-sm">
                                                 <thead>
                                                     <tr className="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                                                        {isPosView && <th className="text-left py-2 px-2 font-bold">Agency</th>}
                                                         <th className="text-left py-2 px-2 font-bold">{groupLabel}</th>
                                                         <th className="text-center py-2 px-2 font-bold">ส่งทั้งหมด</th>
                                                         <th className="text-center py-2 px-2 font-bold">ไม่ซ้ำ / ซ้ำ</th>
@@ -2203,7 +2214,8 @@
                                                         const conv = pct(r.intPass, r.total);
                                                         return (
                                                             <tr key={r.key} className="border-b border-slate-50 hover:bg-slate-50/50">
-                                                                <td className="py-2.5 px-2 font-black text-slate-700">{r.key}</td>
+                                                                {isPosView && <td className="py-2.5 px-2 font-bold text-slate-500">{r.agency}</td>}
+                                                                <td className="py-2.5 px-2 font-black text-slate-700">{isPosView ? r.position : r.key}</td>
                                                                 <td className="py-2.5 px-2 text-center font-bold text-slate-700">{r.total}</td>
                                                                 <td className="py-2.5 px-2 text-center font-semibold">
                                                                     <span className="text-emerald-600">{r.noDup}</span>
@@ -2225,13 +2237,13 @@
                                                         );
                                                     })}
                                                     {rows.every(r => r.total === 0) && (
-                                                        <tr><td colSpan="7" className="text-center py-8 text-slate-400 font-medium">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>
+                                                        <tr><td colSpan={colCount} className="text-center py-8 text-slate-400 font-medium">ไม่พบข้อมูลในช่วงเวลาที่เลือก</td></tr>
                                                     )}
                                                 </tbody>
                                                 {totals.total > 0 && (
                                                     <tfoot>
                                                         <tr className="border-t-2 border-slate-100 bg-slate-50/50 font-black text-slate-700">
-                                                            <td className="py-2.5 px-2">รวมทั้งหมด</td>
+                                                            <td className="py-2.5 px-2" colSpan={isPosView ? 2 : 1}>รวมทั้งหมด</td>
                                                             <td className="py-2.5 px-2 text-center">{totals.total}</td>
                                                             <td className="py-2.5 px-2 text-center"><span className="text-emerald-600">{totals.noDup}</span><span className="text-slate-300 mx-0.5">/</span><span className="text-rose-500">{totals.dup}</span></td>
                                                             <td className="py-2.5 px-2 text-center text-sky-600">{totals.aiPass}</td>
