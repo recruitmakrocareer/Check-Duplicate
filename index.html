@@ -246,6 +246,7 @@
             const [showDashboard, setShowDashboard] = useState(false);
             const [dashFrom, setDashFrom] = useState('');
             const [dashTo, setDashTo] = useState('');
+            const [dashGroupBy, setDashGroupBy] = useState('agency'); // 'agency' | 'position'
 
             // Vacancy States
             const [showVacancy, setShowVacancy] = useState(false);
@@ -508,8 +509,8 @@
             const totalPages = Math.max(1, Math.ceil(allFiltered.length / itemsPerPage));
             const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-            // คำนวณ Performance ของแต่ละ Agency (เฉพาะ Admin) — กรองตามช่วงวันที่ส่งได้
-            const agencyPerformance = useMemo(() => {
+            // คำนวณ Performance (เฉพาะ Admin) — กรองตามช่วงวันที่ส่งได้ จัดกลุ่มได้ทั้ง Agency และ ตำแหน่งงาน
+            const dashboardPerformance = useMemo(() => {
                 const KNOWN_AGENCIES = ['Manpower', 'Me Talent', 'PRTR', 'Talentvis', 'Techgrid'];
                 const inRange = (d) => {
                     if (!d) return !dashFrom && !dashTo; // ไม่มีวันที่ส่ง → นับเฉพาะเมื่อไม่ได้กรองช่วง
@@ -525,12 +526,7 @@
                     aiPass: 0, aiFail: 0, aiWait: 0,
                     scheduled: 0, intPass: 0, intFail: 0, intNoShow: 0, intWait: 0
                 });
-                const map = {};
-                KNOWN_AGENCIES.forEach(a => { map[a] = blank(); });
-                source.forEach(item => {
-                    const a = item.agency;
-                    if (!map[a]) map[a] = blank();
-                    const s = map[a];
+                const tally = (s, item) => {
                     s.total++;
                     if (item.prescreenStatus === 'No Dup') s.noDup++;
                     else if (item.prescreenStatus === 'Dup') s.dup++;
@@ -545,16 +541,30 @@
                         else if (item.interviewStatus === 'ไม่เข้าสัมภาษณ์') s.intNoShow++;
                         else s.intWait++;
                     }
-                });
-                const rows = Object.keys(map)
-                    .map(agency => ({ agency, ...map[agency] }))
-                    .filter(r => r.total > 0 || KNOWN_AGENCIES.includes(r.agency))
-                    .sort((a, b) => b.total - a.total);
-                const totals = rows.reduce((acc, r) => {
-                    Object.keys(blank()).forEach(k => { acc[k] = (acc[k] || 0) + r[k]; });
-                    return acc;
-                }, blank());
-                return { rows, totals };
+                };
+                const groupBy = (keyFn, seed) => {
+                    const map = {};
+                    (seed || []).forEach(k => { map[k] = blank(); });
+                    source.forEach(item => {
+                        const k = keyFn(item);
+                        if (!map[k]) map[k] = blank();
+                        tally(map[k], item);
+                    });
+                    const rows = Object.keys(map)
+                        .map(key => ({ key, ...map[key] }))
+                        .filter(r => r.total > 0 || (seed || []).includes(r.key))
+                        .sort((a, b) => b.total - a.total);
+                    const totals = rows.reduce((acc, r) => {
+                        Object.keys(blank()).forEach(k => { acc[k] = (acc[k] || 0) + r[k]; });
+                        return acc;
+                    }, blank());
+                    return { rows, totals };
+                };
+                return {
+                    agency: groupBy(item => item.agency, KNOWN_AGENCIES),
+                    position: groupBy(item => item.position || 'ไม่ระบุตำแหน่ง'),
+                };
+            }, [cloudCandidates, dashFrom, dashTo]);
             }, [cloudCandidates, dashFrom, dashTo]);
 
             const extractTextFromPDF = async (base64Data) => {
@@ -2122,7 +2132,8 @@
 
                         <div className="flex-1 min-w-0 flex flex-col gap-6">
                             {currentUserAgency === 'Admin' && showDashboard && (() => {
-                                const { rows, totals } = agencyPerformance;
+                                const { rows, totals } = dashboardPerformance[dashGroupBy];
+                                const groupLabel = dashGroupBy === 'position' ? 'ตำแหน่งงาน' : 'Agency';
                                 const pct = (n, d) => d > 0 ? Math.round((n / d) * 100) : 0;
                                 const summaryCards = [
                                     { label: 'ผู้สมัครทั้งหมด', value: totals.total, sub: 'Total Submitted', icon: 'users', color: 'indigo' },
@@ -2139,9 +2150,15 @@
                                 return (
                                     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                                         <div className="p-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50">
-                                            <div className="flex items-center gap-2 text-slate-700">
-                                                <i data-lucide="bar-chart-3" className="w-4 h-4 text-amber-500"></i>
-                                                <h2 className="font-black text-sm uppercase tracking-wide">Dashboard Performance Agency</h2>
+                                            <div className="flex items-center gap-3 flex-wrap">
+                                                <div className="flex items-center gap-2 text-slate-700">
+                                                    <i data-lucide="bar-chart-3" className="w-4 h-4 text-amber-500"></i>
+                                                    <h2 className="font-black text-sm uppercase tracking-wide">Dashboard Performance</h2>
+                                                </div>
+                                                <div className="flex bg-slate-100 rounded-xl p-0.5">
+                                                    <button onClick={() => setDashGroupBy('agency')} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-all ${dashGroupBy === 'agency' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Agency</button>
+                                                    <button onClick={() => setDashGroupBy('position')} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-all ${dashGroupBy === 'position' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>ตำแหน่งงาน</button>
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">ช่วงวันที่ส่ง</span>
@@ -2173,7 +2190,7 @@
                                             <table className="w-full text-sm">
                                                 <thead>
                                                     <tr className="text-[11px] uppercase tracking-wide text-slate-500 border-b border-slate-100">
-                                                        <th className="text-left py-2 px-2 font-bold">Agency</th>
+                                                        <th className="text-left py-2 px-2 font-bold">{groupLabel}</th>
                                                         <th className="text-center py-2 px-2 font-bold">ส่งทั้งหมด</th>
                                                         <th className="text-center py-2 px-2 font-bold">ไม่ซ้ำ / ซ้ำ</th>
                                                         <th className="text-center py-2 px-2 font-bold">AI ผ่าน</th>
@@ -2186,8 +2203,8 @@
                                                     {rows.map(r => {
                                                         const conv = pct(r.intPass, r.total);
                                                         return (
-                                                            <tr key={r.agency} className="border-b border-slate-50 hover:bg-slate-50/50">
-                                                                <td className="py-2.5 px-2 font-black text-slate-700">{r.agency}</td>
+                                                            <tr key={r.key} className="border-b border-slate-50 hover:bg-slate-50/50">
+                                                                <td className="py-2.5 px-2 font-black text-slate-700">{r.key}</td>
                                                                 <td className="py-2.5 px-2 text-center font-bold text-slate-700">{r.total}</td>
                                                                 <td className="py-2.5 px-2 text-center font-semibold">
                                                                     <span className="text-emerald-600">{r.noDup}</span>
