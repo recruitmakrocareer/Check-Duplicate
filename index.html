@@ -147,6 +147,52 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
+        const MultiSelectDropdown = ({ options, selected, onChange, placeholder = 'ทั้งหมด' }) => {
+            const [open, setOpen] = useState(false);
+            const wrapRef = useRef(null);
+
+            useEffect(() => {
+                const handleClickOutside = (e) => {
+                    if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+                };
+                document.addEventListener('mousedown', handleClickOutside);
+                return () => document.removeEventListener('mousedown', handleClickOutside);
+            }, []);
+
+            const toggleOption = (opt) => {
+                onChange(selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt]);
+            };
+
+            const label = selected.length === 0
+                ? placeholder
+                : selected.length === 1
+                    ? selected[0]
+                    : `เลือกแล้ว ${selected.length} รายการ`;
+
+            return (
+                <div className="relative" ref={wrapRef}>
+                    <button type="button" onClick={() => setOpen(o => !o)} className="modern-input py-2 px-3 text-xs text-left flex items-center justify-between gap-2">
+                        <span className={`truncate ${selected.length === 0 ? 'text-slate-400' : 'text-slate-700'}`}>{label}</span>
+                        <i data-lucide="chevron-down" className="w-3.5 h-3.5 text-slate-400 flex-shrink-0"></i>
+                    </button>
+                    {open && (
+                        <div className="absolute z-50 mt-1 w-full min-w-[220px] max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1">
+                            <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 sticky top-0 bg-white">
+                                <button type="button" onClick={() => onChange(options)} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 uppercase">เลือกทั้งหมด</button>
+                                <button type="button" onClick={() => onChange([])} className="text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase">ล้าง</button>
+                            </div>
+                            {options.map(opt => (
+                                <label key={opt} className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 cursor-pointer">
+                                    <input type="checkbox" checked={selected.includes(opt)} onChange={() => toggleOption(opt)} className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-400" />
+                                    <span className="truncate">{opt}</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
         const App = () => {
             const scriptURL = "https://script.google.com/macros/s/AKfycbyHSv_7wt3jlYJQWVlnE5GF06y3tgf-FLcyz6AQDnNoBtIs0PqfCVw5AM_SYlSNxJHYhg/exec";
             
@@ -191,7 +237,7 @@
             const [currentPage, setCurrentPage] = useState(1);
             const itemsPerPage = 50;
 
-            const [filters, setFilters] = useState({ name: '', subDate: '', status: '', pos: '', preScreen: '', intDate: '', intSchedule: '', intResult: '', agency: '' });
+            const [filters, setFilters] = useState({ name: '', subDate: '', status: '', pos: [], preScreen: '', intDate: '', intSchedule: '', intResult: '', agency: '' });
             const [popup, setPopup] = useState(null);
             const [confirmDialog, setConfirmDialog] = useState(null);
             const [isUploading, setIsUploading] = useState(null);
@@ -498,7 +544,7 @@
                     const matchName = fullName.includes(normalize(filters.name));
                     const matchSubDate = !filters.subDate || item.submissionDate === filters.subDate;
                     const matchStatus = !filters.status || item.prescreenStatus === filters.status;
-                    const matchPos = !filters.pos || item.position === filters.pos;
+                    const matchPos = filters.pos.length === 0 || filters.pos.includes(item.position);
                     const matchPreScreen = !filters.preScreen || item.aiSummary === filters.preScreen;
                     const matchIntDate = !filters.intDate || item.interviewDate === filters.intDate;
                     const matchIntSchedule = !filters.intSchedule || (filters.intSchedule === 'scheduled' ? !!item.interviewDate : !item.interviewDate);
@@ -2329,14 +2375,14 @@
                                 
                                 <div className="filter-item"><label className="modern-label">ค้นหาชื่อ</label><input type="text" placeholder="ชื่อ/นามสกุล..." value={filters.name} onChange={e => setFilters({...filters, name: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
                                 <div className="filter-item"><label className="modern-label">สถานะ</label><select value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="Wait Prescreen">Wait Prescreen</option><option value="No Dup">No Dup</option><option value="Dup">Dup</option></select></div>
-                                <div className="filter-item"><label className="modern-label">ตำแหน่ง</label><select value={filters.pos} onChange={e => setFilters({...filters, pos: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option>{positions.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
+                                <div className="filter-item"><label className="modern-label">ตำแหน่ง</label><MultiSelectDropdown options={positions} selected={filters.pos} onChange={vals => setFilters({...filters, pos: vals})} /></div>
                                 
                                 <div className="filter-item"><label className="modern-label">PRESCREEN</label><select value={filters.preScreen} onChange={e => setFilters({...filters, preScreen: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option></select></div>
                                 
                                 <div className="filter-item"><label className="modern-label">วันสัมภาษณ์</label><input type="date" value={filters.intDate} onChange={e => setFilters({...filters, intDate: e.target.value})} className="modern-input py-2 px-3 text-xs" /></div>
                                 <div className="filter-item"><label className="modern-label">นัดหมายสัมภาษณ์</label><select value={filters.intSchedule} onChange={e => setFilters({...filters, intSchedule: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="scheduled">นัดหมายแล้ว</option><option value="unscheduled">ไม่ได้นัดหมาย</option></select></div>
                                 <div className="filter-item"><label className="modern-label">ผลสัมภาษณ์</label><select value={filters.intResult} onChange={e => setFilters({...filters, intResult: e.target.value})} className="modern-input py-2 px-3 text-xs"><option value="">ทั้งหมด</option><option value="รอผล">รอผล</option><option value="ผ่าน">ผ่าน</option><option value="ไม่ผ่าน">ไม่ผ่าน</option><option value="ไม่เข้าสัมภาษณ์">ไม่เข้าสัมภาษณ์</option><option value="อื่นๆ">อื่นๆ</option></select></div>
-                                <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:'', preScreen:'', intDate:'', intSchedule:'', intResult:'', agency:''})} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
+                                <button onClick={() => setFilters({name:'', subDate:'', status:'', pos:[], preScreen:'', intDate:'', intSchedule:'', intResult:'', agency:''})} className="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 h-[38px] px-4 rounded-xl text-[11px] font-bold uppercase transition-colors">Clear</button>
                             </div>
 
                             {currentUserAgency !== 'Admin' && draftList.length > 0 && (
