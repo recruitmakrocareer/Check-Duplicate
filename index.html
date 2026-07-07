@@ -966,6 +966,7 @@
                     "AI Score": item.aiScore ? `${item.aiScore}%` : '',
                     "AI Summary": item.aiSummary || '',
                     "จำนวนวัน Prescreen→สัมภาษณ์": (() => { const p = prescreenToInterview(item); return p && p.scheduled ? p.days : ''; })(),
+                    "จำนวนวันรอนัดสัมภาษณ์": (() => { const p = prescreenToInterview(item); return p && !p.scheduled ? p.days : ''; })(),
                     "วันสัมภาษณ์": item.interviewDate || '',
                     "เวลาสัมภาษณ์": item.interviewTime || '',
                     "รูปแบบสัมภาษณ์": item.interviewMode || '',
